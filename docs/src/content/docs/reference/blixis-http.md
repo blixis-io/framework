@@ -122,6 +122,22 @@ function getMethodGuards(target: object, propertyKey: string | symbol): Class<Ca
 
 `UseGuards` works at the class position (every route) or the method position (one route); class-level guards run first. Guard classes must be registered providers — see [Guards & Authorization](/concepts/guards-and-authorization/#guard-classes-must-be-registered-providers).
 
+## RequestContext
+
+```ts
+class RequestContext {
+  get<T = unknown>(key: string): T | undefined;
+  has(key: string): boolean;
+  set(key: string, value: unknown): void; // throws RequestContextError outside a request
+}
+
+class RequestContextError extends Error {}
+
+function runInRequestContext<T>(fn: () => T): T;
+```
+
+Injectable anywhere without registering it — `createHttpApplication` provides it globally. `runInRequestContext` is what `createHandler` wraps around each request; you only call it yourself if you're building a request-handling pipeline outside `createHandler`. See [Request Context](/concepts/request-context/).
+
 ## Router
 
 ```ts
