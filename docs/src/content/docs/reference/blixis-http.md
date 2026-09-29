@@ -68,6 +68,21 @@ function getHttpCode(target: object, propertyKey: string | symbol): number | und
 
 `prefix`/`path` default to `""`; leading/trailing slashes are normalized away. `HttpCode` overrides the default response status (`200`, or `204` for an `undefined` return) for one method.
 
+## Returns (response validation)
+
+```ts
+function Returns(schema: ZodType): MethodDecorator;
+function getReturnsSchema(target: object, propertyKey: string | symbol): ZodType | undefined;
+
+class ResponseValidationError extends Error {
+  readonly issues: readonly { path: PropertyKey[]; message: string }[];
+}
+
+function validateResponse(schema: ZodType | undefined, value: unknown): Promise<unknown>;
+```
+
+Validates a handler's return value against `schema` before serialization; the parsed/coerced value is what's actually sent. A mismatch throws `ResponseValidationError` (not an `HttpException`), which surfaces to the client as a generic `500` — never the schema issues themselves, since a response mismatch is a server bug, not client input. Skipped entirely for a route returning `undefined` (204) or a raw `Response`. See [Response Validation](/concepts/response-validation/).
+
 ## Param decorators
 
 ```ts
