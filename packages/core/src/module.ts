@@ -1,17 +1,15 @@
-import { defineMetadata, getMetadata, type Class, type Provider } from "@blixis/di";
+import { defineMetadata, getMetadata, type Class, type Provider, type Token } from "@blixis/di";
 
 export interface ModuleMetadata {
   imports?: ModuleRef[];
   providers?: Provider[];
   controllers?: Class[];
+  /** Tokens (from `providers`) visible to modules that directly import this one. Anything not listed here stays private to this module. */
+  exports?: Token[];
+  /** Makes every exported token visible to every module in the graph, without each one needing to import this module directly — for app-wide infra like logging/config. */
+  global?: boolean;
 }
 
-/**
- * The `forRoot()`-style escape hatch: a module class plus extra
- * imports/providers/controllers computed at import time (e.g. from config
- * passed to `DatabaseModule.forRoot(options)`), merged with whatever that
- * class's own `@Module()` declares.
- */
 export interface DynamicModule extends ModuleMetadata {
   module: Class;
 }

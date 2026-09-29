@@ -1,7 +1,7 @@
-import { DuplicateProviderError, Inject, Injectable, InjectionToken } from "@blixis/di";
+import { DuplicateProviderError, Inject, Injectable, InjectionToken, Optional } from "@blixis/di";
 import { describe, expect, it } from "vitest";
 import { createApplication } from "./application.js";
-import { NotAModuleError } from "./errors.js";
+import { NotAModuleError, ProviderNotVisibleError } from "./errors.js";
 import { Module } from "./module.js";
 
 describe("createApplication: flat module", () => {
@@ -211,6 +211,229 @@ describe("createApplication: overrides", () => {
     });
 
     expect(app.get(Service)).toBeInstanceOf(Service);
+  });
+});
+
+describe("createApplication: module encapsulation", () => {
+  it("allows a provider to depend on another provider declared in the same module", async () => {
+    @Injectable()
+    class Repo {}
+
+    @Injectable()
+    class Service {
+      constructor(public repo: Repo) {}
+    }
+
+    @Module({ providers: [Repo, Service] })
+    class FeatureModule {}
+
+    const app = await createApplication(FeatureModule);
+
+    expect(app.get(Service).repo).toBeInstanceOf(Repo);
+  });
+
+  it("allows a provider to depend on a token exported by a directly-imported module", async () => {
+    @Injectable()
+    class Shared {}
+
+    @Module({ providers: [Shared], exports: [Shared] })
+    class SharedModule {}
+
+    @Injectable()
+    class Service {
+      constructor(public shared: Shared) {}
+    }
+
+    @Module({ imports: [SharedModule], providers: [Service] })
+    class FeatureModule {}
+
+    const app = await createApplication(FeatureModule);
+
+    expect(app.get(Service).shared).toBeInstanceOf(Shared);
+  });
+
+  it("blocks a provider from depending on a token from an imported module that isn't exported", async () => {
+    @Injectable()
+    class Private {}
+
+    @Module({ providers: [Private] })
+    class SharedModule {}
+
+    @Injectable()
+    class Service {
+      constructor(public priv: Private) {}
+    }
+
+    @Module({ imports: [SharedModule], providers: [Service] })
+    class FeatureModule {}
+
+    await expect(createApplication(FeatureModule)).rejects.toThrow(ProviderNotVisibleError);
+    await expect(createApplication(FeatureModule)).rejects.toThrow(
+      "Service depends on Private, but that belongs to SharedModule, which doesn't export it.",
+    );
+  });
+
+  it("blocks a token that's only transitively imported (not re-exported by the module in between)", async () => {
+    @Injectable()
+    class Deep {}
+
+    @Module({ providers: [Deep], exports: [Deep] })
+    class DeepModule {}
+
+    // Middle imports DeepModule but does NOT re-export Deep.
+    @Module({ imports: [DeepModule] })
+    class MiddleModule {}
+
+    @Injectable()
+    class Service {
+      constructor(public deep: Deep) {}
+    }
+
+    @Module({ imports: [MiddleModule], providers: [Service] })
+    class FeatureModule {}
+
+    await expect(createApplication(FeatureModule)).rejects.toThrow(ProviderNotVisibleError);
+  });
+
+  it("global modules are visible everywhere without an explicit import", async () => {
+    @Injectable()
+    class Shared {}
+
+    @Module({ providers: [Shared], exports: [Shared], global: true })
+    class GlobalModule {}
+
+    @Injectable()
+    class Service {
+      constructor(public shared: Shared) {}
+    }
+
+    // FeatureModule never imports GlobalModule directly.
+    @Module({ providers: [Service] })
+    class FeatureModule {}
+
+    @Module({ imports: [GlobalModule, FeatureModule] })
+    class AppModule {}
+
+    const app = await createApplication(AppModule);
+
+    expect(app.get(Service).shared).toBeInstanceOf(Shared);
+  });
+
+  it("applies the same rule to a controller's dependencies", async () => {
+    @Injectable()
+    class Private {}
+
+    @Module({ providers: [Private] })
+    class SharedModule {}
+
+    @Injectable()
+    class Ctrl {
+      constructor(public priv: Private) {}
+    }
+
+    @Module({ imports: [SharedModule], controllers: [Ctrl] })
+    class FeatureModule {}
+
+    await expect(createApplication(FeatureModule)).rejects.toThrow(ProviderNotVisibleError);
+  });
+
+  it("checks a factory provider's inject list", async () => {
+    @Injectable()
+    class Private {}
+
+    @Module({ providers: [Private] })
+    class SharedModule {}
+
+    const TOKEN = new InjectionToken<string>("derived");
+
+    @Module({
+      imports: [SharedModule],
+      providers: [{ provide: TOKEN, useFactory: () => "x", inject: [Private] }],
+    })
+    class FeatureModule {}
+
+    await expect(createApplication(FeatureModule)).rejects.toThrow(ProviderNotVisibleError);
+  });
+
+  it("a factory provider with no inject list has nothing to check", async () => {
+    const TOKEN = new InjectionToken<string>("derived");
+
+    @Module({ providers: [{ provide: TOKEN, useFactory: () => "x" }] })
+    class FeatureModule {}
+
+    const app = await createApplication(FeatureModule);
+
+    expect(app.get(TOKEN)).toBe("x");
+  });
+
+  it("names a {provide, useClass} provider by its useClass in the error message", async () => {
+    @Injectable()
+    class Private {}
+
+    @Module({ providers: [Private] })
+    class SharedModule {}
+
+    abstract class Base {}
+    @Injectable()
+    class Impl extends Base {
+      constructor(public priv: Private) {
+        super();
+      }
+    }
+
+    @Module({ imports: [SharedModule], providers: [{ provide: Base, useClass: Impl }] })
+    class FeatureModule {}
+
+    await expect(createApplication(FeatureModule)).rejects.toThrow("Impl depends on Private");
+  });
+
+  it("checks a useExisting provider's alias target", async () => {
+    @Injectable()
+    class Private {}
+
+    @Module({ providers: [Private] })
+    class SharedModule {}
+
+    const ALIAS = new InjectionToken<Private>("alias");
+
+    @Module({ imports: [SharedModule], providers: [{ provide: ALIAS, useExisting: Private }] })
+    class FeatureModule {}
+
+    await expect(createApplication(FeatureModule)).rejects.toThrow(ProviderNotVisibleError);
+  });
+
+  it("an optional dependency on a token that exists but isn't visible still throws — not silently undefined", async () => {
+    @Injectable()
+    class Private {}
+
+    @Module({ providers: [Private] })
+    class SharedModule {}
+
+    @Injectable()
+    class Service {
+      constructor(@Optional() public priv?: Private) {}
+    }
+
+    @Module({ imports: [SharedModule], providers: [Service] })
+    class FeatureModule {}
+
+    await expect(createApplication(FeatureModule)).rejects.toThrow(ProviderNotVisibleError);
+  });
+
+  it("an optional dependency on a token that doesn't exist anywhere still resolves to undefined", async () => {
+    class NeverRegistered {}
+
+    @Injectable()
+    class Service {
+      constructor(@Optional() public missing?: NeverRegistered) {}
+    }
+
+    @Module({ providers: [Service] })
+    class FeatureModule {}
+
+    const app = await createApplication(FeatureModule);
+
+    expect(app.get(Service).missing).toBeUndefined();
   });
 });
 
