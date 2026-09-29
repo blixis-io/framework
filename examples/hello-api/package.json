@@ -12,6 +12,7 @@
     "start": "node dist/main.js"
   },
   "dependencies": {
+    "@blixis/config": "workspace:*",
     "@blixis/core": "workspace:*",
     "@blixis/di": "workspace:*",
     "@blixis/http": "workspace:*",
