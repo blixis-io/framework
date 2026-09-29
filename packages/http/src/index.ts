@@ -6,7 +6,7 @@ export { getClassInterceptors, getMethodInterceptors, UseInterceptors } from "./
 export type { ParamSource } from "./decorators/params.js";
 export { Body, getParamSources, Headers, Param, Query, Req } from "./decorators/params.js";
 export type { RouteDefinition } from "./decorators/routes.js";
-export { Delete, Get, getHttpCode, getRoutes, HttpCode, Patch, Post, Put } from "./decorators/routes.js";
+export { Delete, Get, getHttpCode, getReturnsSchema, getRoutes, HttpCode, Patch, Post, Put, Returns } from "./decorators/routes.js";
 export {
   BadRequestException,
   ConflictException,
@@ -28,6 +28,7 @@ export { sendWebResponse, toWebRequest } from "./node-adapter.js";
 export type { ParamResolutionContext } from "./params.js";
 export { resolveHandlerArgs } from "./params.js";
 export { RequestContext, RequestContextError, runInRequestContext } from "./request-context.js";
+export { ResponseValidationError, validateResponse } from "./response.js";
 export type { RouteFound, RouteLookupResult, RouteMethodNotAllowed, RouteNotFound } from "./router.js";
 export { Router } from "./router.js";
 export { HTTP_METHODS, type HttpMethod } from "./types.js";

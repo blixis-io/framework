@@ -1,10 +1,11 @@
 import type { Application } from "@blixis/core";
 import type { Class } from "@blixis/di";
+import type { ZodType } from "zod";
 import { getControllerPrefix } from "./decorators/controller.js";
 import { getClassGuards, getMethodGuards, type CanActivate } from "./decorators/guards.js";
 import { getClassInterceptors, getMethodInterceptors, type Interceptor } from "./decorators/interceptors.js";
 import { getParamSources, type ParamSource } from "./decorators/params.js";
-import { getHttpCode, getRoutes } from "./decorators/routes.js";
+import { getHttpCode, getReturnsSchema, getRoutes } from "./decorators/routes.js";
 import {
   BadRequestException,
   ForbiddenException,
@@ -14,6 +15,7 @@ import {
 } from "./exceptions.js";
 import { resolveHandlerArgs } from "./params.js";
 import { runInRequestContext } from "./request-context.js";
+import { validateResponse } from "./response.js";
 import { Router } from "./router.js";
 import type { HttpMethod } from "./types.js";
 
@@ -36,6 +38,7 @@ interface RouteEntry {
   propertyKey: string | symbol;
   paramSources: ReadonlyMap<number, ParamSource>;
   httpCode?: number | undefined;
+  responseSchema?: ZodType | undefined;
   guards: Class<CanActivate>[];
   interceptors: Class<Interceptor>[];
 }
@@ -65,6 +68,7 @@ export function buildRouter(controllers: readonly Class[]): Router<RouteEntry> {
         propertyKey: route.propertyKey,
         paramSources: getParamSources(prototype, route.propertyKey),
         httpCode: getHttpCode(prototype, route.propertyKey),
+        responseSchema: getReturnsSchema(prototype, route.propertyKey),
         guards: [...classGuards, ...getMethodGuards(prototype, route.propertyKey)],
         interceptors: [...classInterceptors, ...getMethodInterceptors(prototype, route.propertyKey)],
       });
@@ -136,14 +140,20 @@ function exceptionToResponse(error: unknown): Response {
   return problemResponse(500, "An unexpected error occurred");
 }
 
-function toResponse(value: unknown, httpCode?: number): Response {
+/**
+ * A raw `Response` or an `undefined` (204) return bypasses `responseSchema`
+ * entirely — both are deliberate escape hatches from the normal JSON path,
+ * not a value the schema was ever meant to describe.
+ */
+async function toResponse(value: unknown, httpCode: number | undefined, responseSchema: ZodType | undefined): Promise<Response> {
   if (value instanceof Response) {
     return value;
   }
   if (value === undefined) {
     return new Response(null, { status: httpCode ?? 204 });
   }
-  return new Response(JSON.stringify(value), {
+  const validated = await validateResponse(responseSchema, value);
+  return new Response(JSON.stringify(validated), {
     status: httpCode ?? 200,
     headers: { "content-type": "application/json" },
   });
@@ -199,7 +209,7 @@ export function createHandler(
           const instance = application.get(route.controller) as Record<PropertyKey, (...args: unknown[]) => unknown>;
           const result: unknown = await instance[route.propertyKey]?.(...args);
 
-          return toResponse(result, route.httpCode);
+          return toResponse(result, route.httpCode, route.responseSchema);
         };
 
         // Class-level interceptors wrap outermost, method-level innermost —
