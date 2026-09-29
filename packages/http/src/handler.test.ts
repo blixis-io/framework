@@ -7,6 +7,8 @@ import { Body, Param, Query } from "./decorators/params.js";
 import { Delete, Get, HttpCode, Post } from "./decorators/routes.js";
 import type { CanActivate, ExecutionContext } from "./decorators/guards.js";
 import { UseGuards } from "./decorators/guards.js";
+import type { Interceptor } from "./decorators/interceptors.js";
+import { UseInterceptors } from "./decorators/interceptors.js";
 import { HttpException, NotFoundException } from "./exceptions.js";
 import { createHandler, NotAControllerError } from "./handler.js";
 
@@ -426,5 +428,143 @@ describe("createHandler: guards", () => {
 
     expect(contexts).toHaveLength(1);
     expect(contexts[0]?.params).toEqual({ id: "7" });
+  });
+});
+
+describe("createHandler: interceptors", () => {
+  let calls: string[];
+
+  beforeEach(() => {
+    calls = [];
+  });
+
+  class OuterInterceptor implements Interceptor {
+    async intercept(_context: ExecutionContext, next: () => Promise<Response>): Promise<Response> {
+      calls.push("outer:before");
+      const res = await next();
+      calls.push("outer:after");
+      return res;
+    }
+  }
+
+  class InnerInterceptor implements Interceptor {
+    async intercept(_context: ExecutionContext, next: () => Promise<Response>): Promise<Response> {
+      calls.push("inner:before");
+      const res = await next();
+      calls.push("inner:after");
+      return res;
+    }
+  }
+
+  it("calls through to the handler when there are no interceptors", async () => {
+    const handle = await buildHandler();
+
+    const res = await handle(new Request("http://localhost/posts/1"));
+
+    expect(res.status).toBe(200);
+  });
+
+  it("runs class-level interceptors outermost and method-level innermost, onion-style", async () => {
+    @UseInterceptors(OuterInterceptor)
+    @Controller("wrapped")
+    class WrappedController {
+      @UseInterceptors(InnerInterceptor)
+      @Get()
+      ok() {
+        calls.push("handler");
+        return { ok: true };
+      }
+    }
+
+    const handle = await buildHandler([OuterInterceptor, InnerInterceptor], [WrappedController]);
+    const res = await handle(new Request("http://localhost/wrapped"));
+
+    expect(res.status).toBe(200);
+    expect(calls).toEqual(["outer:before", "inner:before", "handler", "inner:after", "outer:after"]);
+  });
+
+  it("can transform the response returned by the handler", async () => {
+    class HeaderInterceptor implements Interceptor {
+      async intercept(_context: ExecutionContext, next: () => Promise<Response>): Promise<Response> {
+        const res = await next();
+        res.headers.set("x-intercepted", "true");
+        return res;
+      }
+    }
+
+    @UseInterceptors(HeaderInterceptor)
+    @Controller("tagged")
+    class TaggedController {
+      @Get()
+      ok() {
+        return { ok: true };
+      }
+    }
+
+    const handle = await buildHandler([HeaderInterceptor], [TaggedController]);
+    const res = await handle(new Request("http://localhost/tagged"));
+
+    expect(res.headers.get("x-intercepted")).toBe("true");
+  });
+
+  it("lets an interceptor observe and rethrow an error from next()", async () => {
+    let observed: unknown;
+
+    class ObservingInterceptor implements Interceptor {
+      async intercept(_context: ExecutionContext, next: () => Promise<Response>): Promise<Response> {
+        try {
+          return await next();
+        } catch (error) {
+          observed = error;
+          throw error;
+        }
+      }
+    }
+
+    @UseInterceptors(ObservingInterceptor)
+    @Controller("watched")
+    class WatchedController {
+      @Get()
+      boom(): never {
+        throw new NotFoundException("watched not found");
+      }
+    }
+
+    const handle = await buildHandler([ObservingInterceptor], [WatchedController]);
+    const res = await handle(new Request("http://localhost/watched"));
+
+    expect(res.status).toBe(404);
+    expect(observed).toBeInstanceOf(NotFoundException);
+  });
+
+  it("guards still run before interceptors and can deny the request first", async () => {
+    class DenyGuard implements CanActivate {
+      canActivate(): boolean {
+        return false;
+      }
+    }
+
+    class NeverCalledInterceptor implements Interceptor {
+      async intercept(_context: ExecutionContext, next: () => Promise<Response>): Promise<Response> {
+        calls.push("should not run");
+        return next();
+      }
+    }
+
+    @UseGuards(DenyGuard)
+    @UseInterceptors(NeverCalledInterceptor)
+    @Controller("blocked")
+    class BlockedController {
+      @Get()
+      ok() {
+        return { ok: true };
+      }
+    }
+
+    const handle = await buildHandler([DenyGuard, NeverCalledInterceptor], [BlockedController]);
+    const res = await handle(new Request("http://localhost/blocked"));
+
+    expect(res.status).toBe(403);
+    expect(calls).toEqual([]);
   });
 });

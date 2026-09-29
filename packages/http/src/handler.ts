@@ -2,6 +2,7 @@ import type { Application } from "@blixis/core";
 import type { Class } from "@blixis/di";
 import { getControllerPrefix } from "./decorators/controller.js";
 import { getClassGuards, getMethodGuards, type CanActivate } from "./decorators/guards.js";
+import { getClassInterceptors, getMethodInterceptors, type Interceptor } from "./decorators/interceptors.js";
 import { getParamSources, type ParamSource } from "./decorators/params.js";
 import { getHttpCode, getRoutes } from "./decorators/routes.js";
 import {
@@ -36,6 +37,7 @@ interface RouteEntry {
   paramSources: ReadonlyMap<number, ParamSource>;
   httpCode?: number | undefined;
   guards: Class<CanActivate>[];
+  interceptors: Class<Interceptor>[];
 }
 
 /**
@@ -55,6 +57,7 @@ export function buildRouter(controllers: readonly Class[]): Router<RouteEntry> {
 
     const prototype = controller.prototype as object;
     const classGuards = getClassGuards(controller);
+    const classInterceptors = getClassInterceptors(controller);
 
     for (const route of getRoutes(controller)) {
       router.add(route.method, `/${prefix}/${route.path}`, {
@@ -63,6 +66,7 @@ export function buildRouter(controllers: readonly Class[]): Router<RouteEntry> {
         paramSources: getParamSources(prototype, route.propertyKey),
         httpCode: getHttpCode(prototype, route.propertyKey),
         guards: [...classGuards, ...getMethodGuards(prototype, route.propertyKey)],
+        interceptors: [...classInterceptors, ...getMethodInterceptors(prototype, route.propertyKey)],
       });
     }
   }
@@ -181,20 +185,31 @@ export function createHandler(
           }
         }
 
-        let cachedBody: { value: unknown } | undefined;
-        const args = await resolveHandlerArgs(route.paramSources, {
-          request,
-          routeParams: match.params,
-          getBody: async () => {
-            cachedBody ??= { value: await readJsonBody(request, bodyLimit) };
-            return cachedBody.value;
-          },
-        });
+        const invoke = async (): Promise<Response> => {
+          let cachedBody: { value: unknown } | undefined;
+          const args = await resolveHandlerArgs(route.paramSources, {
+            request,
+            routeParams: match.params,
+            getBody: async () => {
+              cachedBody ??= { value: await readJsonBody(request, bodyLimit) };
+              return cachedBody.value;
+            },
+          });
 
-        const instance = application.get(route.controller) as Record<PropertyKey, (...args: unknown[]) => unknown>;
-        const result: unknown = await instance[route.propertyKey]?.(...args);
+          const instance = application.get(route.controller) as Record<PropertyKey, (...args: unknown[]) => unknown>;
+          const result: unknown = await instance[route.propertyKey]?.(...args);
 
-        return toResponse(result, route.httpCode);
+          return toResponse(result, route.httpCode);
+        };
+
+        // Class-level interceptors wrap outermost, method-level innermost —
+        // built right-to-left so the first entry ends up as the outer call.
+        const pipeline = route.interceptors.reduceRight<() => Promise<Response>>((next, interceptorClass) => {
+          const interceptor = application.get(interceptorClass);
+          return async () => interceptor.intercept({ request, params: match.params }, next);
+        }, invoke);
+
+        return await pipeline();
       } catch (error) {
         return exceptionToResponse(error);
       }

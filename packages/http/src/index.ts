@@ -1,6 +1,8 @@
 export { Controller, getControllerPrefix } from "./decorators/controller.js";
 export type { CanActivate, ExecutionContext } from "./decorators/guards.js";
 export { getClassGuards, getMethodGuards, UseGuards } from "./decorators/guards.js";
+export type { Interceptor } from "./decorators/interceptors.js";
+export { getClassInterceptors, getMethodInterceptors, UseInterceptors } from "./decorators/interceptors.js";
 export type { ParamSource } from "./decorators/params.js";
 export { Body, getParamSources, Headers, Param, Query, Req } from "./decorators/params.js";
 export type { RouteDefinition } from "./decorators/routes.js";
