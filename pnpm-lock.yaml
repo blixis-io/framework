@@ -54,6 +54,9 @@ importers:
 
   examples/hello-api:
     dependencies:
+      '@blixis/config':
+        specifier: workspace:*
+        version: link:../../packages/config
       '@blixis/core':
         specifier: workspace:*
         version: link:../../packages/core
@@ -73,6 +76,18 @@ importers:
       '@blixis/testing':
         specifier: workspace:*
         version: link:../../packages/testing
+
+  packages/config:
+    dependencies:
+      '@blixis/core':
+        specifier: workspace:*
+        version: link:../core
+      '@blixis/di':
+        specifier: workspace:*
+        version: link:../di
+      zod:
+        specifier: ^4.6.5
+        version: 4.6.5
 
   packages/core:
     dependencies:
