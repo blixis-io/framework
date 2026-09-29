@@ -31,6 +31,7 @@ export function createProjectConfig(name: string, config: UserProjectConfigExpor
           blixisAlias("http"),
           blixisAlias("testing"),
           blixisAlias("logging"),
+          blixisAlias("config"),
         ],
       },
       test: {
