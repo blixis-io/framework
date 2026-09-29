@@ -17,6 +17,7 @@ examples/hello-api/src/
     posts.controller.ts
     posts.module.ts
     api-key.guard.ts
+    timing.interceptor.ts
     posts.e2e.test.ts
 ```
 
@@ -32,15 +33,18 @@ export type CreatePostInput = z.infer<typeof CreatePostSchema>;
 export const UpdatePostSchema = CreatePostSchema.partial();
 export type UpdatePostInput = z.infer<typeof UpdatePostSchema>;
 
-export interface Post {
-  id: string;
-  title: string;
-  body: string;
-  createdAt: string;
-}
+export const PostSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  body: z.string(),
+  createdAt: z.string(),
+});
+export type Post = z.infer<typeof PostSchema>;
+
+export const PostListSchema = z.array(PostSchema);
 ```
 
-The schema/type pair covered in [Validating Request Bodies with Zod](/guides/validating-request-bodies/). `Post` — the stored, already-valid shape — is a plain interface, not something derived from a schema, since nothing external ever sends the server a `Post`.
+The request-side schema/type pair covered in [Validating Request Bodies with Zod](/guides/validating-request-bodies/). `PostSchema` is the same convention applied to the *response* side — `posts.controller.ts` declares it via `@Returns`, so every route's actual output is checked against it on every request, not just assumed correct because `PostsService` is trusted. `PostListSchema` is just `z.array(PostSchema)`, used by the one route (`list`) that returns more than one.
 
 ## `posts/posts.service.ts`
 
@@ -98,6 +102,8 @@ Applied class-level (`@UseInterceptors(TimingInterceptor)` on `PostsController`,
 ## `posts/posts.controller.ts`
 
 Full CRUD, all five HTTP method decorators in one controller. The one route with `@UseGuards` is `remove` (`DELETE /posts/:id`) — reads and the create/update routes are open, only deletion requires the API key. `create` overrides its status to `201` with `@HttpCode`; `remove` returns `undefined`, mapped to `204 No Content`. `@UseInterceptors(TimingInterceptor)` sits at the class level, above `@Controller`, so it wraps every route — guards still run first and can deny a request before the interceptor ever sees it.
+
+`list`, `get`, `create`, and `update` each carry `@Returns` (`PostListSchema` for `list`, `PostSchema` for the other three) — `remove` doesn't, since it always returns `undefined` and `@Returns` has nothing to check there. See [Response Validation](/concepts/response-validation/).
 
 ## `posts/posts.module.ts`
 
