@@ -14,7 +14,13 @@ export function defineConfigModule<Schema extends ZodType>(schema: Schema) {
 
   @Module()
   class ConfigModule {
-    /** Validates `source` (default: `process.env`) against the schema immediately, providing the parsed result under `CONFIG`. Throws `ConfigValidationError` right away on failure — not deferred to first injection. */
+    /**
+     * Validates `source` (default: `process.env`) against the schema
+     * immediately, providing the parsed result under `CONFIG`. Throws
+     * `ConfigValidationError` right away on failure — not deferred to first
+     * injection. `global: true` so every module can inject config without
+     * also having to import `ConfigModule` itself.
+     */
     static forRoot(source: Record<string, string | undefined> = process.env): DynamicModule {
       const result = schema.safeParse(source);
       if (!result.success) {
@@ -23,6 +29,8 @@ export function defineConfigModule<Schema extends ZodType>(schema: Schema) {
       return {
         module: ConfigModule,
         providers: [{ provide: CONFIG, useValue: result.data }],
+        exports: [CONFIG],
+        global: true,
       };
     }
   }
