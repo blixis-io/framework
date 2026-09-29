@@ -1,0 +1,37 @@
+---
+title: Blixis Framework
+description: An API-first CMS framework with its own dependency injection container, decorators, and HTTP layer.
+template: splash
+hero:
+  tagline: Dependency injection, decorators, and an HTTP layer you actually understand — built from scratch, not bolted onto one.
+  actions:
+    - text: Quickstart
+      link: /start-here/quickstart/
+      icon: right-arrow
+      variant: primary
+    - text: View on GitHub
+      link: /start-here/introduction/
+      icon: external
+      variant: minimal
+---
+
+import { Card, CardGrid } from "@astrojs/starlight/components";
+
+<CardGrid stagger>
+	<Card title="Quickstart" icon="rocket">
+		Go from an empty directory to a running API in under five minutes.
+		[Get started →](/start-here/quickstart/)
+	</Card>
+	<Card title="Tutorials" icon="open-book">
+		Build a real blog API, add authentication, and learn the TDD workflow
+		this framework was built with. [Start learning →](/tutorials/build-your-first-api/)
+	</Card>
+	<Card title="Core Concepts" icon="puzzle">
+		Understand the dependency injection container, decorators, modules, and
+		the HTTP layer that sit under everything. [Read the concepts →](/concepts/dependency-injection/)
+	</Card>
+	<Card title="API Reference" icon="document">
+		Every exported class, function, and type across `@blixis/di`,
+		`@blixis/core`, `@blixis/http`, and `@blixis/testing`. [Browse the reference →](/reference/blixis-di/)
+	</Card>
+</CardGrid>
