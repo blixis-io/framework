@@ -122,6 +122,20 @@ function getMethodGuards(target: object, propertyKey: string | symbol): Class<Ca
 
 `UseGuards` works at the class position (every route) or the method position (one route); class-level guards run first. Guard classes must be registered providers — see [Guards & Authorization](/concepts/guards-and-authorization/#guard-classes-must-be-registered-providers).
 
+## Interceptors
+
+```ts
+interface Interceptor {
+  intercept(context: ExecutionContext, next: () => Promise<Response>): Response | Promise<Response>;
+}
+
+function UseInterceptors(...interceptors: Class<Interceptor>[]): ClassDecorator & MethodDecorator;
+function getClassInterceptors(target: object): Class<Interceptor>[];
+function getMethodInterceptors(target: object, propertyKey: string | symbol): Class<Interceptor>[];
+```
+
+Wraps param resolution + handler invocation in an onion chain, running after guards. `UseInterceptors` works at the class position (outermost) or the method position (innermost); an interceptor class must be a registered provider, same rule as guards. See [Interceptors](/concepts/interceptors/).
+
 ## RequestContext
 
 ```ts
