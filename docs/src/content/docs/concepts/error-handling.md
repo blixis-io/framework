@@ -65,7 +65,7 @@ You don't have to throw these yourself for the framework's own failure modes —
 
 ## Uncaught errors → 500, and the message is hidden
 
-Anything thrown that *isn't* an `HttpException` — a real bug, a database connection failure, whatever — becomes a `500` with a generic `detail: "An unexpected error occurred"`. The actual error, including its message and stack, is logged via `console.error` server-side, but **never sent to the client**. This is deliberate: an `HttpException` is an intentional, safe-to-show message; anything else might contain internal details you don't want leaking into a response body.
+Anything thrown that *isn't* an `HttpException` — a real bug, a database connection failure, a `@Returns` schema mismatch, whatever — becomes a `500` with a generic `detail: "An unexpected error occurred"`. The actual error, including its message and stack, is logged via `console.error` server-side, but **never sent to the client**. This is deliberate: an `HttpException` is an intentional, safe-to-show message; anything else might contain internal details you don't want leaking into a response body — including a `ResponseValidationError`'s Zod issues, which would otherwise reveal your app's internal response shape to whoever's calling it. See [Response Validation](/concepts/response-validation/) for why that one specifically is never an `HttpException`.
 
 ## Return values that aren't errors
 

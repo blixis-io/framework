@@ -80,6 +80,7 @@ The body limit is configurable — see [Configuring Body Size Limits](/guides/co
 
 ## Next
 
+- The same schema-validation idea, applied to what a route sends back: [Response Validation](/concepts/response-validation/).
 - What happens when a route needs to reject a request before validation even runs: [Guards & Authorization](/concepts/guards-and-authorization/).
 - The exact shape of every error response: [Error Handling](/concepts/error-handling/).
 - A worked example: [Validating Request Bodies with Zod](/guides/validating-request-bodies/).
