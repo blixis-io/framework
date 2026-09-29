@@ -12,6 +12,7 @@ import {
   UnsupportedMediaTypeException,
 } from "./exceptions.js";
 import { resolveHandlerArgs } from "./params.js";
+import { runInRequestContext } from "./request-context.js";
 import { Router } from "./router.js";
 import type { HttpMethod } from "./types.js";
 
@@ -168,33 +169,35 @@ export function createHandler(
 
     const route = match.handler;
 
-    try {
-      // Sequential and short-circuiting on purpose: a later guard must not
-      // run once an earlier one has already denied the request.
-      for (const guardClass of route.guards) {
-        const guard = application.get(guardClass);
-        const allowed = await guard.canActivate({ request, params: match.params });
-        if (!allowed) {
-          throw new ForbiddenException();
+    return runInRequestContext(async () => {
+      try {
+        // Sequential and short-circuiting on purpose: a later guard must not
+        // run once an earlier one has already denied the request.
+        for (const guardClass of route.guards) {
+          const guard = application.get(guardClass);
+          const allowed = await guard.canActivate({ request, params: match.params });
+          if (!allowed) {
+            throw new ForbiddenException();
+          }
         }
+
+        let cachedBody: { value: unknown } | undefined;
+        const args = await resolveHandlerArgs(route.paramSources, {
+          request,
+          routeParams: match.params,
+          getBody: async () => {
+            cachedBody ??= { value: await readJsonBody(request, bodyLimit) };
+            return cachedBody.value;
+          },
+        });
+
+        const instance = application.get(route.controller) as Record<PropertyKey, (...args: unknown[]) => unknown>;
+        const result: unknown = await instance[route.propertyKey]?.(...args);
+
+        return toResponse(result, route.httpCode);
+      } catch (error) {
+        return exceptionToResponse(error);
       }
-
-      let cachedBody: { value: unknown } | undefined;
-      const args = await resolveHandlerArgs(route.paramSources, {
-        request,
-        routeParams: match.params,
-        getBody: async () => {
-          cachedBody ??= { value: await readJsonBody(request, bodyLimit) };
-          return cachedBody.value;
-        },
-      });
-
-      const instance = application.get(route.controller) as Record<PropertyKey, (...args: unknown[]) => unknown>;
-      const result: unknown = await instance[route.propertyKey]?.(...args);
-
-      return toResponse(result, route.httpCode);
-    } catch (error) {
-      return exceptionToResponse(error);
-    }
+    });
   };
 }

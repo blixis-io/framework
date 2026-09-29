@@ -23,6 +23,7 @@
         "**/dependencies.ts",
         "**/handler.ts",
         "**/params.ts",
+        "**/request-context.ts",
         "**/router.ts",
         "**/handler.test.ts",
         "**/node-adapter.test.ts",
