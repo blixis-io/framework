@@ -25,6 +25,7 @@ export {
 export { sendWebResponse, toWebRequest } from "./node-adapter.js";
 export type { ParamResolutionContext } from "./params.js";
 export { resolveHandlerArgs } from "./params.js";
+export { RequestContext, RequestContextError, runInRequestContext } from "./request-context.js";
 export type { RouteFound, RouteLookupResult, RouteMethodNotAllowed, RouteNotFound } from "./router.js";
 export { Router } from "./router.js";
 export { HTTP_METHODS, type HttpMethod } from "./types.js";

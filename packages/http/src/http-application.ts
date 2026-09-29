@@ -1,10 +1,19 @@
-import { createApplication, type Application, type CreateApplicationOptions, type ModuleRef } from "@blixis/core";
+import { createApplication, Module, type Application, type CreateApplicationOptions, type ModuleRef } from "@blixis/core";
 import type { Token } from "@blixis/di";
 import { createServer, type Server } from "node:http";
 import { createHandler, type HandlerOptions } from "./handler.js";
 import { sendWebResponse, toWebRequest } from "./node-adapter.js";
+import { RequestContext } from "./request-context.js";
 
 export type HttpApplicationOptions = HandlerOptions & CreateApplicationOptions;
+
+/** Provides `RequestContext` app-wide, without the user needing to import anything — every `createHttpApplication` root gets wrapped with this. */
+@Module({ providers: [RequestContext], exports: [RequestContext], global: true })
+class RequestContextModule {}
+
+/** Empty static anchor for the synthetic root — its own metadata is unused, only `imports` matters. */
+@Module()
+class HttpRootModule {}
 
 export interface ListenHandle {
   port: number;
@@ -22,7 +31,8 @@ export class HttpApplication {
   }
 
   static async create(rootModule: ModuleRef, options: HttpApplicationOptions = {}): Promise<HttpApplication> {
-    const app = await createApplication(rootModule, { overrides: options.overrides });
+    const wrappedRoot = { module: HttpRootModule, imports: [rootModule, RequestContextModule] };
+    const app = await createApplication(wrappedRoot, { overrides: options.overrides });
     const handle = createHandler(app.controllers, app, options);
     return new HttpApplication(app, handle);
   }

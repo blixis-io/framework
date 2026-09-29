@@ -3,9 +3,12 @@ import { Injectable } from "@blixis/di";
 import { request as httpRequest } from "node:http";
 import { describe, expect, it } from "vitest";
 import { Controller } from "./decorators/controller.js";
+import type { CanActivate, ExecutionContext } from "./decorators/guards.js";
+import { UseGuards } from "./decorators/guards.js";
 import { Body, Param, Req } from "./decorators/params.js";
 import { Get, Post } from "./decorators/routes.js";
 import { createHttpApplication } from "./http-application.js";
+import { RequestContext } from "./request-context.js";
 
 @Injectable()
 class GreetingService {
@@ -178,6 +181,115 @@ describe("createHttpApplication: real socket", () => {
     } finally {
       await first.close();
       await second.close();
+    }
+  });
+});
+
+describe("createHttpApplication: RequestContext", () => {
+  it("injects RequestContext into a controller without it being declared in any module's providers", async () => {
+    @Controller("whoami")
+    class WhoAmIController {
+      constructor(private readonly ctx: RequestContext) {}
+
+      @Get()
+      whoami() {
+        return { user: this.ctx.get("user") ?? null };
+      }
+    }
+
+    @Module({ controllers: [WhoAmIController] })
+    class WhoAmIModule {}
+
+    const app = await createHttpApplication(WhoAmIModule);
+
+    const res = await app.handle(new Request("http://localhost/whoami"));
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ user: null });
+
+    await app.close();
+  });
+
+  it("carries a value a guard sets through to the controller handling the same request", async () => {
+    @Injectable()
+    class AuthGuard implements CanActivate {
+      constructor(private readonly ctx: RequestContext) {}
+
+      canActivate(_context: ExecutionContext): boolean {
+        this.ctx.set("user", { id: 7, name: "ada" });
+        return true;
+      }
+    }
+
+    @Controller("me")
+    @UseGuards(AuthGuard)
+    class MeController {
+      constructor(private readonly ctx: RequestContext) {}
+
+      @Get()
+      me() {
+        return this.ctx.get("user");
+      }
+    }
+
+    @Module({ providers: [AuthGuard], controllers: [MeController] })
+    class MeModule {}
+
+    const app = await createHttpApplication(MeModule);
+
+    const res = await app.handle(new Request("http://localhost/me"));
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ id: 7, name: "ada" });
+
+    await app.close();
+  });
+
+  it("keeps concurrent real HTTP requests fully isolated from each other's context", async () => {
+    @Injectable()
+    class TagGuard implements CanActivate {
+      constructor(private readonly ctx: RequestContext) {}
+
+      async canActivate({ request }: ExecutionContext): Promise<boolean> {
+        const tag = new URL(request.url).searchParams.get("tag");
+        // Yield before writing so two concurrent requests genuinely
+        // interleave instead of finishing one before the other starts.
+        await new Promise((resolve) => setTimeout(resolve, tag === "slow" ? 20 : 0));
+        this.ctx.set("tag", tag);
+        return true;
+      }
+    }
+
+    @Controller("tag")
+    @UseGuards(TagGuard)
+    class TagController {
+      constructor(private readonly ctx: RequestContext) {}
+
+      @Get()
+      async tag() {
+        // Also yield here so a leak from the other request-in-flight would
+        // have a chance to clobber this one before the response is built.
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        return { tag: this.ctx.get("tag") };
+      }
+    }
+
+    @Module({ providers: [TagGuard], controllers: [TagController] })
+    class TagModule {}
+
+    const app = await createHttpApplication(TagModule);
+    const { port } = await app.listen(0, "127.0.0.1");
+
+    try {
+      const [slow, fast] = await Promise.all([
+        fetch(`http://127.0.0.1:${port}/tag?tag=slow`),
+        fetch(`http://127.0.0.1:${port}/tag?tag=fast`),
+      ]);
+
+      expect(await slow.json()).toEqual({ tag: "slow" });
+      expect(await fast.json()).toEqual({ tag: "fast" });
+    } finally {
+      await app.close();
     }
   });
 });
