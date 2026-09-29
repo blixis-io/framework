@@ -4,7 +4,7 @@ import { z } from "zod";
 import { beforeEach, describe, expect, it } from "vitest";
 import { Controller } from "./decorators/controller.js";
 import { Body, Param, Query } from "./decorators/params.js";
-import { Delete, Get, HttpCode, Post } from "./decorators/routes.js";
+import { Delete, Get, HttpCode, Post, Returns } from "./decorators/routes.js";
 import type { CanActivate, ExecutionContext } from "./decorators/guards.js";
 import { UseGuards } from "./decorators/guards.js";
 import type { Interceptor } from "./decorators/interceptors.js";
@@ -566,5 +566,102 @@ describe("createHandler: interceptors", () => {
 
     expect(res.status).toBe(403);
     expect(calls).toEqual([]);
+  });
+});
+
+describe("createHandler: @Returns response validation", () => {
+  const ItemSchema = z.object({ id: z.string(), count: z.coerce.number() });
+
+  it("passes through a value that matches the declared schema", async () => {
+    @Controller("valid")
+    class ValidController {
+      @Get()
+      @Returns(ItemSchema)
+      ok() {
+        return { id: "1", count: 2 };
+      }
+    }
+
+    const handle = await buildHandler([], [ValidController]);
+    const res = await handle(new Request("http://localhost/valid"));
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ id: "1", count: 2 });
+  });
+
+  it("sends the parsed/coerced value, not the raw handler return value", async () => {
+    @Controller("coerced")
+    class CoercedController {
+      @Get()
+      @Returns(ItemSchema)
+      ok() {
+        return { id: "1", count: "2" };
+      }
+    }
+
+    const handle = await buildHandler([], [CoercedController]);
+    const res = await handle(new Request("http://localhost/coerced"));
+
+    expect(await res.json()).toEqual({ id: "1", count: 2 });
+  });
+
+  it("returns a generic 500 (not schema issues) when the handler's return value fails its declared schema", async () => {
+    @Controller("broken")
+    class BrokenController {
+      @Get()
+      @Returns(ItemSchema)
+      ok() {
+        return { id: "1" }; // missing "count"
+      }
+    }
+
+    const handle = await buildHandler([], [BrokenController]);
+    const res = await handle(new Request("http://localhost/broken"));
+
+    expect(res.status).toBe(500);
+    const problem = (await res.json()) as { detail: string };
+    expect(problem.detail).toBe("An unexpected error occurred");
+    expect(JSON.stringify(problem)).not.toContain("count");
+  });
+
+  it("skips validation for a route returning undefined (204), even with @Returns declared", async () => {
+    @Controller("empty")
+    class EmptyController {
+      @Delete()
+      @Returns(ItemSchema)
+      remove(): undefined {
+        return undefined;
+      }
+    }
+
+    const handle = await buildHandler([], [EmptyController]);
+    const res = await handle(new Request("http://localhost/empty", { method: "DELETE" }));
+
+    expect(res.status).toBe(204);
+  });
+
+  it("skips validation for a route returning a raw Response, even with @Returns declared", async () => {
+    @Controller("raw-returns")
+    class RawController {
+      @Get()
+      @Returns(ItemSchema)
+      ok() {
+        return new Response("not json", { status: 200, headers: { "content-type": "text/plain" } });
+      }
+    }
+
+    const handle = await buildHandler([], [RawController]);
+    const res = await handle(new Request("http://localhost/raw-returns"));
+
+    expect(res.status).toBe(200);
+    expect(await res.text()).toBe("not json");
+  });
+
+  it("a route without @Returns is unvalidated, exactly as before", async () => {
+    const handle = await buildHandler();
+
+    const res = await handle(new Request("http://localhost/posts/1"));
+
+    expect(res.status).toBe(200);
   });
 });

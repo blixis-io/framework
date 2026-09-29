@@ -1,4 +1,5 @@
 import { defineMetadata, getMetadata } from "@blixis/di";
+import type { ZodType } from "zod";
 import type { HttpMethod } from "../types.js";
 
 export interface RouteDefinition {
@@ -9,6 +10,7 @@ export interface RouteDefinition {
 
 const ROUTES = Symbol("blixis:routes");
 const HTTP_CODE = Symbol("blixis:http-code");
+const RETURNS = Symbol("blixis:returns");
 
 function routeDecorator(method: HttpMethod, path: string): MethodDecorator {
   return (target, propertyKey) => {
@@ -38,4 +40,20 @@ export function HttpCode(code: number): MethodDecorator {
 
 export function getHttpCode(target: object, propertyKey: string | symbol): number | undefined {
   return getMetadata(HTTP_CODE, target, propertyKey);
+}
+
+/**
+ * Declares the response body's shape for one route. Validated after the
+ * handler returns, before serialization — a mismatch is a server bug (the
+ * implementation drifted from its own declared contract), not a client
+ * error, so it never reaches the client as anything but a generic 500.
+ */
+export function Returns(schema: ZodType): MethodDecorator {
+  return (target, propertyKey) => {
+    defineMetadata(RETURNS, schema, target, propertyKey);
+  };
+}
+
+export function getReturnsSchema(target: object, propertyKey: string | symbol): ZodType | undefined {
+  return getMetadata(RETURNS, target, propertyKey);
 }

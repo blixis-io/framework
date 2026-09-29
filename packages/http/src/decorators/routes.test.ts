@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { Delete, Get, getHttpCode, getRoutes, HttpCode, Patch, Post, Put } from "./routes.js";
+import { z } from "zod";
+import { Delete, Get, getHttpCode, getReturnsSchema, getRoutes, HttpCode, Patch, Post, Put, Returns } from "./routes.js";
 
 describe("route method decorators", () => {
   it("records one route entry per decorated method, defaulting the path to empty", () => {
@@ -63,5 +64,28 @@ describe("@HttpCode", () => {
     }
 
     expect(getHttpCode(Controller.prototype, "list")).toBeUndefined();
+  });
+});
+
+describe("@Returns", () => {
+  it("records a per-method response schema", () => {
+    const PostSchema = z.object({ id: z.string() });
+
+    class Controller {
+      @Get()
+      @Returns(PostSchema)
+      get(): void {}
+    }
+
+    expect(getReturnsSchema(Controller.prototype, "get")).toBe(PostSchema);
+  });
+
+  it("a method without @Returns has no schema recorded", () => {
+    class Controller {
+      @Get()
+      list(): void {}
+    }
+
+    expect(getReturnsSchema(Controller.prototype, "list")).toBeUndefined();
   });
 });
