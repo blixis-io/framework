@@ -15,6 +15,7 @@
     "@blixis/core": "workspace:*",
     "@blixis/di": "workspace:*",
     "@blixis/http": "workspace:*",
+    "@blixis/logging": "workspace:*",
     "zod": "^4.6.5"
   },
   "devDependencies": {
