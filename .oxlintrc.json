@@ -25,6 +25,7 @@
         "**/router.ts",
         "**/handler.test.ts",
         "**/node-adapter.test.ts",
+        "**/transports/console.test.ts",
         "**/*.e2e.test.ts"
       ],
       "rules": {
