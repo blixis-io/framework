@@ -95,6 +95,15 @@ importers:
         specifier: ^4.6.5
         version: 4.6.5
 
+  packages/logging:
+    dependencies:
+      '@blixis/core':
+        specifier: workspace:*
+        version: link:../core
+      '@blixis/di':
+        specifier: workspace:*
+        version: link:../di
+
   packages/testing:
     dependencies:
       '@blixis/core':
