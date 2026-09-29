@@ -4,6 +4,7 @@
 import "reflect-metadata";
 
 export { Container } from "./container.js";
+export { getDependencyTokens, type DependencyDescriptor } from "./dependencies.js";
 export {
   getInjectableOptions,
   getInjectOverrides,
