@@ -1,0 +1,23 @@
+{
+  "name": "hello-api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/main.js"
+  },
+  "dependencies": {
+    "@blixis/core": "workspace:*",
+    "@blixis/di": "workspace:*",
+    "@blixis/http": "workspace:*",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@blixis/testing": "workspace:*"
+  }
+}
