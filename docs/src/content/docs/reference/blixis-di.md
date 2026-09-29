@@ -27,6 +27,20 @@ class Container {
 - **`getResolvedEntries()`** — every resolved singleton, `[token, instance]` pairs, in the order they finished constructing (dependencies before dependents). This is what `@blixis/core` uses to run lifecycle hooks in the correct order. Transient instances never appear here.
 - **`resolveAll()`** — resolves every registered provider. Safe to run concurrently across providers that share dependencies (see the memoization note above).
 
+## Dependency introspection
+
+```ts
+function getDependencyTokens(ctor: Class): DependencyDescriptor[];
+
+interface DependencyDescriptor {
+  readonly index: number;
+  readonly token: Token;
+  readonly optional: boolean;
+}
+```
+
+Computes what a class's constructor parameters resolve to — the same reflection `Container` uses internally to build instances — without instantiating anything. Throws the same `NotInjectableError`/`UnresolvableParameterError` a real resolution would. `@blixis/core` uses this to validate module `exports`/encapsulation (see [Modules](/concepts/modules/#encapsulation-exports-and-global)) before anything resolves; it's exported for any other tooling that needs to inspect a dependency graph statically.
+
 ## Decorators
 
 ### `Injectable(options?)`

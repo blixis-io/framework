@@ -20,7 +20,7 @@ import { Module } from "@blixis/core";
 export class PostsModule {}
 ```
 
-All three fields are optional and default to empty. `providers` and `controllers` are exactly what you'd pass to `Container.register()` directly — bare classes or the provider-shape objects described in [Dependency Injection](/concepts/dependency-injection/). `imports` lists other modules whose providers this module's own providers/controllers can depend on.
+All fields are optional and default to empty. `providers` and `controllers` are exactly what you'd pass to `Container.register()` directly — bare classes or the provider-shape objects described in [Dependency Injection](/concepts/dependency-injection/). `imports` lists other modules whose *exported* providers this module's own providers/controllers can depend on — see [encapsulation](#encapsulation-exports-and-global) below.
 
 ## Building an application from a root module
 
@@ -57,6 +57,50 @@ class AppModule {}
 ```
 
 `CacheModule` is visited once regardless of how many other modules import it; `Cache` ends up registered exactly once, not twice (which would otherwise throw `DuplicateProviderError`).
+
+## Encapsulation: `exports` and `global`
+
+Registering a provider in a module doesn't automatically make it available to *other* modules — only to things declared in that same module, unless it's explicitly exported:
+
+```ts
+@Injectable()
+class Cache {}
+
+@Module({ providers: [Cache], exports: [Cache] })
+class CacheModule {}
+
+@Injectable()
+class PostService {
+  constructor(public cache: Cache) {} // ok: CacheModule exports Cache, and this module imports CacheModule
+}
+
+@Module({ imports: [CacheModule], providers: [PostService] })
+class PostsModule {}
+```
+
+Drop `exports: [Cache]` from `CacheModule`, or `imports: [CacheModule]` from `PostsModule`, and building the application throws `ProviderNotVisibleError` — naming exactly what's missing and which module owns the token:
+
+```
+PostService depends on Cache, but that belongs to CacheModule, which doesn't export it.
+Add it to CacheModule's exports, or import CacheModule into PostService's own module.
+```
+
+This is checked for every dependency shape — a class's constructor, a factory provider's `inject` list, a `useExisting` alias target — and for controllers exactly the same as providers. It's a **static check**, run once while the application is being built, before anything resolves — the same fail-fast philosophy as [Configuration](/concepts/config/)'s `ConfigValidationError`.
+
+A dependency that doesn't exist *anywhere* in the whole graph is a different problem (`MissingProviderError`, or `undefined` for an `@Optional()` one) — encapsulation only fires for a token that's real, just not visible from here. Notably, `@Optional()` does **not** suppress a visibility violation: if the token exists but is private to another module, that's a real configuration mistake worth surfacing loudly, not a "maybe this wasn't registered" situation `@Optional()` is meant to handle.
+
+### `global: true`
+
+Requiring every feature module to explicitly import cross-cutting infra like logging or config would get old fast. A module marked `global: true` has its exports visible to **every** module in the graph, with no import required:
+
+```ts
+@Module({ providers: [Cache], exports: [Cache], global: true })
+class CacheModule {}
+```
+
+Both [`@blixis/logging`](/concepts/logging/)'s `LoggerModule` and [`@blixis/config`](/concepts/config/)'s `ConfigModule` are `global: true` for exactly this reason — see either one's `forRoot()` for a real example, and `examples/hello-api` for it working end to end (`PostsService` injects `LOGGER` without `PostsModule` importing `LoggerModule` at all).
+
+Use `global` sparingly — it's the right call for genuinely app-wide infrastructure, not a way to skip thinking about a feature module's own boundaries.
 
 ## Dynamic modules: the `forRoot()` pattern
 
