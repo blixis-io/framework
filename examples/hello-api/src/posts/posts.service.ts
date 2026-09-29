@@ -1,5 +1,5 @@
 import { Inject, Injectable } from "@blixis/di";
-import { NotFoundException } from "@blixis/http";
+import { NotFoundException, RequestContext } from "@blixis/http";
 import { LOGGER, type Logger } from "@blixis/logging";
 import type { CreatePostInput, Post, UpdatePostInput } from "./post.schema.js";
 
@@ -8,7 +8,10 @@ export class PostsService {
   readonly #posts = new Map<string, Post>();
   #nextId = 1;
 
-  constructor(@Inject(LOGGER) private readonly log: Logger) {}
+  constructor(
+    @Inject(LOGGER) private readonly log: Logger,
+    private readonly ctx: RequestContext,
+  ) {}
 
   list(): Post[] {
     return [...this.#posts.values()];
@@ -45,6 +48,10 @@ export class PostsService {
   remove(id: string): void {
     this.get(id);
     this.#posts.delete(id);
-    this.log.info("post deleted", { postId: id });
+    // Only set on the guarded DELETE path — falls back to "unknown" for any
+    // caller that reaches remove() outside a request (e.g. a future non-HTTP
+    // entry point), rather than assuming the guard always ran.
+    const apiClient = this.ctx.get<string>("apiClient") ?? "unknown";
+    this.log.info("post deleted", { postId: id, apiClient });
   }
 }
