@@ -1,3 +1,4 @@
+import { InjectionToken } from "@blixis/di";
 import { describe, expect, it } from "vitest";
 import { getModuleMetadata, isDynamicModule, Module, moduleClassOf } from "./module.js";
 
@@ -10,6 +11,20 @@ describe("@Module", () => {
     class AppModule {}
 
     expect(getModuleMetadata(AppModule)).toEqual({ providers: [Service], controllers: [Ctrl] });
+  });
+
+  it("stores exports and global alongside the rest", () => {
+    class Service {}
+    const TOKEN = new InjectionToken<string>("token");
+
+    @Module({ providers: [Service], exports: [Service, TOKEN], global: true })
+    class InfraModule {}
+
+    expect(getModuleMetadata(InfraModule)).toEqual({
+      providers: [Service],
+      exports: [Service, TOKEN],
+      global: true,
+    });
   });
 
   it("defaults to empty metadata when called with no arguments", () => {
