@@ -46,6 +46,15 @@ The schema/type pair covered in [Validating Request Bodies with Zod](/guides/val
 
 The in-memory store: a `Map<string, Post>`, an incrementing id counter, and CRUD methods. `get()` throws `NotFoundException` for a missing id, which `update()` and `remove()` both reuse instead of repeating the existence check. `update()` resolves each optional field with `??` rather than spreading — see [Validating Request Bodies with Zod](/guides/validating-request-bodies/#3-handle-a-partial-update-correctly) for why that distinction is load-bearing, not stylistic.
 
+`remove()` also injects `RequestContext` and reads an `"apiClient"` value back out of it:
+
+```ts
+const apiClient = this.ctx.get<string>("apiClient") ?? "unknown";
+this.log.info("post deleted", { postId: id, apiClient });
+```
+
+That value comes from `ApiKeyGuard`, below — see [Request Context](/concepts/request-context/) for the full picture.
+
 ## `posts/api-key.guard.ts`
 
 ```ts
@@ -53,13 +62,19 @@ const DEV_API_KEY = "dev-secret";
 
 @Injectable()
 export class ApiKeyGuard implements CanActivate {
+  constructor(private readonly ctx: RequestContext) {}
+
   canActivate(context: ExecutionContext): boolean {
-    return context.request.headers.get("x-api-key") === DEV_API_KEY;
+    const allowed = context.request.headers.get("x-api-key") === DEV_API_KEY;
+    if (allowed) {
+      this.ctx.set("apiClient", "dev-cli");
+    }
+    return allowed;
   }
 }
 ```
 
-A deliberately minimal guard — a hardcoded key comparison, no real credential store. The comment in the actual source is worth repeating here: *"a real CMS auth guard would resolve a `UserService`/config here, which is exactly why guards go through DI instead of `new`."* [Add Authentication](/tutorials/add-authentication/) builds out that fuller version with an injected `AuthService`.
+A deliberately minimal guard — a hardcoded key comparison, no real credential store. The comment in the actual source is worth repeating here: *"a real CMS auth guard would resolve a `UserService`/config here, which is exactly why guards go through DI instead of `new`."* [Add Authentication](/tutorials/add-authentication/) builds out that fuller version with an injected `AuthService`. The `this.ctx.set("apiClient", "dev-cli")` call is this example's whole `RequestContext` demo: stand-in for "which caller did this," set once here, read back in `posts.service.ts`'s `remove()`.
 
 ## `posts/posts.controller.ts`
 
