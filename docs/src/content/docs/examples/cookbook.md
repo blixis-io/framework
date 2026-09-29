@@ -97,3 +97,39 @@ class OwnerGuard implements CanActivate {
 ```
 
 `ExecutionContext.params` is the same matched route params (`{ id: "42" }` for `/posts/:id`) that `@Param` pulls from — a guard sees them without needing its own copy of the routing logic.
+
+## Tagging every log line with a request id
+
+A guard that always allows the request through, purely to stamp a correlation id into [`RequestContext`](/concepts/request-context/) before anything else runs:
+
+```ts
+@Injectable()
+class RequestIdGuard implements CanActivate {
+  constructor(private readonly ctx: RequestContext) {}
+
+  canActivate(): boolean {
+    this.ctx.set("requestId", crypto.randomUUID());
+    return true;
+  }
+}
+```
+
+Apply it class-level on every controller (or once per module, whichever's less repetitive for your app), then have any service pull it back out for structured logging:
+
+```ts
+@Injectable()
+class PostsService {
+  constructor(
+    @Inject(LOGGER) private readonly log: Logger,
+    private readonly ctx: RequestContext,
+  ) {}
+
+  create(input: CreatePostInput) {
+    const requestId = this.ctx.get<string>("requestId");
+    this.log.info("post created", { requestId, title: input.title });
+    // ...
+  }
+}
+```
+
+Every log line from every service touched during that request now carries the same `requestId`, with no need to thread it through every method signature by hand.
