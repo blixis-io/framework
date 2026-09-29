@@ -16,6 +16,10 @@ interface ModuleMetadata {
   imports?: ModuleRef[];
   providers?: Provider[];
   controllers?: Class[];
+  /** Tokens (from `providers`) visible to modules that directly import this one. */
+  exports?: Token[];
+  /** Makes every exported token visible to every module in the graph, no import required. */
+  global?: boolean;
 }
 
 type ModuleRef = Class | DynamicModule;
@@ -25,7 +29,7 @@ interface DynamicModule extends ModuleMetadata {
 }
 ```
 
-All three metadata fields default to empty. `providers`/`controllers` accept exactly what `@blixis/di`'s `Container.register()` does (see [`@blixis/di` reference](/reference/blixis-di/#provider-shapes)). A `DynamicModule`'s own `imports`/`providers`/`controllers` are merged with (added to, not replacing) the `module` class's own static `@Module()` metadata — see [Using Dynamic Modules](/guides/using-dynamic-modules/).
+All metadata fields default to empty/`false`. `providers`/`controllers` accept exactly what `@blixis/di`'s `Container.register()` does (see [`@blixis/di` reference](/reference/blixis-di/#provider-shapes)). A `DynamicModule`'s own fields are merged with (added to, not replacing) the `module` class's own static `@Module()` metadata — see [Using Dynamic Modules](/guides/using-dynamic-modules/). `exports`/`global` are enforced — see [Modules](/concepts/modules/#encapsulation-exports-and-global) for the full behavior and error message.
 
 ### Metadata readers
 
@@ -82,4 +86,11 @@ class CoreError extends Error {}
 
 class NotAModuleError extends CoreError {}
 // "{ClassName} is not a module — did you forget @Module()?"
+
+class ProviderNotVisibleError extends CoreError {}
+// "{Consumer} depends on {Token}, but that belongs to {Module}, which doesn't
+//  export it. Add it to {Module}'s exports, or import {Module} into
+//  {Consumer}'s own module."
 ```
+
+`ProviderNotVisibleError` fires when a provider or controller depends on a token that exists somewhere in the module graph but isn't visible to its own module — see [Modules](/concepts/modules/#encapsulation-exports-and-global).
