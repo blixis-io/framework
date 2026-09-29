@@ -1,11 +1,18 @@
-import { Test } from "@blixis/testing";
+import { Test, type TestApplication } from "@blixis/testing";
+import { consoleTransport, LoggerModule } from "@blixis/logging";
 import { describe, expect, it } from "vitest";
 import { PostsModule } from "./posts.module.js";
 import type { Post } from "./post.schema.js";
 
+function createTestApp(): Promise<TestApplication> {
+  return Test.createModule({
+    imports: [LoggerModule.forRoot({ transports: [consoleTransport()] }), PostsModule],
+  }).compile();
+}
+
 describe("Posts API (e2e)", () => {
   it("creates a post and lists it back", async () => {
-    const app = await Test.createModule({ imports: [PostsModule] }).compile();
+    const app = await createTestApp();
 
     const createRes = await app.request("/posts", { method: "POST", json: { title: "hi" } });
     expect(createRes.status).toBe(201);
@@ -20,7 +27,7 @@ describe("Posts API (e2e)", () => {
   });
 
   it("returns 400 problem+json with Zod issues when the body fails validation", async () => {
-    const app = await Test.createModule({ imports: [PostsModule] }).compile();
+    const app = await createTestApp();
 
     const res = await app.request("/posts", { method: "POST", json: {} });
 
@@ -33,7 +40,7 @@ describe("Posts API (e2e)", () => {
   });
 
   it("returns 404 problem+json for an unknown post", async () => {
-    const app = await Test.createModule({ imports: [PostsModule] }).compile();
+    const app = await createTestApp();
 
     const res = await app.request("/posts/unknown");
 
@@ -44,7 +51,7 @@ describe("Posts API (e2e)", () => {
   });
 
   it("returns 405 with an Allow header for DELETE on the collection route", async () => {
-    const app = await Test.createModule({ imports: [PostsModule] }).compile();
+    const app = await createTestApp();
 
     const res = await app.request("/posts", { method: "DELETE" });
 
@@ -56,7 +63,7 @@ describe("Posts API (e2e)", () => {
   });
 
   it("denies DELETE without the api key and allows it with the key", async () => {
-    const app = await Test.createModule({ imports: [PostsModule] }).compile();
+    const app = await createTestApp();
 
     const createRes = await app.request("/posts", { method: "POST", json: { title: "to delete" } });
     const { id } = (await createRes.json()) as Post;
@@ -74,7 +81,7 @@ describe("Posts API (e2e)", () => {
   });
 
   it("updates a post via PATCH with a partial body", async () => {
-    const app = await Test.createModule({ imports: [PostsModule] }).compile();
+    const app = await createTestApp();
 
     const createRes = await app.request("/posts", { method: "POST", json: { title: "original" } });
     const { id } = (await createRes.json()) as Post;
