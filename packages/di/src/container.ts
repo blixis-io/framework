@@ -1,15 +1,13 @@
 import "reflect-metadata";
-import { getInjectOverrides, getInjectableOptions, getOptionalParams } from "./decorators.js";
+import { getInjectableOptions } from "./decorators.js";
+import { getDependencyTokens } from "./dependencies.js";
 import {
   CircularDependencyError,
   DuplicateProviderError,
   MissingProviderError,
-  NotInjectableError,
   ProviderNotResolvedError,
-  UnresolvableParameterError,
 } from "./errors.js";
 import { unwrapForwardRef, type TokenRef } from "./forward-ref.js";
-import { DESIGN_PARAM_TYPES, getMetadata } from "./metadata.js";
 import {
   isBareClassProvider,
   isExistingProvider,
@@ -197,35 +195,8 @@ export class Container {
   }
 
   async #resolveConstructorArgs(ctor: Class, chain: readonly Token[]): Promise<unknown[]> {
-    const paramTypes = getMetadata<unknown[]>(DESIGN_PARAM_TYPES, ctor);
-
-    if (paramTypes === undefined) {
-      if (ctor.length > 0) {
-        throw new NotInjectableError(ctor);
-      }
-      return [];
-    }
-
-    const overrides = getInjectOverrides(ctor);
-    const optionalParams = getOptionalParams(ctor);
-
-    return Promise.all(
-      paramTypes.map((paramType, index) => {
-        const isOptional = optionalParams?.has(index) ?? false;
-        const overrideRef = overrides?.get(index);
-
-        if (overrideRef !== undefined) {
-          return this.#resolveDependency(unwrapForwardRef(overrideRef), chain, isOptional);
-        }
-
-        const rawToken = paramType as Token | undefined;
-        if (rawToken === undefined || (rawToken as unknown) === Object) {
-          throw new UnresolvableParameterError(ctor, index, rawToken === undefined ? "undefined" : "Object");
-        }
-
-        return this.#resolveDependency(rawToken, chain, isOptional);
-      }),
-    );
+    const dependencies = getDependencyTokens(ctor);
+    return Promise.all(dependencies.map((dep) => this.#resolveDependency(dep.token, chain, dep.optional)));
   }
 
   async #resolveDependency(token: Token, chain: readonly Token[], optional: boolean): Promise<unknown> {
