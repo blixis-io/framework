@@ -1,8 +1,10 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, UseGuards } from "@blixis/http";
+import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, UseGuards, UseInterceptors } from "@blixis/http";
 import { ApiKeyGuard } from "./api-key.guard.js";
 import { CreatePostSchema, UpdatePostSchema, type CreatePostInput, type UpdatePostInput } from "./post.schema.js";
 import { PostsService } from "./posts.service.js";
+import { TimingInterceptor } from "./timing.interceptor.js";
 
+@UseInterceptors(TimingInterceptor)
 @Controller("posts")
 export class PostsController {
   constructor(private readonly posts: PostsService) {}

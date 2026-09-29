@@ -76,21 +76,40 @@ export class ApiKeyGuard implements CanActivate {
 
 A deliberately minimal guard — a hardcoded key comparison, no real credential store. The comment in the actual source is worth repeating here: *"a real CMS auth guard would resolve a `UserService`/config here, which is exactly why guards go through DI instead of `new`."* [Add Authentication](/tutorials/add-authentication/) builds out that fuller version with an injected `AuthService`. The `this.ctx.set("apiClient", "dev-cli")` call is this example's whole `RequestContext` demo: stand-in for "which caller did this," set once here, read back in `posts.service.ts`'s `remove()`.
 
+## `posts/timing.interceptor.ts`
+
+```ts
+@Injectable()
+export class TimingInterceptor implements Interceptor {
+  constructor(@Inject(LOGGER) private readonly log: Logger) {}
+
+  async intercept(context: ExecutionContext, next: () => Promise<Response>): Promise<Response> {
+    const start = performance.now();
+    const response = await next();
+    const ms = Math.round(performance.now() - start);
+    this.log.info("request handled", { method: context.request.method, ms });
+    return response;
+  }
+}
+```
+
+Applied class-level (`@UseInterceptors(TimingInterceptor)` on `PostsController`, below), so it wraps every route in the controller — logs one `"request handled"` line per request with elapsed time, after the handler returns. See [Interceptors](/concepts/interceptors/).
+
 ## `posts/posts.controller.ts`
 
-Full CRUD, all five HTTP method decorators in one controller. The one route with `@UseGuards` is `remove` (`DELETE /posts/:id`) — reads and the create/update routes are open, only deletion requires the API key. `create` overrides its status to `201` with `@HttpCode`; `remove` returns `undefined`, mapped to `204 No Content`.
+Full CRUD, all five HTTP method decorators in one controller. The one route with `@UseGuards` is `remove` (`DELETE /posts/:id`) — reads and the create/update routes are open, only deletion requires the API key. `create` overrides its status to `201` with `@HttpCode`; `remove` returns `undefined`, mapped to `204 No Content`. `@UseInterceptors(TimingInterceptor)` sits at the class level, above `@Controller`, so it wraps every route — guards still run first and can deny a request before the interceptor ever sees it.
 
 ## `posts/posts.module.ts`
 
 ```ts
 @Module({
-  providers: [PostsService, ApiKeyGuard],
+  providers: [PostsService, ApiKeyGuard, TimingInterceptor],
   controllers: [PostsController],
 })
 export class PostsModule {}
 ```
 
-`ApiKeyGuard` is listed in `providers` even though no controller method injects it directly — it's resolved by the HTTP layer at request time because `@UseGuards(ApiKeyGuard)` named the class, not because anything constructor-injects it. Leaving it out of `providers` is the single most common mistake when adding a guard — see [Guards & Authorization](/concepts/guards-and-authorization/#guard-classes-must-be-registered-providers).
+`ApiKeyGuard` and `TimingInterceptor` are both listed in `providers` even though no controller method injects either directly — they're resolved by the HTTP layer at request time because `@UseGuards`/`@UseInterceptors` named the classes, not because anything constructor-injects them. Leaving either out of `providers` is the single most common mistake when adding a guard or interceptor — see [Guards & Authorization](/concepts/guards-and-authorization/#guard-classes-must-be-registered-providers).
 
 ## `app.module.ts` and `main.ts`
 
