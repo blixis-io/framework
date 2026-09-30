@@ -14,6 +14,9 @@ importers:
       '@vitest/coverage-v8':
         specifier: ^5.0.2
         version: 5.0.2(vitest@5.0.2)
+      editorconfig-checker:
+        specifier: ^7.0.0
+        version: 7.0.0
       oxlint:
         specifier: ^1.86.0
         version: 1.86.0(oxlint-tsgolint@7.0.2003)
@@ -1898,6 +1901,11 @@ packages:
     peerDependenciesMeta:
       oxc-resolver:
         optional: true
+
+  editorconfig-checker@7.0.0:
+    resolution: {integrity: sha512-bqTCyzjz6Qbah4hBO032mQiwGstrHL/jwsnlFvlqrDcpv8rv2pSgLo00Fnji1u6PGtSdY6uydzVLUdHupbpNBQ==}
+    engines: {node: '>=24.14.0'}
+    hasBin: true
 
   emmet@2.4.11:
     resolution: {integrity: sha512-23QPJB3moh/U9sT4rQzGgeyyGIrcM+GH5uVYg2C6wZIxAIJq7Ng3QLT79tl8FUwDXhyq9SusfknOrofAKqvgyQ==}
@@ -4354,6 +4362,8 @@ snapshots:
   dset@3.1.4: {}
 
   dts-resolver@3.0.0: {}
+
+  editorconfig-checker@7.0.0: {}
 
   emmet@2.4.11:
     dependencies:

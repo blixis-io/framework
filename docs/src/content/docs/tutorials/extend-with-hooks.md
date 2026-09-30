@@ -105,7 +105,7 @@ curl -X POST localhost:3000/posts -H 'content-type: application/json' -d '{"titl
 Console output, in this order:
 
 ```
-creating post:   hello world  
+creating post:   hello world
 create took 0 ms
 post created: 1
 ```
