@@ -194,11 +194,7 @@ importers:
         specifier: ^4.6.5
         version: 4.6.5
 
-  packages/plugins:
-    dependencies:
-      '@blixis/di':
-        specifier: workspace:*
-        version: link:../di
+  packages/plugins: {}
 
   packages/tenancy:
     dependencies:

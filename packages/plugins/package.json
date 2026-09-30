@@ -16,8 +16,5 @@
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
     "build": "rolldown -c"
-  },
-  "dependencies": {
-    "@blixis/di": "workspace:*"
   }
 }
