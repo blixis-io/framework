@@ -1,5 +1,5 @@
-import { Module, type DynamicModule, type OnApplicationShutdown, type OnModuleInit } from "@blixis/core";
-import { Injectable, InjectionToken } from "@blixis/di";
+import { Module, type DynamicModule, type OnApplicationShutdown, type OnModuleInit } from "@blixis-io/core";
+import { Injectable, InjectionToken } from "@blixis-io/di";
 import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
 import { Pool, type PoolConfig } from "pg";
 import { DbConnectionError } from "../errors.js";
@@ -13,7 +13,7 @@ export interface DrizzleModuleOptions {
 
 /**
  * Builds a `DATABASE` token + module bound to one Drizzle schema, same
- * factory-closure shape as `@blixis/config`'s `defineConfigModule` — schema
+ * factory-closure shape as `@blixis-io/config`'s `defineConfigModule` — schema
  * is fixed per app, connection options are supplied later via `forRoot()`.
  */
 export function defineDrizzleModule<Schema extends Record<string, unknown>>(schema: Schema) {

@@ -2,7 +2,7 @@
  * Calls whatever is inward of an `Around` hook — the original method, or
  * the next `Around` hook closer to it. Called with no arguments, it
  * replays whatever arguments the decorated method was actually called
- * with (same convention as `@blixis/http`'s `Interceptor.next()`); pass
+ * with (same convention as `@blixis-io/http`'s `Interceptor.next()`); pass
  * explicit arguments to override them.
  */
 export type NextFn<Args extends unknown[], Result> = (...args: Args) => Result;
@@ -120,7 +120,7 @@ export function Around<Result = unknown, Args extends unknown[] = unknown[]>(
     const original = methodOf(descriptor);
     descriptor.value = function (this: unknown, ...args: unknown[]): unknown {
       // Calling next() bare replays the original args, same as
-      // @blixis/http's Interceptor.next() — the common case is "just
+      // @blixis-io/http's Interceptor.next() — the common case is "just
       // continue," not "recompute every argument." Passing explicit
       // arguments still overrides them.
       const next: NextFn<Args, Result> = (...nextArgs: Args) =>

@@ -12,7 +12,7 @@ See [Testing](/concepts/testing/#override) for the mechanism. This is when and h
 `PostController` depends on `PostService`, which depends on `PostRepository`. Testing the controller's HTTP behavior — status codes, validation, response shape — shouldn't require a real database. `.override()` lets you keep the *real* `PostController` and `PostService` (so their actual logic runs) while swapping only `PostRepository` for something in-memory:
 
 ```ts
-import { Test } from "@blixis/testing";
+import { Test } from "@blixis-io/testing";
 
 const fakeRepo = {
   findAll: () => [{ id: "1", title: "fake post" }],

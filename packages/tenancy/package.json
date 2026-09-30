@@ -1,5 +1,5 @@
 {
-  "name": "@blixis/tenancy",
+  "name": "@blixis-io/tenancy",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -8,7 +8,7 @@
   },
   "exports": {
     ".": {
-      "@blixis/source": "./src/index.ts",
+      "@blixis-io/source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     }
@@ -18,9 +18,9 @@
     "build": "rolldown -c"
   },
   "dependencies": {
-    "@blixis/core": "workspace:*",
-    "@blixis/di": "workspace:*",
-    "@blixis/http": "workspace:*",
+    "@blixis-io/core": "workspace:*",
+    "@blixis-io/di": "workspace:*",
+    "@blixis-io/http": "workspace:*",
     "drizzle-orm": "^0.45.3"
   },
   "devDependencies": {

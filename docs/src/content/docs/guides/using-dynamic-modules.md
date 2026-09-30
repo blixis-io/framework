@@ -10,7 +10,7 @@ See [Modules](/concepts/modules/#dynamic-modules-the-forroot-pattern) for the co
 ## 1. Define a token for the config
 
 ```ts title="src/config/config.tokens.ts"
-import { InjectionToken } from "@blixis/di";
+import { InjectionToken } from "@blixis-io/di";
 
 export interface AppConfig {
   databaseUrl: string;
@@ -22,7 +22,7 @@ export const APP_CONFIG = new InjectionToken<AppConfig>("app.config");
 ## 2. Give the module a static `forRoot()`
 
 ```ts title="src/config/config.module.ts"
-import { Module, type DynamicModule } from "@blixis/core";
+import { Module, type DynamicModule } from "@blixis-io/core";
 import { APP_CONFIG, type AppConfig } from "./config.tokens.js";
 
 @Module()

@@ -1,5 +1,5 @@
 ---
-title: "@blixis/db"
+title: "@blixis-io/db"
 description: Full API reference for the db package.
 sidebar:
   order: 7
@@ -20,11 +20,11 @@ function defineDrizzleModule<Schema extends Record<string, unknown>>(
 };
 ```
 
-Schema shape is inherently app-specific — unlike `@blixis/logging`'s single fixed `LOGGER` token, there's no one type to export a token for. Each call to `defineDrizzleModule(schema)` returns a **new**, distinct `InjectionToken` typed to that schema, plus a `DrizzleModule` class bound to it. Call it once per app (typically in its own `db/index.ts`), export both, and use them everywhere:
+Schema shape is inherently app-specific — unlike `@blixis-io/logging`'s single fixed `LOGGER` token, there's no one type to export a token for. Each call to `defineDrizzleModule(schema)` returns a **new**, distinct `InjectionToken` typed to that schema, plus a `DrizzleModule` class bound to it. Call it once per app (typically in its own `db/index.ts`), export both, and use them everywhere:
 
 ```ts
 // db/index.ts
-import { defineDrizzleModule } from "@blixis/db";
+import { defineDrizzleModule } from "@blixis-io/db";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import { schema } from "./schema.js";
 
@@ -65,7 +65,7 @@ Thrown from the internal `OnModuleInit` hook when the initial `SELECT 1` connect
 ## Injecting it
 
 ```ts
-import { Inject, Injectable } from "@blixis/di";
+import { Inject, Injectable } from "@blixis-io/di";
 import { eq } from "drizzle-orm";
 import { DATABASE, type Database } from "./db/index.js";
 import { posts } from "./db/schema.js";
@@ -84,4 +84,4 @@ class PostsService {
 }
 ```
 
-`db` is a real `NodePgDatabase<Schema>` — every Drizzle query-builder method (`select`/`insert`/`update`/`delete`/`execute`/`transaction`) is available exactly as documented by [Drizzle](https://orm.drizzle.team/docs/rqb) itself; `@blixis/db` only owns connecting and disconnecting it.
+`db` is a real `NodePgDatabase<Schema>` — every Drizzle query-builder method (`select`/`insert`/`update`/`delete`/`execute`/`transaction`) is available exactly as documented by [Drizzle](https://orm.drizzle.team/docs/rqb) itself; `@blixis-io/db` only owns connecting and disconnecting it.

@@ -12,7 +12,7 @@ sidebar:
 ```json title="package.json"
 {
   "devDependencies": {
-    "@blixis/cli": "workspace:*"
+    "@blixis-io/cli": "workspace:*"
   }
 }
 ```
@@ -28,7 +28,7 @@ created src/health/health.controller.ts
 ```
 
 ```ts
-import { Controller, Get } from "@blixis/http";
+import { Controller, Get } from "@blixis-io/http";
 
 @Controller("health")
 export class HealthController {
@@ -44,7 +44,7 @@ export class HealthController {
 The generated file is a valid starting point, not a finished route — edit it like any other file you wrote yourself:
 
 ```ts title="src/health/health.controller.ts" ins={5,6,7} del={4}
-import { Controller, Get } from "@blixis/http";
+import { Controller, Get } from "@blixis-io/http";
 
 @Controller("health")
 export class HealthController {
@@ -63,7 +63,7 @@ export class HealthController {
 A single provider-less route doesn't need its own module — list it directly in `AppModule`'s `controllers`:
 
 ```ts title="src/app.module.ts" ins={2,6}
-import { Module } from "@blixis/core";
+import { Module } from "@blixis-io/core";
 import { HealthController } from "./health/health.controller.js";
 // ...other imports
 
@@ -93,7 +93,7 @@ blix generate service PostTags --dry-run
 ```
 Would create src/post-tags/post-tags.service.ts:
 
-import { Injectable } from "@blixis/di";
+import { Injectable } from "@blixis-io/di";
 
 @Injectable()
 export class PostTagsService {}

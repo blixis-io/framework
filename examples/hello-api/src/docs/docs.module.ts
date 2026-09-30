@@ -1,4 +1,4 @@
-import { Module } from "@blixis/core";
+import { Module } from "@blixis-io/core";
 import { AppRef } from "./app-ref.js";
 import { DocsController } from "./docs.controller.js";
 

@@ -1,4 +1,4 @@
-import { defineMetadata, getMetadata, type Class } from "@blixis/di";
+import { defineMetadata, getMetadata, type Class } from "@blixis-io/di";
 import type { ExecutionContext } from "./guards.js";
 
 export interface Interceptor {

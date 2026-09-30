@@ -1,6 +1,6 @@
-import { Body, Controller, createHttpApplication, Get, Param, Post } from "@blixis/http";
-import { Module } from "@blixis/core";
-import { Injectable } from "@blixis/di";
+import { Body, Controller, createHttpApplication, Get, Param, Post } from "@blixis-io/http";
+import { Module } from "@blixis-io/core";
+import { Injectable } from "@blixis-io/di";
 import { describe, expect, it } from "vitest";
 import { TestApplication } from "./test-application.js";
 

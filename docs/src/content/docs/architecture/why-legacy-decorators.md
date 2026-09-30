@@ -23,7 +23,7 @@ class UserService {
 }
 ```
 
-— is the entire ergonomic point of this style of dependency injection. Without parameter decorators, there's no `@Inject(token)` to override a specific parameter's resolution, and more fundamentally: the new decorators proposal has no mechanism at all for a class decorator to inspect its own constructor's parameter *types*. `emitDecoratorMetadata`'s `design:paramtypes` — the thing `@blixis/di`'s whole container is built on — is specifically tied to the legacy decorator emit path.
+— is the entire ergonomic point of this style of dependency injection. Without parameter decorators, there's no `@Inject(token)` to override a specific parameter's resolution, and more fundamentally: the new decorators proposal has no mechanism at all for a class decorator to inspect its own constructor's parameter *types*. `emitDecoratorMetadata`'s `design:paramtypes` — the thing `@blixis-io/di`'s whole container is built on — is specifically tied to the legacy decorator emit path.
 
 ## What the alternative would look like
 

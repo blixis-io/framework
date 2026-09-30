@@ -1,4 +1,4 @@
-import { defineConfigModule } from "@blixis/config";
+import { defineConfigModule } from "@blixis-io/config";
 import { z } from "zod";
 
 export const AppConfigSchema = z.object({

@@ -1,11 +1,11 @@
 ---
 title: Issuing Tokens
-description: A Drizzle-backed CredentialStore and RefreshTokenStore for @blixis/auth's password sign-in and refresh rotation.
+description: A Drizzle-backed CredentialStore and RefreshTokenStore for @blixis-io/auth's password sign-in and refresh rotation.
 sidebar:
   order: 11
 ---
 
-`@blixis/auth`'s `issuing` option needs two small stores. This walks through a real [Drizzle](https://orm.drizzle.team) implementation on top of [`@blixis/db`](/concepts/database/) — the same pattern works with any database, `@blixis/auth` never depends on Drizzle itself. See [Authentication § Issuing tokens](/concepts/authentication/#issuing-tokens) for the concepts and fail-closed rules this builds on.
+`@blixis-io/auth`'s `issuing` option needs two small stores. This walks through a real [Drizzle](https://orm.drizzle.team) implementation on top of [`@blixis-io/db`](/concepts/database/) — the same pattern works with any database, `@blixis-io/auth` never depends on Drizzle itself. See [Authentication § Issuing tokens](/concepts/authentication/#issuing-tokens) for the concepts and fail-closed rules this builds on.
 
 ## 1. The schema
 
@@ -34,7 +34,7 @@ export const refreshTokens = pgTable("refresh_tokens", {
 `credentials` is split from `users` — most of your app reads `users` constantly and should never touch a password hash column, even by accident. `refresh_tokens` stores only `tokenHash` (a SHA-256 hex digest `AuthService` computes) — the raw refresh token is never persisted anywhere.
 
 ```ts title="src/db/index.ts"
-import { defineDrizzleModule } from "@blixis/db";
+import { defineDrizzleModule } from "@blixis-io/db";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import { credentials, refreshTokens, users } from "./schema.js";
 
@@ -50,8 +50,8 @@ Same `defineDrizzleModule` factory as [Database](/concepts/database/) — nothin
 ```ts title="src/auth/credential-store.ts"
 import { DATABASE, type Database } from "../db/index.js";
 import { credentials, users } from "../db/schema.js";
-import { Inject, Injectable } from "@blixis/di";
-import type { CredentialStore } from "@blixis/auth";
+import { Inject, Injectable } from "@blixis-io/di";
+import type { CredentialStore } from "@blixis-io/auth";
 import type { AppClaims } from "./auth.js";
 import { eq } from "drizzle-orm";
 
@@ -80,8 +80,8 @@ export class DrizzleCredentialStore implements CredentialStore<AppClaims> {
 ```ts title="src/auth/refresh-token-store.ts"
 import { DATABASE, type Database } from "../db/index.js";
 import { refreshTokens } from "../db/schema.js";
-import { Inject, Injectable } from "@blixis/di";
-import type { RefreshTokenStore } from "@blixis/auth";
+import { Inject, Injectable } from "@blixis-io/di";
+import type { RefreshTokenStore } from "@blixis-io/auth";
 import { and, eq, isNull } from "drizzle-orm";
 
 @Injectable()
@@ -126,7 +126,7 @@ export class DrizzleRefreshTokenStore implements RefreshTokenStore {
 ## 3. Wiring it in
 
 ```ts title="src/auth/auth.ts"
-import { defineAuthModule } from "@blixis/auth";
+import { defineAuthModule } from "@blixis-io/auth";
 import { z } from "zod";
 
 export const ClaimsSchema = z.object({ sub: z.string(), email: z.string() });
@@ -136,7 +136,7 @@ export const { AuthModule, AUTH_SERVICE, JwtAuthGuard, getCurrentUser } = define
 ```
 
 ```ts title="src/app.module.ts"
-import { Module } from "@blixis/core";
+import { Module } from "@blixis-io/core";
 import { DrizzleModule } from "./db/index.js";
 import { AuthModule } from "./auth/auth.js";
 import { DrizzleCredentialStore } from "./auth/credential-store.js";
@@ -167,9 +167,9 @@ The `issuing.imports` matters: `credentialStore`/`refreshTokenStore` are registe
 ## 4. The controller
 
 ```ts title="src/auth/auth.controller.ts"
-import { Body, Controller, HttpCode, Post } from "@blixis/http";
-import { Inject } from "@blixis/di";
-import { hashPassword, type AuthService } from "@blixis/auth";
+import { Body, Controller, HttpCode, Post } from "@blixis-io/http";
+import { Inject } from "@blixis-io/di";
+import { hashPassword, type AuthService } from "@blixis-io/auth";
 import { z } from "zod";
 import { AUTH_SERVICE } from "./auth.js";
 import { DATABASE, type Database } from "../db/index.js";

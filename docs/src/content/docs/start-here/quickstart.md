@@ -8,7 +8,7 @@ sidebar:
 This walks through the smallest possible Blixis app: one service, one controller, one module, running on a real socket. It mirrors the shape of the framework's own `examples/hello-api` reference app — see the [hello-api Walkthrough](/examples/hello-api-walkthrough/) for the full CRUD version.
 
 :::note
-The framework packages aren't published to npm yet. The setup below adds a new app *inside* the Blixis Framework pnpm workspace, consuming `@blixis/*` as `workspace:*` dependencies — the same way `examples/hello-api` does. Once the packages are published, this becomes an ordinary `pnpm add @blixis/http @blixis/core @blixis/di`.
+The framework packages aren't published to npm yet. The setup below adds a new app *inside* the Blixis Framework pnpm workspace, consuming `@blixis-io/*` as `workspace:*` dependencies — the same way `examples/hello-api` does. Once the packages are published, this becomes an ordinary `pnpm add @blixis-io/http @blixis-io/core @blixis-io/di`.
 :::
 
 ## 1. Create the app
@@ -30,9 +30,9 @@ cd examples/hello-quickstart
     "start": "node dist/main.js"
   },
   "dependencies": {
-    "@blixis/core": "workspace:*",
-    "@blixis/di": "workspace:*",
-    "@blixis/http": "workspace:*"
+    "@blixis-io/core": "workspace:*",
+    "@blixis-io/di": "workspace:*",
+    "@blixis-io/http": "workspace:*"
   }
 }
 ```
@@ -50,7 +50,7 @@ Then `pnpm install` from the repo root so the new package joins the workspace. N
 ## 2. Write a service
 
 ```ts title="src/hello.service.ts"
-import { Injectable } from "@blixis/di";
+import { Injectable } from "@blixis-io/di";
 
 @Injectable()
 export class HelloService {
@@ -65,7 +65,7 @@ export class HelloService {
 ## 3. Write a controller
 
 ```ts title="src/hello.controller.ts"
-import { Controller, Get, Param } from "@blixis/http";
+import { Controller, Get, Param } from "@blixis-io/http";
 import { HelloService } from "./hello.service.js";
 
 @Controller("hello")
@@ -84,7 +84,7 @@ export class HelloController {
 ## 4. Wire up the module
 
 ```ts title="src/app.module.ts"
-import { Module } from "@blixis/core";
+import { Module } from "@blixis-io/core";
 import { HelloController } from "./hello.controller.js";
 import { HelloService } from "./hello.service.js";
 
@@ -98,7 +98,7 @@ export class AppModule {}
 ## 5. Boot it
 
 ```ts title="src/main.ts"
-import { createHttpApplication } from "@blixis/http";
+import { createHttpApplication } from "@blixis-io/http";
 import { AppModule } from "./app.module.js";
 
 const app = await createHttpApplication(AppModule);

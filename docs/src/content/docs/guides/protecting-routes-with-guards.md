@@ -10,8 +10,8 @@ See [Guards & Authorization](/concepts/guards-and-authorization/) for the concep
 ## 1. Write the guard
 
 ```ts title="src/auth/api-key.guard.ts"
-import type { CanActivate, ExecutionContext } from "@blixis/http";
-import { Injectable } from "@blixis/di";
+import type { CanActivate, ExecutionContext } from "@blixis-io/http";
+import { Injectable } from "@blixis-io/di";
 
 @Injectable()
 export class ApiKeyGuard implements CanActivate {
@@ -36,7 +36,7 @@ export class PostsModule {}
 ## 3. Apply it
 
 ```ts title="src/posts/posts.controller.ts"
-import { UseGuards } from "@blixis/http";
+import { UseGuards } from "@blixis-io/http";
 import { ApiKeyGuard } from "../auth/api-key.guard.js";
 
 @Controller("posts")
@@ -55,7 +55,7 @@ Put `@UseGuards` on the `@Controller()` class itself instead to protect every ro
 ## 4. Test both outcomes
 
 ```ts
-import { Test } from "@blixis/testing";
+import { Test } from "@blixis-io/testing";
 
 it("denies without the key and allows with it", async () => {
   const app = await Test.createModule({ imports: [PostsModule] }).compile();

@@ -5,14 +5,14 @@ sidebar:
   order: 15
 ---
 
-`@blixis/method-hooks` wraps a method's own implementation with `@Before`, `@After`, and `@Around` decorators. These are **method hooks, not a plugin/extension system** — nothing here lets one package attach behavior to another package's class without editing its source; you apply these directly on a method in a class you own. That's a deliberately lighter design than the alternative: a plugin class registered separately, targeting another class's method by reference (true AOP, proxying resolved instances through the DI container) would need `@blixis/http`'s `ExecutionContext`-style route awareness generalized to arbitrary methods — a bigger, more magical mechanism this framework hasn't needed yet. `@Before`/`@After`/`@Around` use the same before/after/around vocabulary Magento's plugin system popularized, but cover the same three interception shapes with no framework changes at all and no claim to being an external extension point.
+`@blixis-io/method-hooks` wraps a method's own implementation with `@Before`, `@After`, and `@Around` decorators. These are **method hooks, not a plugin/extension system** — nothing here lets one package attach behavior to another package's class without editing its source; you apply these directly on a method in a class you own. That's a deliberately lighter design than the alternative: a plugin class registered separately, targeting another class's method by reference (true AOP, proxying resolved instances through the DI container) would need `@blixis-io/http`'s `ExecutionContext`-style route awareness generalized to arbitrary methods — a bigger, more magical mechanism this framework hasn't needed yet. `@Before`/`@After`/`@Around` use the same before/after/around vocabulary Magento's plugin system popularized, but cover the same three interception shapes with no framework changes at all and no claim to being an external extension point.
 
 Works on **any** class, `@Injectable()`-managed or not — there's no DI container involvement. Wrapping happens once, at class-decoration time, by directly replacing the method's implementation.
 
 ## The three shapes
 
 ```ts
-import { After, Around, Before } from "@blixis/method-hooks";
+import { After, Around, Before } from "@blixis-io/method-hooks";
 
 @Injectable()
 class PostsService {
@@ -52,7 +52,7 @@ create(input: CreatePostInput): Post {
 }
 ```
 
-`@Before`'s own logic only ever runs on the way *in* (nothing happens on the way back out); `@After`'s only ever runs on the way *out*; `@Around` can do both, on either side of its own `next()` call. This is the same rule TypeScript decorators (and Python's) always follow when stacked — nothing `@blixis/method-hooks`-specific — spelled out here because it's easy to get backwards on first read.
+`@Before`'s own logic only ever runs on the way *in* (nothing happens on the way back out); `@After`'s only ever runs on the way *out*; `@Around` can do both, on either side of its own `next()` call. This is the same rule TypeScript decorators (and Python's) always follow when stacked — nothing `@blixis-io/method-hooks`-specific — spelled out here because it's easy to get backwards on first read.
 
 ## Known limitation
 
@@ -60,6 +60,6 @@ Only works on real prototype methods, the same as every other method decorator i
 
 ## Next
 
-- Every exported symbol: [`@blixis/method-hooks` reference](/reference/blixis-method-hooks/).
+- Every exported symbol: [`@blixis-io/method-hooks` reference](/reference/blixis-method-hooks/).
 - A worked example built step by step: [Tutorial: Extend Behavior with Method Hooks](/tutorials/extend-with-hooks/).
 - The closest existing analog in this framework: [Interceptors](/concepts/interceptors/) — same `next()`-based wrapping idea, scoped to HTTP routes instead of arbitrary methods.

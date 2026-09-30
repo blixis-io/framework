@@ -1,5 +1,5 @@
-import { Module, type DynamicModule } from "@blixis/core";
-import { Injectable, InjectionToken } from "@blixis/di";
+import { Module, type DynamicModule } from "@blixis-io/core";
+import { Injectable, InjectionToken } from "@blixis-io/di";
 
 export type EventHandler<Payload> = (payload: Payload) => void | Promise<void>;
 
@@ -51,7 +51,7 @@ class InProcessEventBus<Events extends Record<string, unknown>> implements Event
           await handler(payload as never);
         } catch (error) {
           // A handler's own failure never blocks sibling handlers or the
-          // caller — same self-contained fallback @blixis/logging's own
+          // caller — same self-contained fallback @blixis-io/logging's own
           // transport-failure handling already uses.
           console.error(`event handler for "${type}" failed:`, error);
         }

@@ -1,5 +1,5 @@
 ---
-title: "@blixis/core"
+title: "@blixis-io/core"
 description: Full API reference for the module system and application bootstrap package.
 sidebar:
   order: 2
@@ -29,7 +29,7 @@ interface DynamicModule extends ModuleMetadata {
 }
 ```
 
-All metadata fields default to empty/`false`. `providers`/`controllers` accept exactly what `@blixis/di`'s `Container.register()` does (see [`@blixis/di` reference](/reference/blixis-di/#provider-shapes)). A `DynamicModule`'s own fields are merged with (added to, not replacing) the `module` class's own static `@Module()` metadata — see [Using Dynamic Modules](/guides/using-dynamic-modules/). `exports`/`global` are enforced — see [Modules](/concepts/modules/#encapsulation-exports-and-global) for the full behavior and error message.
+All metadata fields default to empty/`false`. `providers`/`controllers` accept exactly what `@blixis-io/di`'s `Container.register()` does (see [`@blixis-io/di` reference](/reference/blixis-di/#provider-shapes)). A `DynamicModule`'s own fields are merged with (added to, not replacing) the `module` class's own static `@Module()` metadata — see [Using Dynamic Modules](/guides/using-dynamic-modules/). `exports`/`global` are enforced — see [Modules](/concepts/modules/#encapsulation-exports-and-global) for the full behavior and error message.
 
 ### Metadata readers
 
@@ -56,7 +56,7 @@ interface CreateApplicationOptions {
 function createApplication(rootModule: ModuleRef, options?: CreateApplicationOptions): Promise<Application>;
 ```
 
-`createApplication` (or `Application.create`, identical) walks the module graph from `rootModule`, flattens every module's providers/controllers into one `Container`, resolves everything, and runs every `OnModuleInit` hook in dependency order. `controllers` is every controller class collected from the graph — `@blixis/http`'s `createHttpApplication` uses it to build the router.
+`createApplication` (or `Application.create`, identical) walks the module graph from `rootModule`, flattens every module's providers/controllers into one `Container`, resolves everything, and runs every `OnModuleInit` hook in dependency order. `controllers` is every controller class collected from the graph — `@blixis-io/http`'s `createHttpApplication` uses it to build the router.
 
 `close(signal?)` runs every `OnApplicationShutdown` hook in reverse dependency order, passing `signal` through unchanged. **Idempotent** — a second call is a no-op, not a second run of every hook.
 

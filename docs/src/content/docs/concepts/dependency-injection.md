@@ -5,14 +5,14 @@ sidebar:
   order: 1
 ---
 
-`@blixis/di` resolves a graph of classes from their constructor parameter types, using nothing but a class decorator and TypeScript's own `emitDecoratorMetadata` output. There's no `reflect-metadata` call you have to make yourself, no manual registration of "what implements what" beyond registering the provider itself.
+`@blixis-io/di` resolves a graph of classes from their constructor parameter types, using nothing but a class decorator and TypeScript's own `emitDecoratorMetadata` output. There's no `reflect-metadata` call you have to make yourself, no manual registration of "what implements what" beyond registering the provider itself.
 
 ## The container
 
 A `Container` holds providers and the instances built from them.
 
 ```ts
-import { Container, Injectable } from "@blixis/di";
+import { Container, Injectable } from "@blixis-io/di";
 
 @Injectable()
 class Database {}
@@ -32,7 +32,7 @@ repo.db; // a Database instance, built automatically
 
 `resolve()` is async because building the graph might involve async factories (below). `register()` is synchronous and throws `DuplicateProviderError` if you register the same token twice.
 
-In an HTTP app you never call `register`/`resolve` directly — `@blixis/core`'s `@Module` does it for you from a declarative provider list. This page covers what's actually happening underneath that.
+In an HTTP app you never call `register`/`resolve` directly — `@blixis-io/core`'s `@Module` does it for you from a declarative provider list. This page covers what's actually happening underneath that.
 
 ## `@Injectable()` is required, not decoration
 
@@ -88,7 +88,7 @@ The one other case worth knowing: a parameter typed `void` reflects as a literal
 Use `InjectionToken<T>` for config values, primitives, or anything that isn't itself a constructible class:
 
 ```ts
-import { InjectionToken } from "@blixis/di";
+import { InjectionToken } from "@blixis-io/di";
 
 interface AppConfig {
   port: number;
@@ -199,4 +199,4 @@ If two branches of the same resolve call need the same singleton dependency — 
 
 - How `@Injectable`/`@Inject` actually store and read their metadata: [Decorators & Metadata](/concepts/decorators-and-metadata/).
 - Grouping providers into modules and wiring up a whole app: [Modules](/concepts/modules/).
-- Every exported symbol with full signatures: [`@blixis/di` reference](/reference/blixis-di/).
+- Every exported symbol with full signatures: [`@blixis-io/di` reference](/reference/blixis-di/).

@@ -5,11 +5,11 @@ sidebar:
   order: 13
 ---
 
-`@blixis/db` connects an app to Postgres through [Drizzle](https://orm.drizzle.team/), reusing the same `DynamicModule`/`forRoot()` pattern [Modules](/concepts/modules/#dynamic-modules-the-forroot-pattern) and [Configuration](/concepts/config/) already introduced — plus [Lifecycle Hooks](/concepts/lifecycle-hooks/) to open and close the connection pool automatically.
+`@blixis-io/db` connects an app to Postgres through [Drizzle](https://orm.drizzle.team/), reusing the same `DynamicModule`/`forRoot()` pattern [Modules](/concepts/modules/#dynamic-modules-the-forroot-pattern) and [Configuration](/concepts/config/) already introduced — plus [Lifecycle Hooks](/concepts/lifecycle-hooks/) to open and close the connection pool automatically.
 
 ## Why it's a factory, not a fixed token
 
-Like `@blixis/config`, every app has its own schema — there's no single fixed type to export a token for. So `@blixis/db` exports a **function**, `defineDrizzleModule`, that builds one:
+Like `@blixis-io/config`, every app has its own schema — there's no single fixed type to export a token for. So `@blixis-io/db` exports a **function**, `defineDrizzleModule`, that builds one:
 
 ```ts
 // db/schema.ts
@@ -26,7 +26,7 @@ export const schema = { posts };
 
 ```ts
 // db/index.ts
-import { defineDrizzleModule } from "@blixis/db";
+import { defineDrizzleModule } from "@blixis-io/db";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import { schema } from "./schema.js";
 
@@ -61,9 +61,9 @@ Unlike `ConfigModule`/`LoggerModule` (always `global: true`, since every app wan
 
 ## Testing
 
-`@blixis/testing`'s `Test.createModule({...}).compile()` builds a real `Application`, so a test using `DrizzleModule.forRoot()` connects to a real Postgres — there's no in-memory fake. A test suite typically resets state itself between tests (e.g. deleting every row from its own tables right after compiling) rather than mocking the database away; see the [hello-api walkthrough](/examples/hello-api-walkthrough/#postspostse2etestts) for the pattern.
+`@blixis-io/testing`'s `Test.createModule({...}).compile()` builds a real `Application`, so a test using `DrizzleModule.forRoot()` connects to a real Postgres — there's no in-memory fake. A test suite typically resets state itself between tests (e.g. deleting every row from its own tables right after compiling) rather than mocking the database away; see the [hello-api walkthrough](/examples/hello-api-walkthrough/#postspostse2etestts) for the pattern.
 
 ## Next
 
-- Every exported symbol: [`@blixis/db` reference](/reference/blixis-db/).
+- Every exported symbol: [`@blixis-io/db` reference](/reference/blixis-db/).
 - See it wired into a real app: the [hello-api walkthrough](/examples/hello-api-walkthrough/).

@@ -1,6 +1,6 @@
 import { createHash, randomBytes } from "node:crypto";
-import { Inject, Injectable, type Class, type Token } from "@blixis/di";
-import { UnauthorizedException } from "@blixis/http";
+import { Inject, Injectable, type Class, type Token } from "@blixis-io/di";
+import { UnauthorizedException } from "@blixis-io/http";
 import { SignJWT, type JWTPayload } from "jose";
 import type { ZodType } from "zod";
 import { hashPassword, verifyPassword } from "./password.js";
@@ -198,7 +198,7 @@ export function createAuthServiceClass<Claims>(deps: AuthServiceTokens<Claims>):
       // The claims shape is fully app-defined (any object satisfying the
       // app's own Zod schema) — jose's JWTPayload type can't express that
       // structurally, so this is the one place that trusts the schema just
-      // validated it, same category of boundary cast as @blixis/events'
+      // validated it, same category of boundary cast as @blixis-io/events'
       // `payload as never`.
       const accessToken = await new SignJWT(parsedClaims.data as JWTPayload)
         .setProtectedHeader({ alg: this.authOptions.algorithm })

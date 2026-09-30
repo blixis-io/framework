@@ -1,12 +1,12 @@
-import { Module, type DynamicModule } from "@blixis/core";
-import { Injectable, type Class } from "@blixis/di";
+import { Module, type DynamicModule } from "@blixis-io/core";
+import { Injectable, type Class } from "@blixis-io/di";
 import {
   NotFoundException,
   RequestContext,
   UnauthorizedException,
   type CanActivate,
   type ExecutionContext,
-} from "@blixis/http";
+} from "@blixis-io/http";
 import { MissingTenantError } from "./errors.js";
 
 export interface TenantContext {
@@ -45,7 +45,7 @@ export interface TenancyForRootOptions {
 // One RequestContext key per defineTenancyModule() call, not a fixed
 // literal — otherwise two calls in the same app would read/write the same
 // slot and clobber each other. (Real bug found this exact way in
-// @blixis/auth; fixed proactively here.)
+// @blixis-io/auth; fixed proactively here.)
 let tenancyInstanceCounter = 0;
 
 /** For a resource loaded another way (e.g. by id, via another module's service) — confirms it actually belongs to the current tenant. Mismatch is a 404, not a 403, same fail-closed reasoning as everywhere else here. Doesn't need any per-`defineTenancyModule()` state, so it's a plain module-level export, not part of the closure. */

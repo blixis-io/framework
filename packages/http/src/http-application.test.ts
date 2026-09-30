@@ -1,5 +1,5 @@
-import { Module } from "@blixis/core";
-import { Injectable } from "@blixis/di";
+import { Module } from "@blixis-io/core";
+import { Injectable } from "@blixis-io/di";
 import { request as httpRequest } from "node:http";
 import { describe, expect, it } from "vitest";
 import { Controller } from "./decorators/controller.js";

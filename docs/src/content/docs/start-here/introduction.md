@@ -9,21 +9,21 @@ Blixis is a TypeScript framework for building API-first backends: a dependency i
 
 It's made of thirteen independent packages:
 
-- **`@blixis/di`** — the dependency injection container. `@Injectable`, `@Inject`, tokens, providers, singleton/transient scopes.
-- **`@blixis/core`** — the module system built on top of `@blixis/di`. `@Module`, lifecycle hooks, application bootstrapping.
-- **`@blixis/http`** — the HTTP layer built on top of `@blixis/core`. Routing, controllers, request validation with [Zod](https://zod.dev), guards, RFC 9457 error responses.
-- **`@blixis/logging`** — a multi-transport logger built on top of `@blixis/core`, injectable the same way any other provider is. Doesn't depend on `@blixis/http` — usable in any app, HTTP or not.
-- **`@blixis/config`** — Zod-validated environment config, also built on `@blixis/core`, also HTTP-independent.
-- **`@blixis/db`** — [Drizzle](https://orm.drizzle.team)-backed Postgres persistence, also built on `@blixis/core`, also HTTP-independent. Connects and disconnects via the same lifecycle hooks as everything else.
-- **`@blixis/auth`** — JWT verification and role checks, built on `@blixis/http`'s guard primitive, plus optional password sign-in and refresh-token rotation (`Argon2id` hashing, storage-agnostic `CredentialStore`/`RefreshTokenStore` interfaces). App-layer, not a framework dependency — `@blixis/http` has no idea it exists.
-- **`@blixis/method-hooks`** — `@Before`/`@After`/`@Around` method decorators for adding behavior without editing a method's body. No dependency on any other `@blixis/*` package — works on any class.
-- **`@blixis/openapi`** — generates an OpenAPI 3.1 document from a running app's real controllers. Built on `@blixis/http`'s decorator metadata; no serving mechanism or bundled UI of its own.
-- **`@blixis/cli`** — the `blix` binary. `blix generate <type> <name>` scaffolds one controller/service/module/guard/interceptor file from a template. No `@blixis/*` dependency at all — a dev-time text-template tool, not a runtime library.
-- **`@blixis/tenancy`** — request-scoped multi-tenant access control (`TenantScopedGuard`, a fail-closed `tenantScope()` query helper). Owns the mechanism only — no Organization/Space/Membership data model — so it's reusable by any multi-tenant app, not just a CMS.
-- **`@blixis/events`** — an in-process domain event bus (`defineEventsModule`, `EventBus.emit`/`on`). Depends only on `@blixis/core`, like `@blixis/logging`/`@blixis/config`/`@blixis/db` — usable in any app, HTTP or not.
-- **`@blixis/testing`** — a thin testing layer on top of `@blixis/http`. Build a real application in a test, override providers with fakes, hit it with real requests.
+- **`@blixis-io/di`** — the dependency injection container. `@Injectable`, `@Inject`, tokens, providers, singleton/transient scopes.
+- **`@blixis-io/core`** — the module system built on top of `@blixis-io/di`. `@Module`, lifecycle hooks, application bootstrapping.
+- **`@blixis-io/http`** — the HTTP layer built on top of `@blixis-io/core`. Routing, controllers, request validation with [Zod](https://zod.dev), guards, RFC 9457 error responses.
+- **`@blixis-io/logging`** — a multi-transport logger built on top of `@blixis-io/core`, injectable the same way any other provider is. Doesn't depend on `@blixis-io/http` — usable in any app, HTTP or not.
+- **`@blixis-io/config`** — Zod-validated environment config, also built on `@blixis-io/core`, also HTTP-independent.
+- **`@blixis-io/db`** — [Drizzle](https://orm.drizzle.team)-backed Postgres persistence, also built on `@blixis-io/core`, also HTTP-independent. Connects and disconnects via the same lifecycle hooks as everything else.
+- **`@blixis-io/auth`** — JWT verification and role checks, built on `@blixis-io/http`'s guard primitive, plus optional password sign-in and refresh-token rotation (`Argon2id` hashing, storage-agnostic `CredentialStore`/`RefreshTokenStore` interfaces). App-layer, not a framework dependency — `@blixis-io/http` has no idea it exists.
+- **`@blixis-io/method-hooks`** — `@Before`/`@After`/`@Around` method decorators for adding behavior without editing a method's body. No dependency on any other `@blixis-io/*` package — works on any class.
+- **`@blixis-io/openapi`** — generates an OpenAPI 3.1 document from a running app's real controllers. Built on `@blixis-io/http`'s decorator metadata; no serving mechanism or bundled UI of its own.
+- **`@blixis-io/cli`** — the `blix` binary. `blix generate <type> <name>` scaffolds one controller/service/module/guard/interceptor file from a template. No `@blixis-io/*` dependency at all — a dev-time text-template tool, not a runtime library.
+- **`@blixis-io/tenancy`** — request-scoped multi-tenant access control (`TenantScopedGuard`, a fail-closed `tenantScope()` query helper). Owns the mechanism only — no Organization/Space/Membership data model — so it's reusable by any multi-tenant app, not just a CMS.
+- **`@blixis-io/events`** — an in-process domain event bus (`defineEventsModule`, `EventBus.emit`/`on`). Depends only on `@blixis-io/core`, like `@blixis-io/logging`/`@blixis-io/config`/`@blixis-io/db` — usable in any app, HTTP or not.
+- **`@blixis-io/testing`** — a thin testing layer on top of `@blixis-io/http`. Build a real application in a test, override providers with fakes, hit it with real requests.
 
-Dependencies only point down: `di` depends on nothing; `core` depends on `di`; `http`, `logging`, `config`, `db`, and `events` all depend on `core` (and, transitively, `di`) but not on each other; `auth`, `openapi`, and `tenancy` all depend on `http`; `method-hooks` and `cli` both depend on nothing; `testing` depends on `http`. You can use `@blixis/di` — or `@blixis/di` + `@blixis/core` + `@blixis/logging`/`@blixis/config`/`@blixis/db`/`@blixis/events` — on their own without any of the HTTP machinery.
+Dependencies only point down: `di` depends on nothing; `core` depends on `di`; `http`, `logging`, `config`, `db`, and `events` all depend on `core` (and, transitively, `di`) but not on each other; `auth`, `openapi`, and `tenancy` all depend on `http`; `method-hooks` and `cli` both depend on nothing; `testing` depends on `http`. You can use `@blixis-io/di` — or `@blixis-io/di` + `@blixis-io/core` + `@blixis-io/logging`/`@blixis-io/config`/`@blixis-io/db`/`@blixis-io/events` — on their own without any of the HTTP machinery.
 
 ## Why build this instead of using an existing framework
 

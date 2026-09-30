@@ -1,6 +1,6 @@
-import { Inject, Injectable } from "@blixis/di";
-import type { ExecutionContext, Interceptor } from "@blixis/http";
-import { LOGGER, type Logger } from "@blixis/logging";
+import { Inject, Injectable } from "@blixis-io/di";
+import type { ExecutionContext, Interceptor } from "@blixis-io/http";
+import { LOGGER, type Logger } from "@blixis-io/logging";
 
 @Injectable()
 export class TimingInterceptor implements Interceptor {

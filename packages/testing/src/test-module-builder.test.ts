@@ -1,6 +1,6 @@
-import { Module } from "@blixis/core";
-import { Injectable } from "@blixis/di";
-import { Controller, Get } from "@blixis/http";
+import { Module } from "@blixis-io/core";
+import { Injectable } from "@blixis-io/di";
+import { Controller, Get } from "@blixis-io/http";
 import { describe, expect, it } from "vitest";
 import { Test } from "./test-module-builder.js";
 

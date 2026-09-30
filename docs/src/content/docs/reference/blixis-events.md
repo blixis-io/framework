@@ -1,5 +1,5 @@
 ---
-title: "@blixis/events"
+title: "@blixis-io/events"
 description: Full API reference for the events package.
 sidebar:
   order: 13
@@ -20,7 +20,7 @@ interface EventsForRootOptions {
 }
 ```
 
-Same factory-closure shape as [`@blixis/config`'s `defineConfigModule`](/reference/blixis-config/), [`@blixis/auth`'s `defineAuthModule`](/reference/blixis-auth/), and [`@blixis/tenancy`'s `defineTenancyModule`](/reference/blixis-tenancy/) — call it once per app (typically in its own `events.ts`), export the result. `Events` is your app's own event-name-to-payload map, declared with `type`, not `interface` — an `interface` doesn't satisfy the `Record<string, unknown>` constraint. Each call to `defineEventsModule()` produces its own distinct `EVENT_BUS` token.
+Same factory-closure shape as [`@blixis-io/config`'s `defineConfigModule`](/reference/blixis-config/), [`@blixis-io/auth`'s `defineAuthModule`](/reference/blixis-auth/), and [`@blixis-io/tenancy`'s `defineTenancyModule`](/reference/blixis-tenancy/) — call it once per app (typically in its own `events.ts`), export the result. `Events` is your app's own event-name-to-payload map, declared with `type`, not `interface` — an `interface` doesn't satisfy the `Record<string, unknown>` constraint. Each call to `defineEventsModule()` produces its own distinct `EVENT_BUS` token.
 
 ## `EventBus<Events>`
 
@@ -56,4 +56,4 @@ Registers `EVENT_BUS` as a provider. `global` defaults to `false`; pass `true` t
 
 ## `InProcessEventBus`
 
-The only `EventBus` implementation this package ships. Not exported — resolve `EVENT_BUS` instead of referencing the class directly. A Map-of-Sets keyed by event type, no persistence layer, no external dependency beyond `@blixis/core`/`@blixis/di`.
+The only `EventBus` implementation this package ships. Not exported — resolve `EVENT_BUS` instead of referencing the class directly. A Map-of-Sets keyed by event type, no persistence layer, no external dependency beyond `@blixis-io/core`/`@blixis-io/di`.

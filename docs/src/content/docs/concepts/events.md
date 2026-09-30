@@ -5,11 +5,11 @@ sidebar:
   order: 19
 ---
 
-`@blixis/events` is a small in-process publish/subscribe bus for domain events — `"post.created"`, `"user.invited"`, whatever your app's own event names are. It has nothing to do with HTTP: it depends only on `@blixis/core` and `@blixis/di`, the same category as [`@blixis/logging`](/concepts/logging/) and [`@blixis/config`](/concepts/config/), so it's usable in any app, HTTP or not.
+`@blixis-io/events` is a small in-process publish/subscribe bus for domain events — `"post.created"`, `"user.invited"`, whatever your app's own event names are. It has nothing to do with HTTP: it depends only on `@blixis-io/core` and `@blixis-io/di`, the same category as [`@blixis-io/logging`](/concepts/logging/) and [`@blixis-io/config`](/concepts/config/), so it's usable in any app, HTTP or not.
 
 ## The shape
 
-Same factory-closure pattern as [`@blixis/config`'s `defineConfigModule`](/reference/blixis-config/) and [`@blixis/tenancy`'s `defineTenancyModule`](/reference/blixis-tenancy/) — your app's event-name-to-payload map is a generic parameter fixed once per app, not baked into the package:
+Same factory-closure pattern as [`@blixis-io/config`'s `defineConfigModule`](/reference/blixis-config/) and [`@blixis-io/tenancy`'s `defineTenancyModule`](/reference/blixis-tenancy/) — your app's event-name-to-payload map is a generic parameter fixed once per app, not baked into the package:
 
 ```ts
 // events.ts
@@ -80,5 +80,5 @@ If you're building something today that truly can't tolerate losing an event, do
 
 ## Next
 
-- Every exported symbol: [`@blixis/events` reference](/reference/blixis-events/).
-- The same factory-closure pattern used elsewhere: [`@blixis/config`](/reference/blixis-config/), [`@blixis/tenancy`](/reference/blixis-tenancy/).
+- Every exported symbol: [`@blixis-io/events` reference](/reference/blixis-events/).
+- The same factory-closure pattern used elsewhere: [`@blixis-io/config`](/reference/blixis-config/), [`@blixis-io/tenancy`](/reference/blixis-tenancy/).

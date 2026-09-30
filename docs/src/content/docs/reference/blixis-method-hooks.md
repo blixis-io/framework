@@ -1,5 +1,5 @@
 ---
-title: "@blixis/method-hooks"
+title: "@blixis-io/method-hooks"
 description: Full API reference for the method-hooks package.
 sidebar:
   order: 9

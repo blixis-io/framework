@@ -1,6 +1,6 @@
-import { Module } from "@blixis/core";
-import { Inject, Injectable, InjectionToken } from "@blixis/di";
-import { createHttpApplication, runInRequestContext } from "@blixis/http";
+import { Module } from "@blixis-io/core";
+import { Inject, Injectable, InjectionToken } from "@blixis-io/di";
+import { createHttpApplication, runInRequestContext } from "@blixis-io/http";
 import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { defineAuthModule } from "./module.js";

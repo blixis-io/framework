@@ -1,5 +1,5 @@
-import { createApplication, Module, type Application, type CreateApplicationOptions, type ModuleRef } from "@blixis/core";
-import type { Class, Token } from "@blixis/di";
+import { createApplication, Module, type Application, type CreateApplicationOptions, type ModuleRef } from "@blixis-io/core";
+import type { Class, Token } from "@blixis-io/di";
 import { createServer, type Server } from "node:http";
 import { createHandler, type HandlerOptions } from "./handler.js";
 import { sendWebResponse, toWebRequest } from "./node-adapter.js";
@@ -42,7 +42,7 @@ export class HttpApplication {
     return this.#app.get(token);
   }
 
-  /** Every controller class in this app's module graph — what `@blixis/openapi` walks to build a document that stays in sync with the real running app. */
+  /** Every controller class in this app's module graph — what `@blixis-io/openapi` walks to build a document that stays in sync with the real running app. */
   get controllers(): readonly Class[] {
     return this.#app.controllers;
   }

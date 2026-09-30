@@ -1,4 +1,4 @@
-import { Module } from "@blixis/core";
+import { Module } from "@blixis-io/core";
 import { DrizzleModule } from "../db/index.js";
 import { ApiKeyGuard } from "./api-key.guard.js";
 import { PostsController } from "./posts.controller.js";

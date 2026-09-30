@@ -10,7 +10,7 @@ sidebar:
 ## `@Returns`
 
 ```ts
-import { Controller, Get, Returns } from "@blixis/http";
+import { Controller, Get, Returns } from "@blixis-io/http";
 import { z } from "zod";
 
 const PostSchema = z.object({
@@ -69,6 +69,6 @@ weirdButFine() {
 
 ## Next
 
-- Every exported symbol: [`@blixis/http` reference](/reference/blixis-http/#returns-response-validation).
+- Every exported symbol: [`@blixis-io/http` reference](/reference/blixis-http/#returns-response-validation).
 - The request-side equivalent: [Request Validation](/concepts/request-validation/).
 - See it applied to every route on a real controller: the [hello-api walkthrough](/examples/hello-api-walkthrough/).

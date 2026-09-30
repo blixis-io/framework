@@ -1,4 +1,4 @@
-import { ApiOperation, ApiTags, Body, Controller, Delete, Get, Headers, HttpCode, Param, Post, Query, Returns } from "@blixis/http";
+import { ApiOperation, ApiTags, Body, Controller, Delete, Get, Headers, HttpCode, Param, Post, Query, Returns } from "@blixis-io/http";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { generateOpenApiDocument } from "./generate.js";

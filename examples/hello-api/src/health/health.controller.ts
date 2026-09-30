@@ -1,4 +1,4 @@
-import { Controller, Get } from "@blixis/http";
+import { Controller, Get } from "@blixis-io/http";
 
 // Generated with `blix generate controller health`, then hand-edited —
 // the generator's job is a valid starting point, not the finished route.

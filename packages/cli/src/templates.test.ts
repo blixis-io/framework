@@ -24,32 +24,32 @@ describe("resolveGeneratorType", () => {
 describe("renderTemplate", () => {
   it("controller: a @Controller class with one @Get route", () => {
     const output = renderTemplate("controller", "posts");
-    expect(output).toContain('import { Controller, Get } from "@blixis/http";');
+    expect(output).toContain('import { Controller, Get } from "@blixis-io/http";');
     expect(output).toContain('@Controller("posts")');
     expect(output).toContain("export class PostsController {");
   });
 
   it("service: a bare @Injectable class", () => {
     const output = renderTemplate("service", "posts");
-    expect(output).toContain('import { Injectable } from "@blixis/di";');
+    expect(output).toContain('import { Injectable } from "@blixis-io/di";');
     expect(output).toContain("export class PostsService {}");
   });
 
   it("module: a bare @Module class", () => {
     const output = renderTemplate("module", "posts");
-    expect(output).toContain('import { Module } from "@blixis/core";');
+    expect(output).toContain('import { Module } from "@blixis-io/core";');
     expect(output).toContain("export class PostsModule {}");
   });
 
   it("guard: a CanActivate implementation", () => {
     const output = renderTemplate("guard", "posts");
-    expect(output).toContain('import type { CanActivate, ExecutionContext } from "@blixis/http";');
+    expect(output).toContain('import type { CanActivate, ExecutionContext } from "@blixis-io/http";');
     expect(output).toContain("export class PostsGuard implements CanActivate {");
   });
 
   it("interceptor: an Interceptor implementation", () => {
     const output = renderTemplate("interceptor", "posts");
-    expect(output).toContain('import type { ExecutionContext, Interceptor } from "@blixis/http";');
+    expect(output).toContain('import type { ExecutionContext, Interceptor } from "@blixis-io/http";');
     expect(output).toContain("export class PostsInterceptor implements Interceptor {");
   });
 

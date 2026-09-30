@@ -27,16 +27,16 @@ export function Injectable(options: InjectableOptions = {}): ClassDecorator {
 
 ## Storing and reading metadata
 
-`@blixis/di` exports thin typed wrappers over `Reflect.defineMetadata`/`Reflect.getMetadata`:
+`@blixis-io/di` exports thin typed wrappers over `Reflect.defineMetadata`/`Reflect.getMetadata`:
 
 ```ts
-import { defineMetadata, getMetadata } from "@blixis/di";
+import { defineMetadata, getMetadata } from "@blixis-io/di";
 
 defineMetadata(SOME_KEY, value, target, propertyKey?);
 const value = getMetadata<T>(SOME_KEY, target, propertyKey?);
 ```
 
-Metadata keys are `Symbol`s scoped to whichever module owns that piece of metadata — `@blixis/di` has its own private symbols for injectable options, inject overrides, and optional-parameter flags; `@blixis/http` has separate ones for routes, controllers, params, and guards. None of them collide, and none of them are exported — you always go through the decorator functions themselves or their paired `getXxx()` reader.
+Metadata keys are `Symbol`s scoped to whichever module owns that piece of metadata — `@blixis-io/di` has its own private symbols for injectable options, inject overrides, and optional-parameter flags; `@blixis-io/http` has separate ones for routes, controllers, params, and guards. None of them collide, and none of them are exported — you always go through the decorator functions themselves or their paired `getXxx()` reader.
 
 ### The rule that's easy to get backwards: key by what the decorator receives
 
@@ -74,9 +74,9 @@ Three things about this array matter a lot in practice, all covered in depth in 
 2. A parameter typed with an interface, a union, or referencing a not-yet-declared class erases to the `Object` constructor — TypeScript can't put a runtime value for something that doesn't exist at runtime.
 3. A parameter typed `void` is the one case that erases to a literal `undefined` entry instead of `Object`.
 
-`@blixis/di`'s `UnresolvableParameterError` exists specifically to turn cases 2 and 3 into an actionable error message instead of a confusing `NotInjectableError` or a silent wrong resolution.
+`@blixis-io/di`'s `UnresolvableParameterError` exists specifically to turn cases 2 and 3 into an actionable error message instead of a confusing `NotInjectableError` or a silent wrong resolution.
 
 ## Next
 
 - How the container consumes all of this to build instances: [Dependency Injection](/concepts/dependency-injection/).
-- Every exported metadata helper: [`@blixis/di` reference](/reference/blixis-di/).
+- Every exported metadata helper: [`@blixis-io/di` reference](/reference/blixis-di/).

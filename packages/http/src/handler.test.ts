@@ -1,5 +1,5 @@
-import { createApplication, Module } from "@blixis/core";
-import { Injectable, type Class, type Provider } from "@blixis/di";
+import { createApplication, Module } from "@blixis-io/core";
+import { Injectable, type Class, type Provider } from "@blixis-io/di";
 import { z } from "zod";
 import { beforeEach, describe, expect, it } from "vitest";
 import { Controller } from "./decorators/controller.js";

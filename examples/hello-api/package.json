@@ -12,18 +12,18 @@
     "start": "node dist/main.js"
   },
   "dependencies": {
-    "@blixis/config": "workspace:*",
-    "@blixis/core": "workspace:*",
-    "@blixis/db": "workspace:*",
-    "@blixis/di": "workspace:*",
-    "@blixis/http": "workspace:*",
-    "@blixis/logging": "workspace:*",
-    "@blixis/openapi": "workspace:*",
+    "@blixis-io/config": "workspace:*",
+    "@blixis-io/core": "workspace:*",
+    "@blixis-io/db": "workspace:*",
+    "@blixis-io/di": "workspace:*",
+    "@blixis-io/http": "workspace:*",
+    "@blixis-io/logging": "workspace:*",
+    "@blixis-io/openapi": "workspace:*",
     "drizzle-orm": "^0.45.3",
     "zod": "^4.6.5"
   },
   "devDependencies": {
-    "@blixis/cli": "workspace:*",
-    "@blixis/testing": "workspace:*"
+    "@blixis-io/cli": "workspace:*",
+    "@blixis-io/testing": "workspace:*"
   }
 }

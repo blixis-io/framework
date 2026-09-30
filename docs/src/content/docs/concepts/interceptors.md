@@ -10,9 +10,9 @@ An interceptor wraps a route's param resolution and handler invocation in an oni
 ## `Interceptor`
 
 ```ts
-import type { ExecutionContext, Interceptor } from "@blixis/http";
-import { Inject, Injectable } from "@blixis/di";
-import { LOGGER, type Logger } from "@blixis/logging";
+import type { ExecutionContext, Interceptor } from "@blixis-io/http";
+import { Inject, Injectable } from "@blixis-io/di";
+import { LOGGER, type Logger } from "@blixis-io/logging";
 
 @Injectable()
 export class TimingInterceptor implements Interceptor {
@@ -69,6 +69,6 @@ Rethrowing is important — swallowing the error here would turn a real failure 
 
 ## Next
 
-- Every exported symbol: [`@blixis/http` reference](/reference/blixis-http/#interceptors).
+- Every exported symbol: [`@blixis-io/http` reference](/reference/blixis-http/#interceptors).
 - See a real one (`TimingInterceptor`, logging request duration) wired into `hello-api`: the [hello-api walkthrough](/examples/hello-api-walkthrough/).
 - Reading a value a guard set, from inside an interceptor or handler: [Request Context](/concepts/request-context/).

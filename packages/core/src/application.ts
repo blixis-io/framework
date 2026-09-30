@@ -12,7 +12,7 @@ import {
   type DependencyDescriptor,
   type Provider,
   type Token,
-} from "@blixis/di";
+} from "@blixis-io/di";
 import { NotAModuleError, ProviderNotVisibleError } from "./errors.js";
 import { hasOnApplicationShutdown, hasOnModuleInit } from "./lifecycle.js";
 import { getModuleMetadata, isDynamicModule, moduleClassOf, type ModuleRef } from "./module.js";
@@ -233,7 +233,7 @@ export class Application {
 }
 
 export interface CreateApplicationOptions {
-  /** Providers to swap in for the module graph's own, matched by token — the seam `@blixis/testing` uses for mocking. */
+  /** Providers to swap in for the module graph's own, matched by token — the seam `@blixis-io/testing` uses for mocking. */
   overrides?: Provider[] | undefined;
 }
 

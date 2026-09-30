@@ -1,5 +1,5 @@
-import { Module } from "@blixis/core";
-import { createHttpApplication, RequestContext, runInRequestContext, UnauthorizedException } from "@blixis/http";
+import { Module } from "@blixis-io/core";
+import { createHttpApplication, RequestContext, runInRequestContext, UnauthorizedException } from "@blixis-io/http";
 import { SignJWT } from "jose";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
