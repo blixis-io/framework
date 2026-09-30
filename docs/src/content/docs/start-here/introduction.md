@@ -15,7 +15,7 @@ It's made of thirteen independent packages:
 - **`@blixis/logging`** — a multi-transport logger built on top of `@blixis/core`, injectable the same way any other provider is. Doesn't depend on `@blixis/http` — usable in any app, HTTP or not.
 - **`@blixis/config`** — Zod-validated environment config, also built on `@blixis/core`, also HTTP-independent.
 - **`@blixis/db`** — [Drizzle](https://orm.drizzle.team)-backed Postgres persistence, also built on `@blixis/core`, also HTTP-independent. Connects and disconnects via the same lifecycle hooks as everything else.
-- **`@blixis/auth`** — JWT verification and role checks, built on `@blixis/http`'s guard primitive. App-layer, not a framework dependency — `@blixis/http` has no idea it exists.
+- **`@blixis/auth`** — JWT verification and role checks, built on `@blixis/http`'s guard primitive, plus optional password sign-in and refresh-token rotation (`Argon2id` hashing, storage-agnostic `CredentialStore`/`RefreshTokenStore` interfaces). App-layer, not a framework dependency — `@blixis/http` has no idea it exists.
 - **`@blixis/plugins`** — `@Before`/`@After`/`@Around` method decorators for adding behavior without editing a method's body. No dependency on any other `@blixis/*` package — works on any class.
 - **`@blixis/openapi`** — generates an OpenAPI 3.1 document from a running app's real controllers. Built on `@blixis/http`'s decorator metadata; no serving mechanism or bundled UI of its own.
 - **`@blixis/cli`** — the `blix` binary. `blix generate <type> <name>` scaffolds one controller/service/module/guard/interceptor file from a template. No `@blixis/*` dependency at all — a dev-time text-template tool, not a runtime library.

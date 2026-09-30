@@ -7,7 +7,7 @@ sidebar:
 
 `@blixis/auth` verifies bearer JWTs and checks roles, built entirely on primitives [Guards & Authorization](/concepts/guards-and-authorization/) and [Request Context](/concepts/request-context/) already introduced — it's app-layer, not a framework dependency: `@blixis/http` has no idea `@blixis/auth` exists.
 
-This is **verification only**. Issuing tokens — login, registration, password hashing — is left to your app; `@blixis/auth` starts from "here's a bearer token," not "here's a password."
+By default this is **verification only** — `@blixis/auth` starts from "here's a bearer token," not "here's a password." Pass `issuing` to `forRoot()` to also get password sign-in, refresh-token rotation, and sign-out — see [Issuing tokens](#issuing-tokens) below.
 
 ## Why it's a factory, not a fixed token
 
@@ -97,8 +97,95 @@ AuthModule.forRoot({ secret, global: true })
 
 Same default as `@blixis/db`'s `DrizzleModule`, for the same reason: most apps only need `JwtAuthGuard` in the modules that actually have protected routes, so encapsulation is the better default. Pass `global: true` if most of your app sits behind auth.
 
+## Issuing tokens
+
+Pass `issuing` to `forRoot()` to turn on `AUTH_SERVICE` — password sign-in, refresh-token rotation, and sign-out. `@blixis/auth` stays **storage-agnostic**: you implement two small interfaces as ordinary DI classes, the package never depends on `@blixis/db` or any particular ORM.
+
+```ts
+// auth.ts
+export const { AuthModule, JwtAuthGuard, createRolesGuard, getCurrentUser, AUTH_SERVICE } =
+  defineAuthModule(ClaimsSchema);
+```
+
+```ts
+@Module({
+  imports: [
+    AuthModule.forRoot({
+      secret: process.env.JWT_SECRET!,
+      issuing: {
+        imports: [UsersModule], // whatever exports the stores' own dependencies (e.g. DATABASE)
+        credentialStore: DrizzleCredentialStore,
+        refreshTokenStore: DrizzleRefreshTokenStore,
+      },
+    }),
+  ],
+})
+class AppModule {}
+```
+
+```ts
+@Injectable()
+class AuthController {
+  constructor(@Inject(AUTH_SERVICE) private readonly auth: AuthService) {}
+
+  @Post("sign-in")
+  async signIn(@Body(SignInSchema) body: SignInInput) {
+    return this.auth.signIn(body.email, body.password);
+  }
+}
+```
+
+See the [Issuing Tokens guide](/guides/issuing-tokens/) for a full working `CredentialStore`/`RefreshTokenStore` pair backed by Drizzle, plus a sign-up flow using `hashPassword`.
+
+### Password hashing
+
+```ts
+import { hashPassword, verifyPassword } from "@blixis/auth";
+
+const hash = await hashPassword(user.password); // "$argon2id$v=19$m=19456,t=2,p=1$<salt>$<hash>"
+const valid = await verifyPassword(candidatePassword, hash);
+```
+
+Argon2id via Node's own `crypto.argon2` (no external dependency), at OWASP's minimum recommended cost. The returned string stores its own parameters, so a future bump to the cost constants still verifies hashes minted under the old ones.
+
+### The store interfaces
+
+```ts
+interface CredentialStore<Claims> {
+  findByIdentifier(identifier: string): Promise<{ subject: string; passwordHash: string } | null | undefined>;
+  loadClaims(subject: string): Promise<Claims | null | undefined>;
+}
+
+interface RefreshTokenStore {
+  create(tokenHash: string, record: { subject: string; expiresAt: Date }): Promise<void>;
+  find(tokenHash: string): Promise<RefreshTokenRecord | null | undefined>;
+  markRotated(tokenHash: string): Promise<boolean>;
+  revoke(tokenHash: string): Promise<void>;
+  revokeAllForSubject(subject: string): Promise<void>;
+}
+```
+
+`AuthService` never sees a raw password or a raw refresh token in your store — it hashes both before ever calling out (Argon2id for passwords, a fast SHA-256 for the high-entropy refresh token, since the latter doesn't need to be slow to resist brute force). `loadClaims` returning `null`/`undefined` means "this account can't sign in right now" (gone or disabled) and fails exactly like a wrong password — your store owns that decision, `@blixis/auth` just fails closed on it.
+
+### Fail-closed rules, deliberate
+
+- **`signIn` never reveals whether an identifier exists.** An unknown identifier still runs a real password verification (against an internally cached dummy hash) before rejecting, so response timing doesn't leak account existence. Unknown identifier, wrong password, and a disabled account (`loadClaims` returning null) all throw the identical `UnauthorizedException("Invalid credentials")`.
+- **Refresh tokens rotate on every use.** `refresh()` invalidates the presented token and issues a new one. Presenting an **already-rotated** token — real reuse, or two callers racing to refresh the same token — revokes every refresh token for that subject and throws, on the theory that only the rightful client should ever hold the newest token.
+- **`signOut` is idempotent.** Revoking an unknown or already-revoked token never throws.
+- **A claims value that fails your own schema is a server bug, not a client error.** If `CredentialStore.loadClaims()` returns something your `claimsSchema` would reject, `AuthService` throws a plain `Error` (a `500`) instead of silently signing a token `JwtAuthGuard` would later reject anyway.
+
+### What this deliberately doesn't do yet
+
+This is a first pass, scoped to match what a real caller needs today rather than every guarantee a production identity system eventually wants — each gap below is a deliberate, named deferral:
+
+- **Sign-in is unthrottled.** This is the one that matters most before going to production: `signIn` has no rate limiting or lockout built in. Add it at a proxy, or with an interceptor, before shipping password sign-in for real.
+- **No rotation-family grace window.** Two tabs refreshing the same token at nearly the same instant will trip reuse detection and sign the user out everywhere — clients should single-flight their own refresh calls. There's also no absolute session cap; a session can slide indefinitely while actively used.
+- **HMAC signing only**, same as verification — no asymmetric (EdDSA) signing or JWKS endpoint. Only relevant once more than one service needs to verify tokens without sharing the HMAC secret.
+- **No security-event hook** for detected reuse — it's logged nowhere by `@blixis/auth` itself today. Wire your own logging into your store implementations if you need it.
+
 ## Next
 
 - Every exported symbol: [`@blixis/auth` reference](/reference/blixis-auth/).
 - The guard primitive this is built on: [Guards & Authorization](/concepts/guards-and-authorization/).
 - Where verified claims live between guards, interceptors, and the handler: [Request Context](/concepts/request-context/).
+- A full Drizzle-backed implementation: [Issuing Tokens guide](/guides/issuing-tokens/).
