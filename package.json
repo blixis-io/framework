@@ -14,9 +14,14 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "build": "turbo run build",
-    "ci": "turbo run build typecheck lint test && pnpm run format:check"
+    "ci": "turbo run build typecheck lint test && pnpm run format:check",
+    "changeset": "changeset",
+    "version-packages": "changeset version",
+    "release": "pnpm run build && changeset publish"
   },
   "devDependencies": {
+    "@changesets/changelog-github": "^1.0.1",
+    "@changesets/cli": "^3.0.3",
     "@types/node": "^24.0.0",
     "@vitest/coverage-v8": "^5.0.2",
     "editorconfig-checker": "^7.0.0",
