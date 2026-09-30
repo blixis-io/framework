@@ -2,8 +2,10 @@ import { createHttpApplication } from "@blixis/http";
 import { LOGGER } from "@blixis/logging";
 import { AppModule } from "./app.module.js";
 import { CONFIG } from "./config.js";
+import { AppRef } from "./docs/app-ref.js";
 
 const app = await createHttpApplication(AppModule);
+app.get(AppRef).current = app;
 
 const { PORT } = app.get(CONFIG);
 await app.listen(PORT);
