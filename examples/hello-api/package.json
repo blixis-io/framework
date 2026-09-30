@@ -23,6 +23,7 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@blixis/cli": "workspace:*",
     "@blixis/testing": "workspace:*"
   }
 }

@@ -2,6 +2,7 @@ import { Module } from "@blixis/core";
 import { consoleTransport, LoggerModule } from "@blixis/logging";
 import { ConfigModule } from "./config.js";
 import { DocsModule } from "./docs/docs.module.js";
+import { HealthController } from "./health/health.controller.js";
 import { PostsModule } from "./posts/posts.module.js";
 
 @Module({
@@ -11,5 +12,8 @@ import { PostsModule } from "./posts/posts.module.js";
     PostsModule,
     DocsModule,
   ],
+  // No dedicated module for this one — a single provider-less route isn't
+  // worth its own module, unlike PostsModule/DocsModule.
+  controllers: [HealthController],
 })
 export class AppModule {}
