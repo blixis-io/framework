@@ -5,12 +5,16 @@ sidebar:
   order: 1
 ---
 
-`examples/hello-api` is the framework's own reference application — an in-memory posts CRUD API used as the end-to-end proof that every package works together. It's the same shape built step by step in [Build Your First API](/tutorials/build-your-first-api/) and [Add Authentication](/tutorials/add-authentication/); this page is a straight tour of the real file layout instead of a build-it-yourself narrative.
+`examples/hello-api` is the framework's own reference application — a Postgres-backed posts CRUD API used as the end-to-end proof that every package works together. It's the same shape built step by step in [Build Your First API](/tutorials/build-your-first-api/) and [Add Authentication](/tutorials/add-authentication/); this page is a straight tour of the real file layout instead of a build-it-yourself narrative.
 
 ```
 examples/hello-api/src/
   main.ts
   app.module.ts
+  config.ts
+  db/
+    schema.ts
+    index.ts
   posts/
     post.schema.ts
     posts.service.ts
@@ -46,9 +50,31 @@ export const PostListSchema = z.array(PostSchema);
 
 The request-side schema/type pair covered in [Validating Request Bodies with Zod](/guides/validating-request-bodies/). `PostSchema` is the same convention applied to the *response* side — `posts.controller.ts` declares it via `@Returns`, so every route's actual output is checked against it on every request, not just assumed correct because `PostsService` is trusted. `PostListSchema` is just `z.array(PostSchema)`, used by the one route (`list`) that returns more than one.
 
+## `db/schema.ts` and `db/index.ts`
+
+```ts title="db/schema.ts"
+export const posts = pgTable("posts", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  body: text("body").notNull().default(""),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const schema = { posts };
+```
+
+```ts title="db/index.ts"
+export const { DATABASE, DrizzleModule } = defineDrizzleModule(schema);
+export type Database = NodePgDatabase<typeof schema>;
+```
+
+A plain `drizzle-orm/pg-core` table plus one call to `@blixis/db`'s `defineDrizzleModule` — same factory-closure shape as `@blixis/config`'s `defineConfigModule`, for the same reason: the schema is app-specific, so there's no single fixed token to export. See [Database](/concepts/database/).
+
 ## `posts/posts.service.ts`
 
-The in-memory store: a `Map<string, Post>`, an incrementing id counter, and CRUD methods. `get()` throws `NotFoundException` for a missing id, which `update()` and `remove()` both reuse instead of repeating the existence check. `update()` resolves each optional field with `??` rather than spreading — see [Validating Request Bodies with Zod](/guides/validating-request-bodies/#3-handle-a-partial-update-correctly) for why that distinction is load-bearing, not stylistic.
+CRUD methods against `DATABASE`, injected via `@Inject(DATABASE)`. `get()` throws `NotFoundException` for a missing id (including a non-numeric one, checked before it ever reaches the database) — `update()` and `remove()` both reuse it instead of repeating the existence check. `update()` resolves each optional field with `??` rather than spreading — see [Validating Request Bodies with Zod](/guides/validating-request-bodies/#3-handle-a-partial-update-correctly) for why that distinction is load-bearing, not stylistic.
+
+`PostsService` also implements `OnModuleInit` to run a `create table if not exists posts (...)` on boot — a stand-in for real migrations until `drizzle-kit` is wired up, fine for this example, not a pattern for a real app.
 
 `remove()` also injects `RequestContext` and reads an `"apiClient"` value back out of it:
 
@@ -109,43 +135,69 @@ Full CRUD, all five HTTP method decorators in one controller. The one route with
 
 ```ts
 @Module({
+  imports: [DrizzleModule.forRoot({ connection: process.env.DATABASE_URL ?? "postgres://blixis:blixis@localhost:5434/blixis" })],
   providers: [PostsService, ApiKeyGuard, TimingInterceptor],
   controllers: [PostsController],
 })
 export class PostsModule {}
 ```
 
-`ApiKeyGuard` and `TimingInterceptor` are both listed in `providers` even though no controller method injects either directly — they're resolved by the HTTP layer at request time because `@UseGuards`/`@UseInterceptors` named the classes, not because anything constructor-injects them. Leaving either out of `providers` is the single most common mistake when adding a guard or interceptor — see [Guards & Authorization](/concepts/guards-and-authorization/#guard-classes-must-be-registered-providers).
+`DrizzleModule.forRoot()` is imported directly here rather than made `global` — only `PostsModule` needs `DATABASE`, so there's no reason to make it visible app-wide. `ApiKeyGuard` and `TimingInterceptor` are both listed in `providers` even though no controller method injects either directly — they're resolved by the HTTP layer at request time because `@UseGuards`/`@UseInterceptors` named the classes, not because anything constructor-injects them. Leaving either out of `providers` is the single most common mistake when adding a guard or interceptor — see [Guards & Authorization](/concepts/guards-and-authorization/#guard-classes-must-be-registered-providers).
 
-## `app.module.ts` and `main.ts`
+## `config.ts`, `app.module.ts`, and `main.ts`
+
+```ts title="config.ts"
+export const AppConfigSchema = z.object({
+  PORT: z.coerce.number().default(3000),
+});
+export type AppConfig = z.infer<typeof AppConfigSchema>;
+
+export const { CONFIG, ConfigModule } = defineConfigModule(AppConfigSchema);
+```
 
 ```ts title="app.module.ts"
-@Module({ imports: [PostsModule] })
+@Module({
+  imports: [
+    ConfigModule.forRoot(),
+    LoggerModule.forRoot({ transports: [consoleTransport()] }),
+    PostsModule,
+  ],
+})
 export class AppModule {}
 ```
 
+`ConfigModule` and `LoggerModule` are both `global: true` internally, so every module — including `PostsModule` and its own `DrizzleModule` import — can inject `CONFIG`/`LOGGER` without importing either directly. See [Configuration](/concepts/config/) and [Logging](/concepts/logging/).
+
 ```ts title="main.ts"
-const port = Number(process.env["PORT"] ?? 3000);
-
 const app = await createHttpApplication(AppModule);
-await app.listen(port);
 
-console.log(`hello-api listening on http://localhost:${port}`);
+const { PORT } = app.get(CONFIG);
+await app.listen(PORT);
+
+const log = app.get(LOGGER);
+log.info("hello-api listening", { port: PORT });
 
 process.on("SIGTERM", () => {
+  log.info("received SIGTERM, shutting down");
   void app.close("SIGTERM").then(() => process.exit(0));
 });
 ```
 
-The `SIGTERM` handler is the whole graceful-shutdown story — see [Running in Production](/guides/running-in-production/) for what `close()` actually does (closes the socket, runs every `OnApplicationShutdown` hook, and is safe to call more than once).
+The `SIGTERM` handler is the whole graceful-shutdown story — see [Running in Production](/guides/running-in-production/) for what `close()` actually does (closes the socket, runs every `OnApplicationShutdown` hook — including `DrizzleModule`'s pool `.end()` — and is safe to call more than once).
 
 ## `posts/posts.e2e.test.ts`
 
-Six tests, all through `Test.createModule({ imports: [PostsModule] }).compile()` and `app.request(...)` — no mocking, a real application built fresh per test. They cover: create + list, a Zod validation failure (`400` with issues), a missing post (`404`), the wrong method on a known path (`405` with `Allow`), the guard denying and then allowing a `DELETE`, and a `PATCH` partial update. This is the pattern [Test-Driven API Development](/tutorials/test-driven-api-development/) walks through building from scratch.
+Six tests, all through `Test.createModule({ imports: [PostsModule] }).compile()` and `app.request(...)` — no mocking, a real application built fresh per test, against the same real Postgres the app itself uses. `createTestApp()` deletes every row from `posts` right after compiling, so each test starts from an empty table even though the database itself persists across tests. They cover: create + list, a Zod validation failure (`400` with issues), a missing post (`404`), the wrong method on a known path (`405` with `Allow`), the guard denying and then allowing a `DELETE`, and a `PATCH` partial update. This is the pattern [Test-Driven API Development](/tutorials/test-driven-api-development/) walks through building from scratch.
 
 ## Running it yourself
 
-From the repo root:
+Start Postgres once, from the repo root:
+
+```bash
+docker compose up -d
+```
+
+Then build and run the app:
 
 ```bash
 pnpm --filter hello-api run build
