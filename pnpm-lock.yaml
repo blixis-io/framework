@@ -182,6 +182,8 @@ importers:
         specifier: workspace:*
         version: link:../di
 
+  packages/method-hooks: {}
+
   packages/openapi:
     dependencies:
       '@blixis/di':
@@ -193,8 +195,6 @@ importers:
       zod:
         specifier: ^4.6.5
         version: 4.6.5
-
-  packages/plugins: {}
 
   packages/tenancy:
     dependencies:

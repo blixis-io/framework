@@ -65,7 +65,7 @@ function isThenable(value: unknown): value is PromiseLike<unknown> {
  * Runs `hook` before the decorated method, optionally replacing its
  * arguments. Composes with other `@Before`/`@After`/`@Around` decorators on
  * the same method by wrapping whatever's already there — see
- * `concepts/method-plugins.md` for the resulting call order when several
+ * `concepts/method-hooks.md` for the resulting call order when several
  * are stacked.
  */
 export function Before<Args extends unknown[] = unknown[]>(hook: BeforeHook<Args>): MethodDecorator {
