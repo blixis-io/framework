@@ -1,0 +1,59 @@
+---
+title: "@blixis/events"
+description: Full API reference for the events package.
+sidebar:
+  order: 13
+---
+
+In-process domain event pub-sub. See [Events](/concepts/events/) for the concepts and why a transactional outbox was deferred.
+
+## `defineEventsModule`
+
+```ts
+function defineEventsModule<Events extends Record<string, unknown>>(): {
+  EventsModule: { forRoot(options?: EventsForRootOptions): DynamicModule };
+  EVENT_BUS: InjectionToken<EventBus<Events>>;
+};
+
+interface EventsForRootOptions {
+  global?: boolean; // default false
+}
+```
+
+Same factory-closure shape as [`@blixis/config`'s `defineConfigModule`](/reference/blixis-config/), [`@blixis/auth`'s `defineAuthModule`](/reference/blixis-auth/), and [`@blixis/tenancy`'s `defineTenancyModule`](/reference/blixis-tenancy/) — call it once per app (typically in its own `events.ts`), export the result. `Events` is your app's own event-name-to-payload map, declared with `type`, not `interface` — an `interface` doesn't satisfy the `Record<string, unknown>` constraint. Each call to `defineEventsModule()` produces its own distinct `EVENT_BUS` token.
+
+## `EventBus<Events>`
+
+```ts
+interface EventBus<Events extends Record<string, unknown>> {
+  emit<K extends keyof Events & string>(type: K, payload: Events[K]): Promise<void>;
+  on<K extends keyof Events & string>(type: K, handler: EventHandler<Events[K]>): () => void;
+}
+
+type EventHandler<Payload> = (payload: Payload) => void | Promise<void>;
+```
+
+Resolve it via `@Inject(EVENT_BUS)`, typed as `EventBus<AppEvents>`.
+
+### `emit(type, payload)`
+
+Runs every handler registered for `type` concurrently. Resolves once all of them have settled, whether they succeeded or threw — `emit()` itself never rejects. A handler with no listeners resolves immediately as a no-op. Each handler's own failure is caught individually and logged (`console.error`) without affecting sibling handlers or the caller.
+
+No persistence, no delivery guarantee across a process crash, no cross-process delivery — see [Events](/concepts/events/#what-emit-actually-does--and-doesnt) for what this does and doesn't guarantee.
+
+### `on(type, handler)`
+
+Registers `handler` for `type`. Returns a function that unsubscribes just that one handler, leaving any others registered for the same event type intact.
+
+## `EventsModule.forRoot(options?)`
+
+```ts
+@Module({ imports: [EventsModule.forRoot({ global: true })] })
+class AppModule {}
+```
+
+Registers `EVENT_BUS` as a provider. `global` defaults to `false`; pass `true` to make `EVENT_BUS` resolvable from any module without each one importing `EventsModule` directly.
+
+## `InProcessEventBus`
+
+The only `EventBus` implementation this package ships. Not exported — resolve `EVENT_BUS` instead of referencing the class directly. A Map-of-Sets keyed by event type, no persistence layer, no external dependency beyond `@blixis/core`/`@blixis/di`.
