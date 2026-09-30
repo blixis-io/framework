@@ -1,0 +1,25 @@
+{
+  "name": "@blixis/openapi",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "exports": {
+    ".": {
+      "@blixis/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "build": "rolldown -c"
+  },
+  "dependencies": {
+    "@blixis/di": "workspace:*",
+    "@blixis/http": "workspace:*",
+    "zod": "^4.6.5"
+  }
+}

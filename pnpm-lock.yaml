@@ -72,6 +72,9 @@ importers:
       '@blixis/logging':
         specifier: workspace:*
         version: link:../../packages/logging
+      '@blixis/openapi':
+        specifier: workspace:*
+        version: link:../../packages/openapi
       drizzle-orm:
         specifier: ^0.45.3
         version: 0.45.3(@types/pg@8.23.1)(pg@8.23.0)
@@ -164,6 +167,18 @@ importers:
       '@blixis/di':
         specifier: workspace:*
         version: link:../di
+
+  packages/openapi:
+    dependencies:
+      '@blixis/di':
+        specifier: workspace:*
+        version: link:../di
+      '@blixis/http':
+        specifier: workspace:*
+        version: link:../http
+      zod:
+        specifier: ^4.6.5
+        version: 4.6.5
 
   packages/plugins:
     dependencies:
