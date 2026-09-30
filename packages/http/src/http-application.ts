@@ -58,11 +58,12 @@ export class HttpApplication {
         const request = toWebRequest(req, `http://${hostname}:${port}`);
         this.#handle(request)
           .then((response) => sendWebResponse(response, res))
-          /* v8 ignore start -- @preserve: safety net for a write failure (e.g.
-             the client disconnects mid-stream); createHandler's own try/catch
-             already turns every request-handling error into a Response, so
-             this only fires for socket-level failures, which aren't
-             reliably reproducible without a flaky, timing-dependent test. */
+          /* v8 ignore start -- @preserve: safety net for a write failure
+          (e.g. the client disconnects mid-stream); createHandler's own
+          try/catch already turns every request-handling error into a
+          Response, so this only fires for socket-level failures, which
+          aren't reliably reproducible without a flaky, timing-dependent
+          test. */
           .catch((error: unknown) => {
             console.error(error);
             if (!res.headersSent) {

@@ -8,16 +8,18 @@
   "packageManager": "pnpm@11.25.0",
   "scripts": {
     "lint": "oxlint --type-aware .",
+    "format:check": "editorconfig-checker",
     "typecheck": "turbo run typecheck",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "build": "turbo run build",
-    "ci": "turbo run build typecheck lint test"
+    "ci": "turbo run build typecheck lint test && pnpm run format:check"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
     "@vitest/coverage-v8": "^5.0.2",
+    "editorconfig-checker": "^7.0.0",
     "oxlint": "^1.86.0",
     "oxlint-tsgolint": "^7.0.2003",
     "rolldown": "^1.2.11",
