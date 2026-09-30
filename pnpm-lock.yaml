@@ -152,6 +152,15 @@ importers:
         specifier: ^0.2.2
         version: 0.2.2
 
+  packages/events:
+    dependencies:
+      '@blixis/core':
+        specifier: workspace:*
+        version: link:../core
+      '@blixis/di':
+        specifier: workspace:*
+        version: link:../di
+
   packages/http:
     dependencies:
       '@blixis/core':
