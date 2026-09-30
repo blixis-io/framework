@@ -15,6 +15,10 @@ examples/hello-api/src/
   db/
     schema.ts
     index.ts
+  docs/
+    app-ref.ts
+    docs.controller.ts
+    docs.module.ts
   posts/
     post.schema.ts
     posts.service.ts
@@ -127,9 +131,11 @@ Applied class-level (`@UseInterceptors(TimingInterceptor)` on `PostsController`,
 
 ## `posts/posts.controller.ts`
 
-Full CRUD, all five HTTP method decorators in one controller. The one route with `@UseGuards` is `remove` (`DELETE /posts/:id`) — reads and the create/update routes are open, only deletion requires the API key. `create` overrides its status to `201` with `@HttpCode`; `remove` returns `undefined`, mapped to `204 No Content`. `@UseInterceptors(TimingInterceptor)` sits at the class level, above `@Controller`, so it wraps every route — guards still run first and can deny a request before the interceptor ever sees it.
+Full CRUD, all five HTTP method decorators in one controller. The one route with `@UseGuards` is `remove` (`DELETE /posts/:id`) — reads and the create/update routes are open, only deletion requires the API key. `create` overrides its status to `201` with `@HttpCode`; `remove` sets `@HttpCode(204)` explicitly (it always returns `undefined`, which already maps to `204` by default — the explicit decorator exists so `@blixis/openapi`'s generated document says `204` too, not just the real runtime behavior). `@UseInterceptors(TimingInterceptor)` sits at the class level, above `@Controller`, so it wraps every route — guards still run first and can deny a request before the interceptor ever sees it.
 
 `list`, `get`, `create`, and `update` each carry `@Returns` (`PostListSchema` for `list`, `PostSchema` for the other three) — `remove` doesn't, since it always returns `undefined` and `@Returns` has nothing to check there. See [Response Validation](/concepts/response-validation/).
+
+Every route also carries `@ApiOperation({ summary: "..." })`, and the controller itself `@ApiTags("posts")` (`remove` additionally tags `"admin"`) — purely for [`@blixis/openapi`](/concepts/api-documentation/)'s generated document; neither decorator affects routing or runtime behavior at all.
 
 ## `posts/posts.module.ts`
 
@@ -143,6 +149,36 @@ export class PostsModule {}
 ```
 
 `DrizzleModule.forRoot()` is imported directly here rather than made `global` — only `PostsModule` needs `DATABASE`, so there's no reason to make it visible app-wide. `ApiKeyGuard` and `TimingInterceptor` are both listed in `providers` even though no controller method injects either directly — they're resolved by the HTTP layer at request time because `@UseGuards`/`@UseInterceptors` named the classes, not because anything constructor-injects them. Leaving either out of `providers` is the single most common mistake when adding a guard or interceptor — see [Guards & Authorization](/concepts/guards-and-authorization/#guard-classes-must-be-registered-providers).
+
+## `docs/app-ref.ts`, `docs/docs.controller.ts`, and `docs/docs.module.ts`
+
+```ts title="docs/app-ref.ts"
+@Injectable()
+export class AppRef {
+  current: HttpApplication | undefined;
+}
+```
+
+```ts title="docs/docs.controller.ts"
+@Controller()
+export class DocsController {
+  constructor(private readonly appRef: AppRef) {}
+
+  @Get("openapi.json")
+  spec() {
+    if (!this.appRef.current) {
+      throw new Error("AppRef.current not set — main.ts must set it right after createHttpApplication() resolves");
+    }
+    return generateOpenApiDocument(this.appRef.current, {
+      title: "hello-api",
+      version: "1.0.0",
+      description: "The framework's own reference example — a Postgres-backed posts CRUD API.",
+    });
+  }
+}
+```
+
+`AppRef` exists purely to work around a real bootstrapping wrinkle: `generateOpenApiDocument` needs `app.controllers`, but `app` doesn't exist until *after* `DocsController` itself has already been constructed as part of the same module graph. `AppRef.current` is only ever read at request time (inside `spec()`), by which point `main.ts` has always already set it. See [API Documentation](/concepts/api-documentation/#mounting-it) for why this is the one place in this framework's own conventions where a mutable provider is the right tool.
 
 ## `config.ts`, `app.module.ts`, and `main.ts`
 
@@ -161,6 +197,7 @@ export const { CONFIG, ConfigModule } = defineConfigModule(AppConfigSchema);
     ConfigModule.forRoot(),
     LoggerModule.forRoot({ transports: [consoleTransport()] }),
     PostsModule,
+    DocsModule,
   ],
 })
 export class AppModule {}
@@ -170,6 +207,7 @@ export class AppModule {}
 
 ```ts title="main.ts"
 const app = await createHttpApplication(AppModule);
+app.get(AppRef).current = app;
 
 const { PORT } = app.get(CONFIG);
 await app.listen(PORT);
@@ -204,4 +242,4 @@ pnpm --filter hello-api run build
 pnpm --filter hello-api run start
 ```
 
-Then exercise it with `curl` — see the command list in [Build Your First API](/tutorials/build-your-first-api/#6-try-every-route), which matches this example's routes exactly.
+Then exercise it with `curl` — see the command list in [Build Your First API](/tutorials/build-your-first-api/#6-try-every-route), which matches this example's routes exactly. `curl localhost:3000/openapi.json` returns the live generated OpenAPI document — see [Generating API Docs](/guides/generating-api-docs/) for pointing a UI at it.
