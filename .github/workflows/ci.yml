@@ -9,6 +9,25 @@ on:
 jobs:
   ci:
     runs-on: ubuntu-latest
+    services:
+      # @blixis-io/db and @blixis-io/tenancy test against a real Postgres,
+      # not mocks (this repo's own convention) — same image/credentials/port
+      # as the local docker-compose.yml at repo root, since
+      # packages/{db,tenancy}/src/*.test.ts hardcode this exact connection
+      # string.
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: blixis
+          POSTGRES_PASSWORD: blixis
+          POSTGRES_DB: blixis
+        ports:
+          - 5434:5432
+        options: >-
+          --health-cmd "pg_isready -U blixis"
+          --health-interval 2s
+          --health-timeout 2s
+          --health-retries 15
     steps:
       - uses: actions/checkout@v4
 
