@@ -21,6 +21,7 @@
         "**/metadata.ts",
         "**/container.ts",
         "**/dependencies.ts",
+        "**/auth/src/issuing.ts",
         "**/events/src/module.ts",
         "**/generate.ts",
         "**/handler.ts",
