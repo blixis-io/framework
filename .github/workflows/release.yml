@@ -47,16 +47,28 @@ jobs:
 
       - run: pnpm run ci
 
-      # Each package's first publish still needs NODE_AUTH_TOKEN (npm
-      # Trusted Publishing/OIDC requires the package to already exist
-      # before it can be configured on npmjs.com). Move each package to
-      # Trusted Publishing right after its first successful publish, then
-      # this token requirement — and the NPM_TOKEN secret itself, once
-      # every package has switched — can go away. id-token: write above is
+      # Each package's first publish still needs NPM_TOKEN (npm Trusted
+      # Publishing/OIDC requires the package to already exist before it
+      # can be configured on npmjs.com). Move each package to Trusted
+      # Publishing right after its first successful publish, then this
+      # token requirement — and the NPM_TOKEN secret itself, once every
+      # package has switched — can go away. id-token: write above is
       # already granted so OIDC works the moment a package is switched.
+      #
+      # Both env vars below point at the same secret, for two different
+      # readers: changesets/action itself checks specifically for a var
+      # named NPM_TOKEN to decide whether to use token auth or fall back
+      # to OIDC (confirmed by its own log: with only NODE_AUTH_TOKEN set,
+      # it logged "No NPM_TOKEN found... using npm trusted publishing"
+      # and silently published nothing, since OIDC wasn't configured for
+      # a package that doesn't exist yet). NODE_AUTH_TOKEN is what
+      # npm/pnpm's own .npmrc-based auth (wired up by setup-node's
+      # registry-url above) actually reads to authenticate the publish
+      # request itself.
       - uses: changesets/action@v1
         with:
           publish: pnpm run release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
