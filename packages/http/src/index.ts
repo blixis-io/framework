@@ -1,3 +1,11 @@
+export {
+  ApiOperation,
+  ApiTags,
+  getApiOperation,
+  getClassApiTags,
+  getMethodApiTags,
+  type ApiOperationOptions,
+} from "./decorators/api-metadata.js";
 export { Controller, getControllerPrefix } from "./decorators/controller.js";
 export type { CanActivate, ExecutionContext } from "./decorators/guards.js";
 export { getClassGuards, getMethodGuards, UseGuards } from "./decorators/guards.js";

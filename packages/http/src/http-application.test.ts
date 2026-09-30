@@ -45,6 +45,16 @@ describe("createHttpApplication: get()", () => {
   });
 });
 
+describe("createHttpApplication: controllers", () => {
+  it("exposes every controller class in the app's module graph", async () => {
+    const app = await createHttpApplication(GreetingModule);
+
+    expect(app.controllers).toEqual([GreetingController]);
+
+    await app.close();
+  });
+});
+
 describe("createHttpApplication: in-process handle()", () => {
   it("wraps createApplication and serves requests without a socket", async () => {
     const app = await createHttpApplication(GreetingModule);
