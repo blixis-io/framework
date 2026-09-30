@@ -5,7 +5,7 @@ sidebar:
   order: 9
 ---
 
-`@Before`/`@After`/`@Around` method decorators — no DI container involvement, works on any class. See [Method Hooks](/concepts/method-hooks/) for the concepts and the stacking-order rule.
+`@Before`/`@After`/`@Around` method decorators — no DI container involvement, works on any class. See [Method Hooks](/framework/concepts/method-hooks/) for the concepts and the stacking-order rule.
 
 ## `Before(hook)`
 
@@ -57,7 +57,7 @@ type AroundHook<Result = unknown, Args extends unknown[] = unknown[]> = (
 type NextFn<Args extends unknown[], Result> = (...args: Args) => Result;
 ```
 
-Wraps the decorated method entirely. `hook` decides whether (and how) to call `next` — skip it to short-circuit, call it more than once, or pass it different arguments. Calling `next()` with no arguments replays whatever the decorated method was actually called with (same convention as [`Interceptor.next()`](/reference/blixis-http/)).
+Wraps the decorated method entirely. `hook` decides whether (and how) to call `next` — skip it to short-circuit, call it more than once, or pass it different arguments. Calling `next()` with no arguments replays whatever the decorated method was actually called with (same convention as [`Interceptor.next()`](/framework/reference/blixis-http/)).
 
 ```ts
 @Around((next: (input: CreatePostInput) => Post, input: CreatePostInput) => {
@@ -71,4 +71,4 @@ create(input: CreatePostInput): Post { /* ... */ }
 
 ## Composing multiple decorators
 
-Stacking `@Before`/`@After`/`@Around` on one method composes them like nested function calls — see [Method Hooks#stacking-order](/concepts/method-hooks/#stacking-order) for the exact rule and a worked example.
+Stacking `@Before`/`@After`/`@Around` on one method composes them like nested function calls — see [Method Hooks#stacking-order](/framework/concepts/method-hooks/#stacking-order) for the exact rule and a worked example.

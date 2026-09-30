@@ -96,7 +96,7 @@ class AssetController {
 }
 ```
 
-`*` must be the last path segment, and it captures the *entire* remainder of the path as one string, joined with `/` — not just one segment, unlike `:param`. See [Routing & Controllers](/concepts/routing-controllers/#how-a-request-is-matched) for how this interacts with static and param routes on the same prefix.
+`*` must be the last path segment, and it captures the *entire* remainder of the path as one string, joined with `/` — not just one segment, unlike `:param`. See [Routing & Controllers](/framework/concepts/routing-controllers/#how-a-request-is-matched) for how this interacts with static and param routes on the same prefix.
 
 ## Reading all headers at once
 
@@ -128,7 +128,7 @@ class OwnerGuard implements CanActivate {
 
 ## Tagging every log line with a request id
 
-A guard that always allows the request through, purely to stamp a correlation id into [`RequestContext`](/concepts/request-context/) before anything else runs:
+A guard that always allows the request through, purely to stamp a correlation id into [`RequestContext`](/framework/concepts/request-context/) before anything else runs:
 
 ```ts
 @Injectable()

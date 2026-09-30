@@ -3,6 +3,8 @@ import starlight from "@astrojs/starlight";
 import { defineConfig } from "astro/config";
 
 export default defineConfig({
+  site: "https://blixis-io.github.io",
+  base: "/framework",
   integrations: [
     starlight({
       title: "Blixis Framework",

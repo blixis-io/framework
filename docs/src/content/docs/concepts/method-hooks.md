@@ -33,9 +33,9 @@ class PostsService {
 
 - **`@Before(hook)`** runs `hook(...args)` first. Returning an array replaces the arguments the original method is called with; returning nothing leaves them unchanged.
 - **`@After(hook)`** runs the original first, then `hook(result, ...args)` — `hook` must return the result to use (no "return nothing to leave it unchanged" shorthand, since a method can legitimately return `undefined` itself).
-- **`@Around(hook)`** wraps the method entirely. `hook` receives a `next` function and decides whether (and how) to call it — skip it to short-circuit, call it more than once, or pass different arguments than it received. Calling `next()` bare replays the original arguments, same convention as [`Interceptor.next()`](/concepts/interceptors/).
+- **`@Around(hook)`** wraps the method entirely. `hook` receives a `next` function and decides whether (and how) to call it — skip it to short-circuit, call it more than once, or pass different arguments than it received. Calling `next()` bare replays the original arguments, same convention as [`Interceptor.next()`](/framework/concepts/interceptors/).
 
-Any hook may be `async` — the decorated method becomes effectively async at runtime whenever a hook is, exactly like a [`CanActivate`](/concepts/guards-and-authorization/) guard returning `Promise<boolean>` instead of `boolean`. One real caveat: TypeScript can't change a method's *static* return type from a legacy decorator, only its runtime behavior — if you add an async `@Before` to a method TypeScript still thinks returns `number`, callers see `number` at the type level even though it's actually a `Promise<number>` at runtime. Awaiting it directly still works; TypeScript just won't flag the `await` as necessary.
+Any hook may be `async` — the decorated method becomes effectively async at runtime whenever a hook is, exactly like a [`CanActivate`](/framework/concepts/guards-and-authorization/) guard returning `Promise<boolean>` instead of `boolean`. One real caveat: TypeScript can't change a method's *static* return type from a legacy decorator, only its runtime behavior — if you add an async `@Before` to a method TypeScript still thinks returns `number`, callers see `number` at the type level even though it's actually a `Promise<number>` at runtime. Awaiting it directly still works; TypeScript just won't flag the `await` as necessary.
 
 Async detection is duck-typed (anything with a `.then` method), not `instanceof Promise` — a real `Promise` minted in a different realm (a worker, a vm context, a bundled polyfill) is still fully spec-compliant but fails `instanceof` against this realm's own `Promise` constructor. `@Before`'s `BeforeHook` and `@After`'s `AfterHook` types are declared as `PromiseLike<T>`, not `Promise<T>`, for the same reason.
 
@@ -60,6 +60,6 @@ Only works on real prototype methods, the same as every other method decorator i
 
 ## Next
 
-- Every exported symbol: [`@blixis-io/method-hooks` reference](/reference/blixis-method-hooks/).
-- A worked example built step by step: [Tutorial: Extend Behavior with Method Hooks](/tutorials/extend-with-hooks/).
-- The closest existing analog in this framework: [Interceptors](/concepts/interceptors/) — same `next()`-based wrapping idea, scoped to HTTP routes instead of arbitrary methods.
+- Every exported symbol: [`@blixis-io/method-hooks` reference](/framework/reference/blixis-method-hooks/).
+- A worked example built step by step: [Tutorial: Extend Behavior with Method Hooks](/framework/tutorials/extend-with-hooks/).
+- The closest existing analog in this framework: [Interceptors](/framework/concepts/interceptors/) — same `next()`-based wrapping idea, scoped to HTTP routes instead of arbitrary methods.

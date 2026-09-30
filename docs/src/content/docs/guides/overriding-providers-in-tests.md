@@ -5,7 +5,7 @@ sidebar:
   order: 7
 ---
 
-See [Testing](/concepts/testing/#override) for the mechanism. This is when and how to reach for it.
+See [Testing](/framework/concepts/testing/#override) for the mechanism. This is when and how to reach for it.
 
 ## The problem it solves
 
@@ -45,7 +45,7 @@ const app = await Test.createModule({ imports: [PostsModule] })
   .compile();
 ```
 
-`useFactory` and `useExisting` work too — the second argument to `.override()` is any provider shape minus `provide` (see [Dependency Injection](/concepts/dependency-injection/#provider-kinds)).
+`useFactory` and `useExisting` work too — the second argument to `.override()` is any provider shape minus `provide` (see [Dependency Injection](/framework/concepts/dependency-injection/#provider-kinds)).
 
 ## Asserting on the fake directly
 

@@ -26,7 +26,7 @@ addComment(
 
 - **`@Body(schema?)`** — the parsed JSON request body.
 - **`@Query(schema?)`** — the parsed query string, as a plain object.
-- **`@Param(name, schema?)`** — one named route param (see [Routing & Controllers](/concepts/routing-controllers/) for how `:name` segments are captured).
+- **`@Param(name, schema?)`** — one named route param (see [Routing & Controllers](/framework/concepts/routing-controllers/) for how `:name` segments are captured).
 - **`@Headers(name?)`** — one header value by name, or (with no argument) all headers as a plain object.
 - **`@Req()`** — the raw Web-standard `Request`, no parsing at all.
 
@@ -49,7 +49,7 @@ create(@Body(CreatePostSchema) input: CreatePostInput) {
 
 The convention is exactly that pair: `export const XSchema = z.object({...})` and `export type XInput = z.infer<typeof XSchema>` — the schema *is* the runtime validator and the source of the type, so they can't drift apart. This is also why route params support schemas: `@Param("id", z.coerce.number())` turns the route param — always a raw string, since it came out of a URL — into a `number` before your handler ever sees it.
 
-If validation fails, the handler never runs. The request short-circuits to a `400` with the Zod issues attached (see [Error Handling](/concepts/error-handling/)):
+If validation fails, the handler never runs. The request short-circuits to a `400` with the Zod issues attached (see [Error Handling](/framework/concepts/error-handling/)):
 
 ```json
 {
@@ -76,11 +76,11 @@ A request body is only read when a route actually has a `@Body()` parameter. Whe
 - **No body sent, or an empty body** — `undefined`, not an error (so a schema requiring the field will correctly reject it with a normal `400`, rather than the framework guessing).
 - **Malformed JSON** — `400 Bad Request`, distinct from a schema validation failure.
 
-The body limit is configurable — see [Configuring Body Size Limits](/guides/configuring-body-size-limits/).
+The body limit is configurable — see [Configuring Body Size Limits](/framework/guides/configuring-body-size-limits/).
 
 ## Next
 
-- The same schema-validation idea, applied to what a route sends back: [Response Validation](/concepts/response-validation/).
-- What happens when a route needs to reject a request before validation even runs: [Guards & Authorization](/concepts/guards-and-authorization/).
-- The exact shape of every error response: [Error Handling](/concepts/error-handling/).
-- A worked example: [Validating Request Bodies with Zod](/guides/validating-request-bodies/).
+- The same schema-validation idea, applied to what a route sends back: [Response Validation](/framework/concepts/response-validation/).
+- What happens when a route needs to reject a request before validation even runs: [Guards & Authorization](/framework/concepts/guards-and-authorization/).
+- The exact shape of every error response: [Error Handling](/framework/concepts/error-handling/).
+- A worked example: [Validating Request Bodies with Zod](/framework/guides/validating-request-bodies/).

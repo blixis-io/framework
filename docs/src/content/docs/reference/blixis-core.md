@@ -5,7 +5,7 @@ sidebar:
   order: 2
 ---
 
-The module system: `@Module`, dynamic modules, lifecycle hook interfaces, and `Application`. See [Modules](/concepts/modules/) and [Lifecycle Hooks](/concepts/lifecycle-hooks/) for the concepts.
+The module system: `@Module`, dynamic modules, lifecycle hook interfaces, and `Application`. See [Modules](/framework/concepts/modules/) and [Lifecycle Hooks](/framework/concepts/lifecycle-hooks/) for the concepts.
 
 ## `@Module`
 
@@ -29,7 +29,7 @@ interface DynamicModule extends ModuleMetadata {
 }
 ```
 
-All metadata fields default to empty/`false`. `providers`/`controllers` accept exactly what `@blixis-io/di`'s `Container.register()` does (see [`@blixis-io/di` reference](/reference/blixis-di/#provider-shapes)). A `DynamicModule`'s own fields are merged with (added to, not replacing) the `module` class's own static `@Module()` metadata — see [Using Dynamic Modules](/guides/using-dynamic-modules/). `exports`/`global` are enforced — see [Modules](/concepts/modules/#encapsulation-exports-and-global) for the full behavior and error message.
+All metadata fields default to empty/`false`. `providers`/`controllers` accept exactly what `@blixis-io/di`'s `Container.register()` does (see [`@blixis-io/di` reference](/framework/reference/blixis-di/#provider-shapes)). A `DynamicModule`'s own fields are merged with (added to, not replacing) the `module` class's own static `@Module()` metadata — see [Using Dynamic Modules](/framework/guides/using-dynamic-modules/). `exports`/`global` are enforced — see [Modules](/framework/concepts/modules/#encapsulation-exports-and-global) for the full behavior and error message.
 
 ### Metadata readers
 
@@ -77,7 +77,7 @@ function hasOnModuleInit(instance: unknown): instance is OnModuleInit;
 function hasOnApplicationShutdown(instance: unknown): instance is OnApplicationShutdown;
 ```
 
-Any provider implementing either interface is picked up automatically — there's no separate registration. See [Lifecycle Hooks](/concepts/lifecycle-hooks/) for the ordering guarantees.
+Any provider implementing either interface is picked up automatically — there's no separate registration. See [Lifecycle Hooks](/framework/concepts/lifecycle-hooks/) for the ordering guarantees.
 
 ## Errors
 
@@ -93,4 +93,4 @@ class ProviderNotVisibleError extends CoreError {}
 //  {Consumer}'s own module."
 ```
 
-`ProviderNotVisibleError` fires when a provider or controller depends on a token that exists somewhere in the module graph but isn't visible to its own module — see [Modules](/concepts/modules/#encapsulation-exports-and-global).
+`ProviderNotVisibleError` fires when a provider or controller depends on a token that exists somewhere in the module graph but isn't visible to its own module — see [Modules](/framework/concepts/modules/#encapsulation-exports-and-global).

@@ -5,7 +5,7 @@ sidebar:
   order: 6
 ---
 
-See [Modules](/concepts/modules/#dynamic-modules-the-forroot-pattern) for the concept. This is the pattern to copy.
+See [Modules](/framework/concepts/modules/#dynamic-modules-the-forroot-pattern) for the concept. This is the pattern to copy.
 
 ## 1. Define a token for the config
 

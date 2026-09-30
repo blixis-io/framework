@@ -5,9 +5,9 @@ sidebar:
   order: 1
 ---
 
-This tutorial builds a small blog API — posts with a title and body, full CRUD, validated with Zod — from nothing. It's the same shape as the framework's own `examples/hello-api` (see the [annotated walkthrough](/examples/hello-api-walkthrough/) of that exact code if you want to compare), but built up step by step so you understand *why* each piece exists, not just that it works.
+This tutorial builds a small blog API — posts with a title and body, full CRUD, validated with Zod — from nothing. It's the same shape as the framework's own `examples/hello-api` (see the [annotated walkthrough](/framework/examples/hello-api-walkthrough/) of that exact code if you want to compare), but built up step by step so you understand *why* each piece exists, not just that it works.
 
-If you haven't yet, do the [Quickstart](/start-here/quickstart/) first — it covers the one-time app setup (`package.json`, `tsconfig.build.json`) this tutorial assumes.
+If you haven't yet, do the [Quickstart](/framework/start-here/quickstart/) first — it covers the one-time app setup (`package.json`, `tsconfig.build.json`) this tutorial assumes.
 
 ## What we're building
 
@@ -94,7 +94,7 @@ export class PostsService {
 }
 ```
 
-Two things worth noticing: `get()` throwing `NotFoundException` means every caller — the controller, and `update`/`remove` reusing `get()` — gets consistent 404 behavior for free, with no repeated existence checks. And `update()` resolves each optional field explicitly with `??` rather than spreading `input` over `existing` — see [Validating Request Bodies with Zod](/guides/validating-request-bodies/#3-handle-a-partial-update-correctly) for why that distinction matters.
+Two things worth noticing: `get()` throwing `NotFoundException` means every caller — the controller, and `update`/`remove` reusing `get()` — gets consistent 404 behavior for free, with no repeated existence checks. And `update()` resolves each optional field explicitly with `??` rather than spreading `input` over `existing` — see [Validating Request Bodies with Zod](/framework/guides/validating-request-bodies/#3-handle-a-partial-update-correctly) for why that distinction matters.
 
 `@Injectable()` here isn't optional even though this service takes no constructor parameters of its own — it's what makes `PostsService` *itself* injectable into things that depend on it (the controller, next).
 
@@ -214,9 +214,9 @@ curl -X DELETE localhost:3000/posts/1
 # → 204, empty body
 ```
 
-Every one of these behaviors — the exact status codes, the `Allow` header, the problem+json shape — is covered in [Error Handling](/concepts/error-handling/) and [Routing & Controllers](/concepts/routing-controllers/).
+Every one of these behaviors — the exact status codes, the `Allow` header, the problem+json shape — is covered in [Error Handling](/framework/concepts/error-handling/) and [Routing & Controllers](/framework/concepts/routing-controllers/).
 
 ## Next
 
-- Add auth so `DELETE` requires a valid API key: [Add Authentication](/tutorials/add-authentication/).
-- Add a new endpoint test-first instead of curling by hand: [Test-Driven API Development](/tutorials/test-driven-api-development/).
+- Add auth so `DELETE` requires a valid API key: [Add Authentication](/framework/tutorials/add-authentication/).
+- Add a new endpoint test-first instead of curling by hand: [Test-Driven API Development](/framework/tutorials/test-driven-api-development/).

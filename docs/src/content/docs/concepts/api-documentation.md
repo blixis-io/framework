@@ -29,7 +29,7 @@ const doc = generateOpenApiDocument(app, {
 
 ## Mounting it
 
-There's a real chicken-and-egg wrinkle here: the document needs `app.controllers`, but `app` doesn't exist until *after* the whole module graph — including whatever controller serves the document — has already been built. The [hello-api walkthrough](/examples/hello-api-walkthrough/) shows the fix: a small DI-registered `AppRef` provider, set once right after `createHttpApplication()` resolves, read lazily at request time (by which point the app is always fully booted):
+There's a real chicken-and-egg wrinkle here: the document needs `app.controllers`, but `app` doesn't exist until *after* the whole module graph — including whatever controller serves the document — has already been built. The [hello-api walkthrough](/framework/examples/hello-api-walkthrough/) shows the fix: a small DI-registered `AppRef` provider, set once right after `createHttpApplication()` resolves, read lazily at request time (by which point the app is always fully booted):
 
 ```ts
 @Injectable()
@@ -55,7 +55,7 @@ const app = await createHttpApplication(AppModule);
 app.get(AppRef).current = app;
 ```
 
-This is the one place in this framework's own conventions where a mutable provider is the right tool — everywhere else, prefer `RequestContext` or a constructor-injected value. See the full worked example and the [guide on mounting it](/guides/generating-api-docs/).
+This is the one place in this framework's own conventions where a mutable provider is the right tool — everywhere else, prefer `RequestContext` or a constructor-injected value. See the full worked example and the [guide on mounting it](/framework/guides/generating-api-docs/).
 
 ## Enriching a route with `@ApiOperation` and `@ApiTags`
 
@@ -88,6 +88,6 @@ Both are entirely optional — a route with neither still gets a valid, unique `
 
 ## Next
 
-- Every exported symbol: [`@blixis-io/openapi` reference](/reference/blixis-openapi/).
-- Mounting a route for it, step by step: [guide](/guides/generating-api-docs/).
-- The decorators this builds on: [Routing & Controllers](/concepts/routing-controllers/), [Response Validation](/concepts/response-validation/).
+- Every exported symbol: [`@blixis-io/openapi` reference](/framework/reference/blixis-openapi/).
+- Mounting a route for it, step by step: [guide](/framework/guides/generating-api-docs/).
+- The decorators this builds on: [Routing & Controllers](/framework/concepts/routing-controllers/), [Response Validation](/framework/concepts/response-validation/).

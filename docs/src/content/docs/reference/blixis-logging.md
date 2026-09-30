@@ -5,7 +5,7 @@ sidebar:
   order: 5
 ---
 
-A multi-transport logger — every entry fans out to every configured `Transport` — plus a thin DI integration layer. See [Logging](/concepts/logging/) for the concepts.
+A multi-transport logger — every entry fans out to every configured `Transport` — plus a thin DI integration layer. See [Logging](/framework/concepts/logging/) for the concepts.
 
 ## Levels
 

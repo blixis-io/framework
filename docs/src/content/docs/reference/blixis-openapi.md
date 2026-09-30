@@ -5,7 +5,7 @@ sidebar:
   order: 10
 ---
 
-Generates an OpenAPI 3.1 document from a running app's real controllers. See [API Documentation](/concepts/api-documentation/) for the concepts.
+Generates an OpenAPI 3.1 document from a running app's real controllers. See [API Documentation](/framework/concepts/api-documentation/) for the concepts.
 
 ## `generateOpenApiDocument`
 
@@ -66,6 +66,6 @@ type JsonSchema = Record<string, unknown>; // z.toJSONSchema() output, minus its
 
 ## How it reads your routes
 
-Walks `app.controllers` using the same public metadata readers `@blixis-io/http`'s own `buildRouter` uses internally (`getControllerPrefix`, `getRoutes`, `getParamSources`, `getHttpCode`, `getReturnsSchema`), plus [`getApiOperation`/`getClassApiTags`/`getMethodApiTags`](/reference/blixis-http/#api-documentation-metadata). See [API Documentation](/concepts/api-documentation/#what-gets-documented-and-what-deliberately-doesnt) for exactly what each decorator maps to, and the documented limitations (schema-less `@Query`/`@Body`, wildcard routes, undeclared response shapes).
+Walks `app.controllers` using the same public metadata readers `@blixis-io/http`'s own `buildRouter` uses internally (`getControllerPrefix`, `getRoutes`, `getParamSources`, `getHttpCode`, `getReturnsSchema`), plus [`getApiOperation`/`getClassApiTags`/`getMethodApiTags`](/framework/reference/blixis-http/#api-documentation-metadata). See [API Documentation](/framework/concepts/api-documentation/#what-gets-documented-and-what-deliberately-doesnt) for exactly what each decorator maps to, and the documented limitations (schema-less `@Query`/`@Body`, wildcard routes, undeclared response shapes).
 
 `:param` path segments become OpenAPI's `{param}` syntax; `*` wildcard routes are excluded from `paths` entirely.

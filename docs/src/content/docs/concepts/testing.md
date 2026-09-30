@@ -20,7 +20,7 @@ expect(res.status).toBe(200);
 await app.close();
 ```
 
-`createModule()` takes the same shape as `@Module({...})` — `imports`, `providers`, `controllers` — and wraps it in a synthetic root module. `compile()` builds a full `HttpApplication` from it, exactly the way `createHttpApplication` would in production (see [Routing & Controllers](/concepts/routing-controllers/)); nothing about request handling, validation, or guards is mocked.
+`createModule()` takes the same shape as `@Module({...})` — `imports`, `providers`, `controllers` — and wraps it in a synthetic root module. `compile()` builds a full `HttpApplication` from it, exactly the way `createHttpApplication` would in production (see [Routing & Controllers](/framework/concepts/routing-controllers/)); nothing about request handling, validation, or guards is mocked.
 
 ## `.override()`
 
@@ -34,7 +34,7 @@ const app = await Test.createModule({ imports: [PostsModule] })
   .compile();
 ```
 
-The second argument is any provider shape minus `provide` (`{ useValue }`, `{ useClass }`, `{ useFactory, inject? }`, or `{ useExisting }`) — see [Dependency Injection](/concepts/dependency-injection/#provider-kinds). `.override()` is chainable and can be called more than once for different tokens. Overriding a token nothing in the graph actually uses is a silent no-op, not an error — worth double-checking the token matches if an override doesn't seem to take effect.
+The second argument is any provider shape minus `provide` (`{ useValue }`, `{ useClass }`, `{ useFactory, inject? }`, or `{ useExisting }`) — see [Dependency Injection](/framework/concepts/dependency-injection/#provider-kinds). `.override()` is chainable and can be called more than once for different tokens. Overriding a token nothing in the graph actually uses is a silent no-op, not an error — worth double-checking the token matches if an override doesn't seem to take effect.
 
 ## `.request()`
 
@@ -58,6 +58,6 @@ await app.close();       // runs OnApplicationShutdown hooks
 
 ## Next
 
-- A full TDD walkthrough building a new endpoint: [Test-Driven API Development](/tutorials/test-driven-api-development/).
-- More detail on when and why to override: [Overriding Providers in Tests](/guides/overriding-providers-in-tests/).
-- Every exported symbol: [`@blixis-io/testing` reference](/reference/blixis-testing/).
+- A full TDD walkthrough building a new endpoint: [Test-Driven API Development](/framework/tutorials/test-driven-api-development/).
+- More detail on when and why to override: [Overriding Providers in Tests](/framework/guides/overriding-providers-in-tests/).
+- Every exported symbol: [`@blixis-io/testing` reference](/framework/reference/blixis-testing/).

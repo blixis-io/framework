@@ -5,7 +5,7 @@ sidebar:
   order: 2
 ---
 
-This continues the blog API from [Build Your First API](/tutorials/build-your-first-api/), adding token-based auth to the routes that change data (`POST`, `PATCH`, `DELETE`) while leaving reads (`GET`) open. Read [Guards & Authorization](/concepts/guards-and-authorization/) alongside this if anything here is unfamiliar.
+This continues the blog API from [Build Your First API](/framework/tutorials/build-your-first-api/), adding token-based auth to the routes that change data (`POST`, `PATCH`, `DELETE`) while leaving reads (`GET`) open. Read [Guards & Authorization](/framework/concepts/guards-and-authorization/) alongside this if anything here is unfamiliar.
 
 ## 1. A (fake) user store
 
@@ -72,7 +72,7 @@ import { PostsModule } from "./posts/posts.module.js";
 export class AppModule {}
 ```
 
-`AuthModule` being imported into the root is what makes `AuthGuard` resolvable from anywhere — remember, `@UseGuards` only records *which class* to ask for, it doesn't register it (see [Guards & Authorization](/concepts/guards-and-authorization/#guard-classes-must-be-registered-providers)). If you get this step wrong, you won't find out until the very first request hits a guarded route.
+`AuthModule` being imported into the root is what makes `AuthGuard` resolvable from anywhere — remember, `@UseGuards` only records *which class* to ask for, it doesn't register it (see [Guards & Authorization](/framework/concepts/guards-and-authorization/#guard-classes-must-be-registered-providers)). If you get this step wrong, you won't find out until the very first request hits a guarded route.
 
 ## 5. Protect the write routes
 
@@ -155,7 +155,7 @@ describe("write routes require auth", () => {
 });
 ```
 
-This builds the *entire real application* — real container, real router, real guard — and asserts on actual HTTP responses. No mocking of the auth mechanism itself; see [Testing](/concepts/testing/) for what `Test.createModule().compile()` is actually doing here.
+This builds the *entire real application* — real container, real router, real guard — and asserts on actual HTTP responses. No mocking of the auth mechanism itself; see [Testing](/framework/concepts/testing/) for what `Test.createModule().compile()` is actually doing here.
 
 ## Where a real app diverges from this tutorial
 
@@ -163,4 +163,4 @@ Swap `AuthService`'s hardcoded `Set` for a real lookup (a database, a JWT verifi
 
 ## Next
 
-- Build a new endpoint test-first, the way this framework's own test suite was built: [Test-Driven API Development](/tutorials/test-driven-api-development/).
+- Build a new endpoint test-first, the way this framework's own test suite was built: [Test-Driven API Development](/framework/tutorials/test-driven-api-development/).

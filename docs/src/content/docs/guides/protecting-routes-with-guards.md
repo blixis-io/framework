@@ -5,7 +5,7 @@ sidebar:
   order: 3
 ---
 
-See [Guards & Authorization](/concepts/guards-and-authorization/) for the concept; this walks through wiring one up end to end.
+See [Guards & Authorization](/framework/concepts/guards-and-authorization/) for the concept; this walks through wiring one up end to end.
 
 ## 1. Write the guard
 
@@ -23,7 +23,7 @@ export class ApiKeyGuard implements CanActivate {
 
 ## 2. Register it as a provider
 
-Guard classes are resolved through DI at request time — `@UseGuards` alone doesn't register them (see [Guards & Authorization](/concepts/guards-and-authorization/#guard-classes-must-be-registered-providers)):
+Guard classes are resolved through DI at request time — `@UseGuards` alone doesn't register them (see [Guards & Authorization](/framework/concepts/guards-and-authorization/#guard-classes-must-be-registered-providers)):
 
 ```ts title="src/posts/posts.module.ts"
 @Module({
@@ -89,4 +89,4 @@ export class AuthGuard implements CanActivate {
 }
 ```
 
-For the full walkthrough building this exact pattern into a real app, see [Add Authentication](/tutorials/add-authentication/).
+For the full walkthrough building this exact pattern into a real app, see [Add Authentication](/framework/tutorials/add-authentication/).

@@ -20,7 +20,7 @@ import { Module } from "@blixis-io/core";
 export class PostsModule {}
 ```
 
-All fields are optional and default to empty. `providers` and `controllers` are exactly what you'd pass to `Container.register()` directly — bare classes or the provider-shape objects described in [Dependency Injection](/concepts/dependency-injection/). `imports` lists other modules whose *exported* providers this module's own providers/controllers can depend on — see [encapsulation](#encapsulation-exports-and-global) below.
+All fields are optional and default to empty. `providers` and `controllers` are exactly what you'd pass to `Container.register()` directly — bare classes or the provider-shape objects described in [Dependency Injection](/framework/concepts/dependency-injection/). `imports` lists other modules whose *exported* providers this module's own providers/controllers can depend on — see [encapsulation](#encapsulation-exports-and-global) below.
 
 ## Building an application from a root module
 
@@ -34,7 +34,7 @@ app.controllers;      // every controller class collected from the graph
 await app.close();    // runs OnApplicationShutdown hooks, in reverse dependency order
 ```
 
-`createApplication` walks the import graph starting from `AppModule`, flattens every module's providers and controllers into one `Container`, resolves everything eagerly, and runs `OnModuleInit` hooks in dependency order (see [Lifecycle Hooks](/concepts/lifecycle-hooks/)). `@blixis-io/http`'s `createHttpApplication` wraps this same function — see [Routing & Controllers](/concepts/routing-controllers/).
+`createApplication` walks the import graph starting from `AppModule`, flattens every module's providers and controllers into one `Container`, resolves everything eagerly, and runs `OnModuleInit` hooks in dependency order (see [Lifecycle Hooks](/framework/concepts/lifecycle-hooks/)). `@blixis-io/http`'s `createHttpApplication` wraps this same function — see [Routing & Controllers](/framework/concepts/routing-controllers/).
 
 If a class listed as an import isn't actually decorated with `@Module()`, this throws `NotAModuleError` naming the class.
 
@@ -85,7 +85,7 @@ PostService depends on Cache, but that belongs to CacheModule, which doesn't exp
 Add it to CacheModule's exports, or import CacheModule into PostService's own module.
 ```
 
-This is checked for every dependency shape — a class's constructor, a factory provider's `inject` list, a `useExisting` alias target — and for controllers exactly the same as providers. It's a **static check**, run once while the application is being built, before anything resolves — the same fail-fast philosophy as [Configuration](/concepts/config/)'s `ConfigValidationError`.
+This is checked for every dependency shape — a class's constructor, a factory provider's `inject` list, a `useExisting` alias target — and for controllers exactly the same as providers. It's a **static check**, run once while the application is being built, before anything resolves — the same fail-fast philosophy as [Configuration](/framework/concepts/config/)'s `ConfigValidationError`.
 
 A dependency that doesn't exist *anywhere* in the whole graph is a different problem (`MissingProviderError`, or `undefined` for an `@Optional()` one) — encapsulation only fires for a token that's real, just not visible from here. Notably, `@Optional()` does **not** suppress a visibility violation: if the token exists but is private to another module, that's a real configuration mistake worth surfacing loudly, not a "maybe this wasn't registered" situation `@Optional()` is meant to handle.
 
@@ -98,7 +98,7 @@ Requiring every feature module to explicitly import cross-cutting infra like log
 class CacheModule {}
 ```
 
-Both [`@blixis-io/logging`](/concepts/logging/)'s `LoggerModule` and [`@blixis-io/config`](/concepts/config/)'s `ConfigModule` are `global: true` for exactly this reason — see either one's `forRoot()` for a real example, and `examples/hello-api` for it working end to end (`PostsService` injects `LOGGER` without `PostsModule` importing `LoggerModule` at all).
+Both [`@blixis-io/logging`](/framework/concepts/logging/)'s `LoggerModule` and [`@blixis-io/config`](/framework/concepts/config/)'s `ConfigModule` are `global: true` for exactly this reason — see either one's `forRoot()` for a real example, and `examples/hello-api` for it working end to end (`PostsService` injects `LOGGER` without `PostsModule` importing `LoggerModule` at all).
 
 Use `global` sparingly — it's the right call for genuinely app-wide infrastructure, not a way to skip thinking about a feature module's own boundaries.
 
@@ -135,10 +135,10 @@ await createApplication(AppModule, {
 });
 ```
 
-You'll rarely call this directly; it's what `@blixis-io/testing`'s `.override()` is built on. See [Testing](/concepts/testing/) and [Overriding Providers in Tests](/guides/overriding-providers-in-tests/).
+You'll rarely call this directly; it's what `@blixis-io/testing`'s `.override()` is built on. See [Testing](/framework/concepts/testing/) and [Overriding Providers in Tests](/framework/guides/overriding-providers-in-tests/).
 
 ## Next
 
-- What happens to each provider as the graph resolves: [Lifecycle Hooks](/concepts/lifecycle-hooks/).
-- Turning `controllers` into actual HTTP routes: [Routing & Controllers](/concepts/routing-controllers/).
-- Every exported symbol: [`@blixis-io/core` reference](/reference/blixis-core/).
+- What happens to each provider as the graph resolves: [Lifecycle Hooks](/framework/concepts/lifecycle-hooks/).
+- Turning `controllers` into actual HTTP routes: [Routing & Controllers](/framework/concepts/routing-controllers/).
+- Every exported symbol: [`@blixis-io/core` reference](/framework/reference/blixis-core/).

@@ -5,7 +5,7 @@ sidebar:
   order: 5
 ---
 
-By default, a request body over **1 MiB** is rejected with `413 Payload Too Large` before your controller method runs — see [Request Validation](/concepts/request-validation/#body-parsing-rules) for exactly when this check happens.
+By default, a request body over **1 MiB** is rejected with `413 Payload Too Large` before your controller method runs — see [Request Validation](/framework/concepts/request-validation/#body-parsing-rules) for exactly when this check happens.
 
 ## Changing the limit
 

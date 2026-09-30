@@ -5,7 +5,7 @@ sidebar:
   order: 11
 ---
 
-The `blix` binary. See [Code Generation](/concepts/code-generation/) for the concepts.
+The `blix` binary. See [Code Generation](/framework/concepts/code-generation/) for the concepts.
 
 ## `blix generate` (`blix g`)
 

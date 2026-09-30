@@ -5,7 +5,7 @@ sidebar:
   order: 7
 ---
 
-Drizzle-backed Postgres persistence, wired up the same `forRoot()` way as every other `DynamicModule` in this framework. See [Database](/concepts/database/) for the concepts.
+Drizzle-backed Postgres persistence, wired up the same `forRoot()` way as every other `DynamicModule` in this framework. See [Database](/framework/concepts/database/) for the concepts.
 
 ## `defineDrizzleModule`
 

@@ -5,7 +5,7 @@ sidebar:
   order: 9
 ---
 
-`@blixis-io/openapi`'s `generateOpenApiDocument` returns a plain object — there's no auto-mounted route and no bundled Swagger UI. You mount it yourself with the same `@Controller`/`@Get` primitives as any other route. See [API Documentation](/concepts/api-documentation/) for what actually goes into the generated document.
+`@blixis-io/openapi`'s `generateOpenApiDocument` returns a plain object — there's no auto-mounted route and no bundled Swagger UI. You mount it yourself with the same `@Controller`/`@Get` primitives as any other route. See [API Documentation](/framework/concepts/api-documentation/) for what actually goes into the generated document.
 
 ## 1. A place to hold the app reference
 
@@ -86,4 +86,4 @@ Or run one locally against it (`npx @redocly/cli preview-docs http://localhost:3
 
 ## Enriching routes as you go
 
-`@ApiOperation`/`@ApiTags` are both optional — add them where a bare, derived `operationId` isn't descriptive enough. See [API Documentation](/concepts/api-documentation/#enriching-a-route-with-apioperation-and-apitags).
+`@ApiOperation`/`@ApiTags` are both optional — add them where a bare, derived `operationId` isn't descriptive enough. See [API Documentation](/framework/concepts/api-documentation/#enriching-a-route-with-apioperation-and-apitags).

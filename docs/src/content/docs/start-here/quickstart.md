@@ -5,7 +5,7 @@ sidebar:
   order: 3
 ---
 
-This walks through the smallest possible Blixis app: one service, one controller, one module, running on a real socket. It mirrors the shape of the framework's own `examples/hello-api` reference app — see the [hello-api Walkthrough](/examples/hello-api-walkthrough/) for the full CRUD version.
+This walks through the smallest possible Blixis app: one service, one controller, one module, running on a real socket. It mirrors the shape of the framework's own `examples/hello-api` reference app — see the [hello-api Walkthrough](/framework/examples/hello-api-walkthrough/) for the full CRUD version.
 
 :::note
 The framework packages aren't published to npm yet. The setup below adds a new app *inside* the Blixis Framework pnpm workspace, consuming `@blixis-io/*` as `workspace:*` dependencies — the same way `examples/hello-api` does. Once the packages are published, this becomes an ordinary `pnpm add @blixis-io/http @blixis-io/core @blixis-io/di`.
@@ -45,7 +45,7 @@ cd examples/hello-quickstart
 }
 ```
 
-Then `pnpm install` from the repo root so the new package joins the workspace. Note there's no `tsx`/`ts-node` step here: Node's own TypeScript support strips *types* but doesn't transform *decorators* (they're runtime JavaScript, not type syntax), so every app in this framework builds with `tsc` first and runs the compiled output. See [Installation](/start-here/installation/) for why the two decorator compiler flags in `tsconfig.base.json` are non-negotiable.
+Then `pnpm install` from the repo root so the new package joins the workspace. Note there's no `tsx`/`ts-node` step here: Node's own TypeScript support strips *types* but doesn't transform *decorators* (they're runtime JavaScript, not type syntax), so every app in this framework builds with `tsc` first and runs the compiled output. See [Installation](/framework/start-here/installation/) for why the two decorator compiler flags in `tsconfig.base.json` are non-negotiable.
 
 ## 2. Write a service
 
@@ -60,7 +60,7 @@ export class HelloService {
 }
 ```
 
-`@Injectable()` isn't optional decoration — TypeScript only emits the constructor's parameter types (`design:paramtypes`) for a *decorated* class, so it's what makes this class resolvable at all. See [Dependency Injection](/concepts/dependency-injection/).
+`@Injectable()` isn't optional decoration — TypeScript only emits the constructor's parameter types (`design:paramtypes`) for a *decorated* class, so it's what makes this class resolvable at all. See [Dependency Injection](/framework/concepts/dependency-injection/).
 
 ## 3. Write a controller
 
@@ -79,7 +79,7 @@ export class HelloController {
 }
 ```
 
-`this.hello` was never assigned by hand — the container built it from `HelloService`'s own `@Injectable()` registration. See [Routing & Controllers](/concepts/routing-controllers/).
+`this.hello` was never assigned by hand — the container built it from `HelloService`'s own `@Injectable()` registration. See [Routing & Controllers](/framework/concepts/routing-controllers/).
 
 ## 4. Wire up the module
 
@@ -129,6 +129,6 @@ curl http://localhost:3000/hello/world
 
 ## Next steps
 
-- Add request validation, a second route, and a guard: [Build Your First API](/tutorials/build-your-first-api/).
-- Understand what `Injectable`/`Inject`/tokens actually do under the hood: [Dependency Injection](/concepts/dependency-injection/).
-- See the full CRUD version of this same shape: the [hello-api Walkthrough](/examples/hello-api-walkthrough/).
+- Add request validation, a second route, and a guard: [Build Your First API](/framework/tutorials/build-your-first-api/).
+- Understand what `Injectable`/`Inject`/tokens actually do under the hood: [Dependency Injection](/framework/concepts/dependency-injection/).
+- See the full CRUD version of this same shape: the [hello-api Walkthrough](/framework/examples/hello-api-walkthrough/).

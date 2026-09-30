@@ -5,9 +5,9 @@ sidebar:
   order: 3
 ---
 
-This adds a search filter to the blog API from [Build Your First API](/tutorials/build-your-first-api/) — `GET /posts?search=term` — entirely test-first: a failing test, the minimal code to pass it, then the next failing test. This is the same loop the framework's own test suite (165 tests, 100% coverage) was built with.
+This adds a search filter to the blog API from [Build Your First API](/framework/tutorials/build-your-first-api/) — `GET /posts?search=term` — entirely test-first: a failing test, the minimal code to pass it, then the next failing test. This is the same loop the framework's own test suite (165 tests, 100% coverage) was built with.
 
-Tests use [Vitest](https://vitest.dev). If you haven't set it up in your app yet, see [Installation](/start-here/installation/#if-youre-running-tests-with-vitest) for the required Oxc decorator config.
+Tests use [Vitest](https://vitest.dev). If you haven't set it up in your app yet, see [Installation](/framework/start-here/installation/#if-youre-running-tests-with-vitest) for the required Oxc decorator config.
 
 ## Red: a unit test for the service
 
@@ -104,7 +104,7 @@ list(@Query(z.object({ search: z.string().optional() })) query: { search?: strin
 }
 ```
 
-`@Query(schema)` parses and validates `req.url`'s search params into an object — see [Request Validation](/concepts/request-validation/) — so `query.search` is already the right type by the time it reaches `this.posts.list()`. Run both test files again; everything's green.
+`@Query(schema)` parses and validates `req.url`'s search params into an object — see [Request Validation](/framework/concepts/request-validation/) — so `query.search` is already the right type by the time it reaches `this.posts.list()`. Run both test files again; everything's green.
 
 ## Why this order, not the reverse
 
@@ -112,5 +112,5 @@ Testing `PostsService` directly first — no `Test.createModule()`, no HTTP, jus
 
 ## Next
 
-- What `Test.createModule().compile()` builds and why it's a *real* application, not a mock: [Testing](/concepts/testing/).
-- Swap in a fake dependency instead of exercising the real one: [Overriding Providers in Tests](/guides/overriding-providers-in-tests/).
+- What `Test.createModule().compile()` builds and why it's a *real* application, not a mock: [Testing](/framework/concepts/testing/).
+- Swap in a fake dependency instead of exercising the real one: [Overriding Providers in Tests](/framework/guides/overriding-providers-in-tests/).

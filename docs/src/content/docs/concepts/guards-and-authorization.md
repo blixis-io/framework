@@ -70,6 +70,6 @@ export class AuthGuard implements CanActivate {
 
 ## Next
 
-- A full worked guard, wired into a module and tested both ways: [Protecting Routes with Guards](/guides/protecting-routes-with-guards/).
-- The full tutorial: [Add Authentication](/tutorials/add-authentication/).
-- How a guard's `false`/thrown error becomes a response: [Error Handling](/concepts/error-handling/).
+- A full worked guard, wired into a module and tested both ways: [Protecting Routes with Guards](/framework/guides/protecting-routes-with-guards/).
+- The full tutorial: [Add Authentication](/framework/tutorials/add-authentication/).
+- How a guard's `false`/thrown error becomes a response: [Error Handling](/framework/concepts/error-handling/).

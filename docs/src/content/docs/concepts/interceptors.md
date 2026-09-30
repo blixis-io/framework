@@ -5,7 +5,7 @@ sidebar:
   order: 7.5
 ---
 
-An interceptor wraps a route's param resolution and handler invocation in an onion layer — code before `next()` runs before the handler, code after runs after, and it can inspect or replace the `Response` either side returns. Interceptors are DI-resolved classes, same shape as [guards](/concepts/guards-and-authorization/), and run **after** guards: a denied request never reaches an interceptor at all.
+An interceptor wraps a route's param resolution and handler invocation in an onion layer — code before `next()` runs before the handler, code after runs after, and it can inspect or replace the `Response` either side returns. Interceptors are DI-resolved classes, same shape as [guards](/framework/concepts/guards-and-authorization/), and run **after** guards: a denied request never reaches an interceptor at all.
 
 ## `Interceptor`
 
@@ -48,7 +48,7 @@ Class-level interceptors wrap **outermost**, method-level **innermost** — the 
 
 ## Registered providers, same rule as guards
 
-`@UseInterceptors(TimingInterceptor)` only records which class to ask the DI container for at request time — `TimingInterceptor` still needs to be in the owning module's `providers`, exactly like a guard. See [Guards & Authorization](/concepts/guards-and-authorization/#guard-classes-must-be-registered-providers) for why.
+`@UseInterceptors(TimingInterceptor)` only records which class to ask the DI container for at request time — `TimingInterceptor` still needs to be in the owning module's `providers`, exactly like a guard. See [Guards & Authorization](/framework/concepts/guards-and-authorization/#guard-classes-must-be-registered-providers) for why.
 
 ## Observing (and rethrowing) an error
 
@@ -69,6 +69,6 @@ Rethrowing is important — swallowing the error here would turn a real failure 
 
 ## Next
 
-- Every exported symbol: [`@blixis-io/http` reference](/reference/blixis-http/#interceptors).
-- See a real one (`TimingInterceptor`, logging request duration) wired into `hello-api`: the [hello-api walkthrough](/examples/hello-api-walkthrough/).
-- Reading a value a guard set, from inside an interceptor or handler: [Request Context](/concepts/request-context/).
+- Every exported symbol: [`@blixis-io/http` reference](/framework/reference/blixis-http/#interceptors).
+- See a real one (`TimingInterceptor`, logging request duration) wired into `hello-api`: the [hello-api walkthrough](/framework/examples/hello-api-walkthrough/).
+- Reading a value a guard set, from inside an interceptor or handler: [Request Context](/framework/concepts/request-context/).

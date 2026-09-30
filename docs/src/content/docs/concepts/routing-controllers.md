@@ -67,7 +67,7 @@ get() {}
 
 - **No route matches the path at all** → `404` (`application/problem+json`).
 - **The path matches, but not for this method** → `405`, with an `Allow` header listing the methods that *are* registered there.
-- **The path and method both match** → the controller method runs. See [Request Validation](/concepts/request-validation/) for how its arguments are built, and [Error Handling](/concepts/error-handling/) for exactly how the return value (or a thrown error) becomes a `Response`. For a redirect or a non-JSON content type, see the [Cookbook](/examples/cookbook/#returning-a-raw-response-and-setting-a-content-type).
+- **The path and method both match** → the controller method runs. See [Request Validation](/framework/concepts/request-validation/) for how its arguments are built, and [Error Handling](/framework/concepts/error-handling/) for exactly how the return value (or a thrown error) becomes a `Response`. For a redirect or a non-JSON content type, see the [Cookbook](/framework/examples/cookbook/#returning-a-raw-response-and-setting-a-content-type).
 
 ## Building the app
 
@@ -78,10 +78,10 @@ const app = await createHttpApplication(AppModule);
 await app.listen(3000);
 ```
 
-`createHttpApplication` wraps `@blixis-io/core`'s `createApplication` (see [Modules](/concepts/modules/)) — it builds the module graph, then builds the router from `app.controllers`. `listen()` binds a real `node:http` server; `app.handle(request)` runs the same logic against an in-memory `Request` with no socket at all, which is what `@blixis-io/testing` uses (see [Testing](/concepts/testing/)).
+`createHttpApplication` wraps `@blixis-io/core`'s `createApplication` (see [Modules](/framework/concepts/modules/)) — it builds the module graph, then builds the router from `app.controllers`. `listen()` binds a real `node:http` server; `app.handle(request)` runs the same logic against an in-memory `Request` with no socket at all, which is what `@blixis-io/testing` uses (see [Testing](/framework/concepts/testing/)).
 
 ## Next
 
-- What `@Body`/`@Query`/`@Param` actually do with each argument: [Request Validation](/concepts/request-validation/).
-- Denying a request before the controller method ever runs: [Guards & Authorization](/concepts/guards-and-authorization/).
-- Every exported symbol: [`@blixis-io/http` reference](/reference/blixis-http/).
+- What `@Body`/`@Query`/`@Param` actually do with each argument: [Request Validation](/framework/concepts/request-validation/).
+- Denying a request before the controller method ever runs: [Guards & Authorization](/framework/concepts/guards-and-authorization/).
+- Every exported symbol: [`@blixis-io/http` reference](/framework/reference/blixis-http/).
