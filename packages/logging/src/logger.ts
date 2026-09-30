@@ -14,7 +14,7 @@ const DEFAULT_MIN_LEVEL: LogLevel = "trace";
 function reportTransportFailure(error: unknown): void {
   // The one place this package uses console directly: a transport failing
   // must never crash or silently swallow the caller's own logging.
-  console.error("[@blixis/logging] a transport failed:", error);
+  console.error("[@blixis-io/logging] a transport failed:", error);
 }
 
 function emit(

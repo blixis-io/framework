@@ -25,7 +25,7 @@ Blixis uses **legacy decorators**, not the newer TC39 decorators — see [Why Le
 }
 ```
 
-Without `emitDecoratorMetadata`, constructor injection silently can't see parameter types at all — `@blixis/di` will throw `NotInjectableError` for every class with constructor parameters, because TypeScript only emits `design:paramtypes` metadata for a class that's decorated with at least one class decorator (which `@Injectable()` provides).
+Without `emitDecoratorMetadata`, constructor injection silently can't see parameter types at all — `@blixis-io/di` will throw `NotInjectableError` for every class with constructor parameters, because TypeScript only emits `design:paramtypes` metadata for a class that's decorated with at least one class decorator (which `@Injectable()` provides).
 
 `useDefineForClassFields: false` matters because legacy decorator semantics expect class fields to be assigned the old (`Object.defineProperty`-free) way; leaving it at the ES2022+ default breaks decorator field initialization order.
 
@@ -54,7 +54,7 @@ Don't. `esbuild` does not support `emitDecoratorMetadata` at all — there's no 
 
 ## Dependencies
 
-The `@blixis/di` package depends on [`reflect-metadata`](https://www.npmjs.com/package/reflect-metadata) (imported once, as a side effect, by its own entry point — you never import it yourself). `@blixis/http` depends on [`zod`](https://zod.dev) for request validation; any Zod v4 schema works with `@Body`/`@Query`/`@Param`.
+The `@blixis-io/di` package depends on [`reflect-metadata`](https://www.npmjs.com/package/reflect-metadata) (imported once, as a side effect, by its own entry point — you never import it yourself). `@blixis-io/http` depends on [`zod`](https://zod.dev) for request validation; any Zod v4 schema works with `@Body`/`@Query`/`@Param`.
 
 ## Next
 

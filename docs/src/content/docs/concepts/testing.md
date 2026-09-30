@@ -1,16 +1,16 @@
 ---
 title: Testing
-description: "@blixis/testing: Test.createModule().override().compile(), and the request() helper."
+description: "@blixis-io/testing: Test.createModule().override().compile(), and the request() helper."
 sidebar:
   order: 9
 ---
 
-`@blixis/testing` builds a real application — real DI container, real router, real validation — in a test, with two conveniences on top: swapping specific providers for fakes, and a `request()` helper that skips building `Request`/`URL` objects by hand.
+`@blixis-io/testing` builds a real application — real DI container, real router, real validation — in a test, with two conveniences on top: swapping specific providers for fakes, and a `request()` helper that skips building `Request`/`URL` objects by hand.
 
 ## `Test.createModule().compile()`
 
 ```ts
-import { Test } from "@blixis/testing";
+import { Test } from "@blixis-io/testing";
 
 const app = await Test.createModule({ imports: [PostsModule] }).compile();
 
@@ -60,4 +60,4 @@ await app.close();       // runs OnApplicationShutdown hooks
 
 - A full TDD walkthrough building a new endpoint: [Test-Driven API Development](/tutorials/test-driven-api-development/).
 - More detail on when and why to override: [Overriding Providers in Tests](/guides/overriding-providers-in-tests/).
-- Every exported symbol: [`@blixis/testing` reference](/reference/blixis-testing/).
+- Every exported symbol: [`@blixis-io/testing` reference](/reference/blixis-testing/).

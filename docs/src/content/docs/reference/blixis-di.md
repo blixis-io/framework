@@ -1,5 +1,5 @@
 ---
-title: "@blixis/di"
+title: "@blixis-io/di"
 description: Full API reference for the dependency injection package.
 sidebar:
   order: 1
@@ -24,7 +24,7 @@ class Container {
 - **`register(provider)`** — registers a provider (see [Provider shapes](#provider-shapes) below). Throws `DuplicateProviderError` if the resulting token is already registered.
 - **`resolve(token)`** — resolves a token, building its full dependency graph as needed. Async because factories may be async and because building deep graphs takes real awaits. Singleton instances are cached and memoized against concurrent resolution — see [Dependency Injection](/concepts/dependency-injection/#singletons-are-memoized-against-concurrent-resolution).
 - **`get(token)`** — synchronous lookup of an *already-resolved* singleton. Throws `ProviderNotResolvedError` if `resolve()` hasn't been called for that token yet (or if it's a transient provider, which is never cached).
-- **`getResolvedEntries()`** — every resolved singleton, `[token, instance]` pairs, in the order they finished constructing (dependencies before dependents). This is what `@blixis/core` uses to run lifecycle hooks in the correct order. Transient instances never appear here.
+- **`getResolvedEntries()`** — every resolved singleton, `[token, instance]` pairs, in the order they finished constructing (dependencies before dependents). This is what `@blixis-io/core` uses to run lifecycle hooks in the correct order. Transient instances never appear here.
 - **`resolveAll()`** — resolves every registered provider. Safe to run concurrently across providers that share dependencies (see the memoization note above).
 
 ## Dependency introspection
@@ -39,7 +39,7 @@ interface DependencyDescriptor {
 }
 ```
 
-Computes what a class's constructor parameters resolve to — the same reflection `Container` uses internally to build instances — without instantiating anything. Throws the same `NotInjectableError`/`UnresolvableParameterError` a real resolution would. `@blixis/core` uses this to validate module `exports`/encapsulation (see [Modules](/concepts/modules/#encapsulation-exports-and-global)) before anything resolves; it's exported for any other tooling that needs to inspect a dependency graph statically.
+Computes what a class's constructor parameters resolve to — the same reflection `Container` uses internally to build instances — without instantiating anything. Throws the same `NotInjectableError`/`UnresolvableParameterError` a real resolution would. `@blixis-io/core` uses this to validate module `exports`/encapsulation (see [Modules](/concepts/modules/#encapsulation-exports-and-global)) before anything resolves; it's exported for any other tooling that needs to inspect a dependency graph statically.
 
 ## Decorators
 
@@ -75,7 +75,7 @@ function getInjectOverrides(target: object): Map<number, TokenRef> | undefined;
 function getOptionalParams(target: object): Set<number> | undefined;
 ```
 
-Read back what the three decorators above stored. Mostly useful if you're building your own decorators on top of `@blixis/di`'s container (the way `@blixis/core` and `@blixis/http` do).
+Read back what the three decorators above stored. Mostly useful if you're building your own decorators on top of `@blixis-io/di`'s container (the way `@blixis-io/core` and `@blixis-io/http` do).
 
 ## Tokens
 
@@ -193,7 +193,7 @@ Every message is designed to name the exact problem and the exact fix — see [D
 
 ## Metadata helpers
 
-Low-level `Reflect.metadata` wrappers, used internally and by `@blixis/core`/`@blixis/http` to build their own decorators on the same foundation — see [Decorators & Metadata](/concepts/decorators-and-metadata/).
+Low-level `Reflect.metadata` wrappers, used internally and by `@blixis-io/core`/`@blixis-io/http` to build their own decorators on the same foundation — see [Decorators & Metadata](/concepts/decorators-and-metadata/).
 
 ```ts
 function defineMetadata(key: MetadataKey, value: unknown, target: object, propertyKey?: MetadataKey): void;

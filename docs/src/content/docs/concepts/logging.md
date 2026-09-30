@@ -5,14 +5,14 @@ sidebar:
   order: 10
 ---
 
-`@blixis/logging` gives every provider an injectable `Logger`, backed by one or more `Transport`s — destinations the same entry gets sent to, simultaneously.
+`@blixis-io/logging` gives every provider an injectable `Logger`, backed by one or more `Transport`s — destinations the same entry gets sent to, simultaneously.
 
 ## Why multiple transports, not one swappable backend
 
 A real app usually wants several things to happen with the same log entry at once: every entry goes to the console (or a log aggregator), but only `error`-and-above also goes to an error tracker like Sentry, and maybe only `fatal` also pages someone via Slack. That's a fan-out, not a single destination you swap out per environment — so a `Logger` is built from a **list** of transports, each with its own independent `minLevel`:
 
 ```ts
-import { createLogger, consoleTransport } from "@blixis/logging";
+import { createLogger, consoleTransport } from "@blixis-io/logging";
 
 const logger = createLogger({
   transports: [
@@ -51,9 +51,9 @@ requestLogger.info("handling request"); // { service: "hello-api", requestId: "a
 ## Injecting it
 
 ```ts
-import { Inject, Injectable } from "@blixis/di";
-import { LOGGER, LoggerModule, consoleTransport, type Logger } from "@blixis/logging";
-import { Module } from "@blixis/core";
+import { Inject, Injectable } from "@blixis-io/di";
+import { LOGGER, LoggerModule, consoleTransport, type Logger } from "@blixis-io/logging";
+import { Module } from "@blixis-io/core";
 
 @Injectable()
 class PostsService {
@@ -76,9 +76,9 @@ class AppModule {}
 
 ## What's out of scope for now
 
-`@blixis/http`'s own internal error handling (the `500` fallback in `createHandler`, the socket-level catch in `HttpApplication.listen()`) still uses raw `console.error` — it isn't wired up to accept an injected `Logger` yet. `@blixis/logging` depends on `@blixis/core`, so `@blixis/http` *can* safely depend on it without a cycle, but that integration hasn't been done. If you want structured logging from the framework's own internals today, you'd need to fork those two `console.error` call sites yourself.
+`@blixis-io/http`'s own internal error handling (the `500` fallback in `createHandler`, the socket-level catch in `HttpApplication.listen()`) still uses raw `console.error` — it isn't wired up to accept an injected `Logger` yet. `@blixis-io/logging` depends on `@blixis-io/core`, so `@blixis-io/http` *can* safely depend on it without a cycle, but that integration hasn't been done. If you want structured logging from the framework's own internals today, you'd need to fork those two `console.error` call sites yourself.
 
 ## Next
 
-- Every exported symbol with full signatures: [`@blixis/logging` reference](/reference/blixis-logging/).
+- Every exported symbol with full signatures: [`@blixis-io/logging` reference](/reference/blixis-logging/).
 - See it wired into a real app: the [hello-api walkthrough](/examples/hello-api-walkthrough/).

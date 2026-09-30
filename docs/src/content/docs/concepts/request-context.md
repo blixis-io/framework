@@ -16,8 +16,8 @@ Most DI frameworks solve this with a "request" scope: a provider rebuilt fresh f
 ## A guard sets it, a service reads it
 
 ```ts
-import { Injectable } from "@blixis/di";
-import { RequestContext, type CanActivate, type ExecutionContext } from "@blixis/http";
+import { Injectable } from "@blixis-io/di";
+import { RequestContext, type CanActivate, type ExecutionContext } from "@blixis-io/http";
 
 @Injectable()
 export class ApiKeyGuard implements CanActivate {
@@ -67,6 +67,6 @@ Two requests handled concurrently never see each other's values — each gets it
 
 ## Next
 
-- Every exported symbol: [`@blixis/http` reference](/reference/blixis-http/#requestcontext).
+- Every exported symbol: [`@blixis-io/http` reference](/reference/blixis-http/#requestcontext).
 - How the guard that sets it fits into the request lifecycle: [Guards & Authorization](/concepts/guards-and-authorization/).
 - See it wired into a real app: the [hello-api walkthrough](/examples/hello-api-walkthrough/).

@@ -48,8 +48,8 @@ export interface Post {
 ## 2. The service
 
 ```ts title="src/posts/posts.service.ts"
-import { Injectable } from "@blixis/di";
-import { NotFoundException } from "@blixis/http";
+import { Injectable } from "@blixis-io/di";
+import { NotFoundException } from "@blixis-io/http";
 import type { CreatePostInput, Post, UpdatePostInput } from "./post.schema.js";
 
 @Injectable()
@@ -101,7 +101,7 @@ Two things worth noticing: `get()` throwing `NotFoundException` means every call
 ## 3. The controller
 
 ```ts title="src/posts/posts.controller.ts"
-import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post } from "@blixis/http";
+import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post } from "@blixis-io/http";
 import { CreatePostSchema, UpdatePostSchema, type CreatePostInput, type UpdatePostInput } from "./post.schema.js";
 import { PostsService } from "./posts.service.js";
 
@@ -143,7 +143,7 @@ export class PostsController {
 ## 4. The module
 
 ```ts title="src/posts/posts.module.ts"
-import { Module } from "@blixis/core";
+import { Module } from "@blixis-io/core";
 import { PostsController } from "./posts.controller.js";
 import { PostsService } from "./posts.service.js";
 
@@ -155,7 +155,7 @@ export class PostsModule {}
 ```
 
 ```ts title="src/app.module.ts"
-import { Module } from "@blixis/core";
+import { Module } from "@blixis-io/core";
 import { PostsModule } from "./posts/posts.module.js";
 
 @Module({ imports: [PostsModule] })
@@ -165,7 +165,7 @@ export class AppModule {}
 ## 5. Boot it
 
 ```ts title="src/main.ts"
-import { createHttpApplication } from "@blixis/http";
+import { createHttpApplication } from "@blixis-io/http";
 import { AppModule } from "./app.module.js";
 
 const app = await createHttpApplication(AppModule);

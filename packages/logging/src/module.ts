@@ -1,5 +1,5 @@
-import { Module, type DynamicModule } from "@blixis/core";
-import { InjectionToken } from "@blixis/di";
+import { Module, type DynamicModule } from "@blixis-io/core";
+import { InjectionToken } from "@blixis-io/di";
 import { createLogger, type CreateLoggerOptions } from "./logger.js";
 import type { Logger } from "./types.js";
 

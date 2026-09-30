@@ -1,5 +1,5 @@
-import { Module } from "@blixis/core";
-import { consoleTransport, LoggerModule } from "@blixis/logging";
+import { Module } from "@blixis-io/core";
+import { consoleTransport, LoggerModule } from "@blixis-io/logging";
 import { ConfigModule } from "./config.js";
 import { DocsModule } from "./docs/docs.module.js";
 import { HealthController } from "./health/health.controller.js";

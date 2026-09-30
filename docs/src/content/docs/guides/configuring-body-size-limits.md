@@ -12,14 +12,14 @@ By default, a request body over **1 MiB** is rejected with `413 Payload Too Larg
 Pass `bodyLimit` (in bytes) to `createHttpApplication`:
 
 ```ts
-import { createHttpApplication } from "@blixis/http";
+import { createHttpApplication } from "@blixis-io/http";
 
 const app = await createHttpApplication(AppModule, {
   bodyLimit: 5 * 1024 * 1024, // 5 MiB
 });
 ```
 
-The same option works with `@blixis/testing`'s `Test.createModule(...).compile(options)`:
+The same option works with `@blixis-io/testing`'s `Test.createModule(...).compile(options)`:
 
 ```ts
 const app = await Test.createModule({ imports: [PostsModule] }).compile({

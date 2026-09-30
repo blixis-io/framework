@@ -1,5 +1,5 @@
 ---
-title: "@blixis/http"
+title: "@blixis-io/http"
 description: Full API reference for the HTTP layer — routing, controllers, validation, guards, errors.
 sidebar:
   order: 3
@@ -29,7 +29,7 @@ interface ListenHandle {
 }
 ```
 
-Wraps `@blixis/core`'s `createApplication`, builds the router from `app.controllers`, and adds the HTTP-specific surface. `handle()` runs a request in-process, no socket — what `@blixis/testing` is built on. `listen()` binds a real `node:http` server. `close()` tears down both the socket (if listening) and the underlying `Application` (running `OnApplicationShutdown` hooks); **idempotent**, safe to call more than once. See [Running in Production](/guides/running-in-production/). `controllers` exposes every controller class in the app's module graph — what [`@blixis/openapi`](/reference/blixis-openapi/) walks to build a document that stays in sync with the real running app, without a separately-maintained route list.
+Wraps `@blixis-io/core`'s `createApplication`, builds the router from `app.controllers`, and adds the HTTP-specific surface. `handle()` runs a request in-process, no socket — what `@blixis-io/testing` is built on. `listen()` binds a real `node:http` server. `close()` tears down both the socket (if listening) and the underlying `Application` (running `OnApplicationShutdown` hooks); **idempotent**, safe to call more than once. See [Running in Production](/guides/running-in-production/). `controllers` exposes every controller class in the app's module graph — what [`@blixis-io/openapi`](/reference/blixis-openapi/) walks to build a document that stays in sync with the real running app, without a separately-maintained route list.
 
 ### `createHandler` / `buildRouter`
 
@@ -100,7 +100,7 @@ function getClassApiTags(target: object): string[];
 function getMethodApiTags(target: object, propertyKey: string | symbol): string[];
 ```
 
-Both entirely optional — [`@blixis/openapi`](/reference/blixis-openapi/) derives a working document (with a valid, unique `operationId`) even without them. `ApiTags` works like `UseGuards`/`UseInterceptors` — class position or method position — except class-level and method-level tags **concatenate** rather than one replacing the other. See [API Documentation](/concepts/api-documentation/).
+Both entirely optional — [`@blixis-io/openapi`](/reference/blixis-openapi/) derives a working document (with a valid, unique `operationId`) even without them. `ApiTags` works like `UseGuards`/`UseInterceptors` — class position or method position — except class-level and method-level tags **concatenate** rather than one replacing the other. See [API Documentation](/concepts/api-documentation/).
 
 ## Param decorators
 
@@ -201,7 +201,7 @@ interface RouteNotFound { kind: "not-found" }
 interface RouteMethodNotAllowed { kind: "method-not-allowed"; allowed: HttpMethod[] }
 ```
 
-The trie router itself, generic over an opaque handler type — `@blixis/http` plugs in its own route-entry type internally; you could build a different framework on top of just this. See [Routing & Controllers](/concepts/routing-controllers/#how-a-request-is-matched) for the static/param/wildcard precedence rules.
+The trie router itself, generic over an opaque handler type — `@blixis-io/http` plugs in its own route-entry type internally; you could build a different framework on top of just this. See [Routing & Controllers](/concepts/routing-controllers/#how-a-request-is-matched) for the static/param/wildcard precedence rules.
 
 ## Exceptions
 

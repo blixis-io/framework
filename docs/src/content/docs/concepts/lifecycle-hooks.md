@@ -5,13 +5,13 @@ sidebar:
   order: 4
 ---
 
-Any provider can hook into application startup and shutdown by implementing one or both of two interfaces from `@blixis/core`. No registration step — the interface, structurally satisfied, is all it takes.
+Any provider can hook into application startup and shutdown by implementing one or both of two interfaces from `@blixis-io/core`. No registration step — the interface, structurally satisfied, is all it takes.
 
 ## `OnModuleInit`
 
 ```ts
-import type { OnModuleInit } from "@blixis/core";
-import { Injectable } from "@blixis/di";
+import type { OnModuleInit } from "@blixis-io/core";
+import { Injectable } from "@blixis-io/di";
 
 @Injectable()
 class DatabaseConnection implements OnModuleInit {
@@ -26,7 +26,7 @@ class DatabaseConnection implements OnModuleInit {
 ## `OnApplicationShutdown`
 
 ```ts
-import type { OnApplicationShutdown } from "@blixis/core";
+import type { OnApplicationShutdown } from "@blixis-io/core";
 
 @Injectable()
 class DatabaseConnection implements OnApplicationShutdown {

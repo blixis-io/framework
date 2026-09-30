@@ -21,7 +21,7 @@ Every error response from a Blixis HTTP app — whether thrown by your code, a f
 Throw one from a controller method or a guard to produce a specific status:
 
 ```ts
-import { HttpException } from "@blixis/http";
+import { HttpException } from "@blixis-io/http";
 
 throw new HttpException(422, "Unprocessable", { field: "email" });
 ```
@@ -74,4 +74,4 @@ A controller method's return value becomes the response body too, via the same p
 ## Next
 
 - A worked example of a custom exception hierarchy: [Writing Custom Exceptions](/guides/writing-custom-exceptions/).
-- Every exception class with full signatures: [`@blixis/http` reference](/reference/blixis-http/).
+- Every exception class with full signatures: [`@blixis-io/http` reference](/reference/blixis-http/).

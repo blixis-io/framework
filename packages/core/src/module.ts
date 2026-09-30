@@ -1,4 +1,4 @@
-import { defineMetadata, getMetadata, type Class, type Provider, type Token } from "@blixis/di";
+import { defineMetadata, getMetadata, type Class, type Provider, type Token } from "@blixis-io/di";
 
 export interface ModuleMetadata {
   imports?: ModuleRef[];

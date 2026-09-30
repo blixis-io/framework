@@ -1,5 +1,5 @@
-import { Test, type TestApplication } from "@blixis/testing";
-import { consoleTransport, LoggerModule } from "@blixis/logging";
+import { Test, type TestApplication } from "@blixis-io/testing";
+import { consoleTransport, LoggerModule } from "@blixis-io/logging";
 import { describe, expect, it } from "vitest";
 import { DATABASE } from "../db/index.js";
 import { posts } from "../db/schema.js";

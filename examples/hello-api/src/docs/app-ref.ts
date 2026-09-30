@@ -1,5 +1,5 @@
-import type { HttpApplication } from "@blixis/http";
-import { Injectable } from "@blixis/di";
+import type { HttpApplication } from "@blixis-io/http";
+import { Injectable } from "@blixis-io/di";
 
 /**
  * Holds a reference to the app itself, set once in main.ts right after

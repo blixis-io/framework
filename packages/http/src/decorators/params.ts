@@ -1,4 +1,4 @@
-import { defineMetadata, getMetadata } from "@blixis/di";
+import { defineMetadata, getMetadata } from "@blixis-io/di";
 import type { ZodType } from "zod";
 
 export type ParamSource =

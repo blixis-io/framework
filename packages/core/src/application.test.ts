@@ -1,4 +1,4 @@
-import { DuplicateProviderError, Inject, Injectable, InjectionToken, Optional } from "@blixis/di";
+import { DuplicateProviderError, Inject, Injectable, InjectionToken, Optional } from "@blixis-io/di";
 import { describe, expect, it } from "vitest";
 import { createApplication } from "./application.js";
 import { NotAModuleError, ProviderNotVisibleError } from "./errors.js";

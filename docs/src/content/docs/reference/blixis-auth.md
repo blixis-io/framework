@@ -1,5 +1,5 @@
 ---
-title: "@blixis/auth"
+title: "@blixis-io/auth"
 description: Full API reference for the auth package.
 sidebar:
   order: 8
@@ -22,11 +22,11 @@ function defineAuthModule<Schema extends ZodType>(
 };
 ```
 
-Claims shape is inherently app-specific — unlike `@blixis/logging`'s single fixed `LOGGER` token, there's no one type to validate against. Each call to `defineAuthModule(claimsSchema)` returns its own `JwtAuthGuard` bound to that schema, a `createRolesGuard` that reads users the same guard verified, and `getCurrentUser` for reading them yourself. Call it once per app (typically in its own `auth.ts`), export the result, and use it everywhere:
+Claims shape is inherently app-specific — unlike `@blixis-io/logging`'s single fixed `LOGGER` token, there's no one type to validate against. Each call to `defineAuthModule(claimsSchema)` returns its own `JwtAuthGuard` bound to that schema, a `createRolesGuard` that reads users the same guard verified, and `getCurrentUser` for reading them yourself. Call it once per app (typically in its own `auth.ts`), export the result, and use it everywhere:
 
 ```ts
 // auth.ts
-import { defineAuthModule } from "@blixis/auth";
+import { defineAuthModule } from "@blixis-io/auth";
 import { z } from "zod";
 
 const ClaimsSchema = z.object({ sub: z.string(), roles: z.array(z.string()) });
@@ -127,7 +127,7 @@ interface IssuingOptions<Claims> {
 }
 ```
 
-Both stores are ordinary DI classes (not plain functions, unlike `@blixis/tenancy`'s `resolveMembership`) — a real implementation typically needs to inject `DATABASE` or similar, which a plain function can't do. Without listing the module that exports their dependencies in `imports`, module encapsulation throws `ProviderNotVisibleError` (or `MissingProviderError`, if that module isn't part of the graph at all) when the app boots.
+Both stores are ordinary DI classes (not plain functions, unlike `@blixis-io/tenancy`'s `resolveMembership`) — a real implementation typically needs to inject `DATABASE` or similar, which a plain function can't do. Without listing the module that exports their dependencies in `imports`, module encapsulation throws `ProviderNotVisibleError` (or `MissingProviderError`, if that module isn't part of the graph at all) when the app boots.
 
 ### `CredentialStore<Claims>`
 

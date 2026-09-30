@@ -1,5 +1,5 @@
-import { createHttpApplication } from "@blixis/http";
-import { LOGGER } from "@blixis/logging";
+import { createHttpApplication } from "@blixis-io/http";
+import { LOGGER } from "@blixis-io/logging";
 import { AppModule } from "./app.module.js";
 import { CONFIG } from "./config.js";
 import { AppRef } from "./docs/app-ref.js";

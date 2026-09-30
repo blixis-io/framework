@@ -1,4 +1,4 @@
-import { createApplication } from "@blixis/core";
+import { createApplication } from "@blixis-io/core";
 import { describe, expect, it } from "vitest";
 import { DbConnectionError } from "../errors.js";
 import { defineDrizzleModule } from "./module.js";

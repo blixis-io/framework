@@ -1,7 +1,7 @@
-import type { ModuleMetadata } from "@blixis/core";
-import { Module } from "@blixis/core";
-import type { ClassProvider, ExistingProvider, FactoryProvider, Provider, Token, ValueProvider } from "@blixis/di";
-import { createHttpApplication, type HttpApplicationOptions } from "@blixis/http";
+import type { ModuleMetadata } from "@blixis-io/core";
+import { Module } from "@blixis-io/core";
+import type { ClassProvider, ExistingProvider, FactoryProvider, Provider, Token, ValueProvider } from "@blixis-io/di";
+import { createHttpApplication, type HttpApplicationOptions } from "@blixis-io/http";
 import { TestApplication } from "./test-application.js";
 
 export type OverrideDefinition<T> =

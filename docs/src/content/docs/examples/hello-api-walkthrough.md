@@ -74,7 +74,7 @@ export const { DATABASE, DrizzleModule } = defineDrizzleModule(schema);
 export type Database = NodePgDatabase<typeof schema>;
 ```
 
-A plain `drizzle-orm/pg-core` table plus one call to `@blixis/db`'s `defineDrizzleModule` — same factory-closure shape as `@blixis/config`'s `defineConfigModule`, for the same reason: the schema is app-specific, so there's no single fixed token to export. See [Database](/concepts/database/).
+A plain `drizzle-orm/pg-core` table plus one call to `@blixis-io/db`'s `defineDrizzleModule` — same factory-closure shape as `@blixis-io/config`'s `defineConfigModule`, for the same reason: the schema is app-specific, so there's no single fixed token to export. See [Database](/concepts/database/).
 
 ## `posts/posts.service.ts`
 
@@ -133,11 +133,11 @@ Applied class-level (`@UseInterceptors(TimingInterceptor)` on `PostsController`,
 
 ## `posts/posts.controller.ts`
 
-Full CRUD, all five HTTP method decorators in one controller. The one route with `@UseGuards` is `remove` (`DELETE /posts/:id`) — reads and the create/update routes are open, only deletion requires the API key. `create` overrides its status to `201` with `@HttpCode`; `remove` sets `@HttpCode(204)` explicitly (it always returns `undefined`, which already maps to `204` by default — the explicit decorator exists so `@blixis/openapi`'s generated document says `204` too, not just the real runtime behavior). `@UseInterceptors(TimingInterceptor)` sits at the class level, above `@Controller`, so it wraps every route — guards still run first and can deny a request before the interceptor ever sees it.
+Full CRUD, all five HTTP method decorators in one controller. The one route with `@UseGuards` is `remove` (`DELETE /posts/:id`) — reads and the create/update routes are open, only deletion requires the API key. `create` overrides its status to `201` with `@HttpCode`; `remove` sets `@HttpCode(204)` explicitly (it always returns `undefined`, which already maps to `204` by default — the explicit decorator exists so `@blixis-io/openapi`'s generated document says `204` too, not just the real runtime behavior). `@UseInterceptors(TimingInterceptor)` sits at the class level, above `@Controller`, so it wraps every route — guards still run first and can deny a request before the interceptor ever sees it.
 
 `list`, `get`, `create`, and `update` each carry `@Returns` (`PostListSchema` for `list`, `PostSchema` for the other three) — `remove` doesn't, since it always returns `undefined` and `@Returns` has nothing to check there. See [Response Validation](/concepts/response-validation/).
 
-Every route also carries `@ApiOperation({ summary: "..." })`, and the controller itself `@ApiTags("posts")` (`remove` additionally tags `"admin"`) — purely for [`@blixis/openapi`](/concepts/api-documentation/)'s generated document; neither decorator affects routing or runtime behavior at all.
+Every route also carries `@ApiOperation({ summary: "..." })`, and the controller itself `@ApiTags("posts")` (`remove` additionally tags `"admin"`) — purely for [`@blixis-io/openapi`](/concepts/api-documentation/)'s generated document; neither decorator affects routing or runtime behavior at all.
 
 ## `posts/posts.module.ts`
 
@@ -185,7 +185,7 @@ export class DocsController {
 ## `health/health.controller.ts`
 
 ```ts
-import { Controller, Get } from "@blixis/http";
+import { Controller, Get } from "@blixis-io/http";
 
 @Controller("health")
 export class HealthController {
@@ -196,7 +196,7 @@ export class HealthController {
 }
 ```
 
-Generated with `blix generate controller health` (`@blixis/cli`), then hand-edited — the generator produces a valid starting point (originally a `list()` method returning `[]`), not a finished route; the real handler and its name are still yours to write. See [Code Generation](/concepts/code-generation/). No dedicated module for this one, unlike `posts/` or `docs/` — a single provider-less route isn't worth its own module, so it's listed directly in `AppModule`'s own `controllers` array below.
+Generated with `blix generate controller health` (`@blixis-io/cli`), then hand-edited — the generator produces a valid starting point (originally a `list()` method returning `[]`), not a finished route; the real handler and its name are still yours to write. See [Code Generation](/concepts/code-generation/). No dedicated module for this one, unlike `posts/` or `docs/` — a single provider-less route isn't worth its own module, so it's listed directly in `AppModule`'s own `controllers` array below.
 
 ## `config.ts`, `app.module.ts`, and `main.ts`
 
@@ -222,7 +222,7 @@ export const { CONFIG, ConfigModule } = defineConfigModule(AppConfigSchema);
 export class AppModule {}
 ```
 
-`ConfigModule` and `LoggerModule` are both `global: true` internally, so every module — including `PostsModule` and its own `DrizzleModule` import — can inject `CONFIG`/`LOGGER` without importing either directly. See [Configuration](/concepts/config/) and [Logging](/concepts/logging/). `HealthController` is listed directly in `controllers` rather than getting its own module — a root module can own controllers itself, exactly like any other module can (see `@Module`'s `ModuleMetadata` in the [`@blixis/core` reference](/reference/blixis-core/)).
+`ConfigModule` and `LoggerModule` are both `global: true` internally, so every module — including `PostsModule` and its own `DrizzleModule` import — can inject `CONFIG`/`LOGGER` without importing either directly. See [Configuration](/concepts/config/) and [Logging](/concepts/logging/). `HealthController` is listed directly in `controllers` rather than getting its own module — a root module can own controllers itself, exactly like any other module can (see `@Module`'s `ModuleMetadata` in the [`@blixis-io/core` reference](/reference/blixis-core/)).
 
 ```ts title="main.ts"
 const app = await createHttpApplication(AppModule);

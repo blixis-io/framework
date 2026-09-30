@@ -1,5 +1,5 @@
-import type { HttpApplication } from "@blixis/http";
-import type { Token } from "@blixis/di";
+import type { HttpApplication } from "@blixis-io/http";
+import type { Token } from "@blixis-io/di";
 
 export interface TestRequestInit extends Omit<RequestInit, "body"> {
   body?: RequestInit["body"];

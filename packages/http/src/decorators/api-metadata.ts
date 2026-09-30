@@ -1,4 +1,4 @@
-import { defineMetadata, getMetadata } from "@blixis/di";
+import { defineMetadata, getMetadata } from "@blixis-io/di";
 
 export interface ApiOperationOptions {
   summary?: string;
@@ -10,7 +10,7 @@ export interface ApiOperationOptions {
 const API_OPERATION = Symbol("blixis:api-operation");
 const API_TAGS = Symbol("blixis:api-tags");
 
-/** Documents one route for `@blixis/openapi` — entirely optional, a route without it still gets a valid (derived) operationId. */
+/** Documents one route for `@blixis-io/openapi` — entirely optional, a route without it still gets a valid (derived) operationId. */
 export function ApiOperation(options: ApiOperationOptions): MethodDecorator {
   return (target, propertyKey) => {
     defineMetadata(API_OPERATION, options, target, propertyKey);

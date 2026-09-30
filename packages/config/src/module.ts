@@ -1,11 +1,11 @@
-import { Module, type DynamicModule } from "@blixis/core";
-import { InjectionToken } from "@blixis/di";
+import { Module, type DynamicModule } from "@blixis-io/core";
+import { InjectionToken } from "@blixis-io/di";
 import type { z, ZodType } from "zod";
 import { ConfigValidationError } from "./errors.js";
 
 /**
  * Builds a config token + module bound to one Zod schema. Config shape is
- * inherently app-specific — unlike `@blixis/logging`'s `LOGGER`, there's no
+ * inherently app-specific — unlike `@blixis-io/logging`'s `LOGGER`, there's no
  * single fixed type to export a token for, so each app calls this once with
  * its own schema and gets back its own distinct, strongly-typed token.
  */

@@ -1,5 +1,5 @@
-import { createApplication, Module } from "@blixis/core";
-import { Inject, Injectable } from "@blixis/di";
+import { createApplication, Module } from "@blixis-io/core";
+import { Inject, Injectable } from "@blixis-io/di";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { defineConfigModule } from "./module.js";

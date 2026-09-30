@@ -1,7 +1,7 @@
-import type { OnModuleInit } from "@blixis/core";
-import { Inject, Injectable } from "@blixis/di";
-import { NotFoundException, RequestContext } from "@blixis/http";
-import { LOGGER, type Logger } from "@blixis/logging";
+import type { OnModuleInit } from "@blixis-io/core";
+import { Inject, Injectable } from "@blixis-io/di";
+import { NotFoundException, RequestContext } from "@blixis-io/http";
+import { LOGGER, type Logger } from "@blixis-io/logging";
 import { eq, sql } from "drizzle-orm";
 import { DATABASE, type Database } from "../db/index.js";
 import { posts } from "../db/schema.js";

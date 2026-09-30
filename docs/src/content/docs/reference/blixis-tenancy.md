@@ -1,5 +1,5 @@
 ---
-title: "@blixis/tenancy"
+title: "@blixis-io/tenancy"
 description: Full API reference for the tenancy package.
 sidebar:
   order: 12
@@ -32,7 +32,7 @@ interface Membership {
 }
 ```
 
-Same factory-closure shape as [`@blixis/config`'s `defineConfigModule`](/reference/blixis-config/) and [`@blixis/auth`'s `defineAuthModule`](/reference/blixis-auth/) — call it once per app (typically in its own `tenancy.ts`), export the result. `getActor` and `resolveMembership` are the only two integration points: this package never assumes which auth mechanism populated the actor, or how memberships are stored.
+Same factory-closure shape as [`@blixis-io/config`'s `defineConfigModule`](/reference/blixis-config/) and [`@blixis-io/auth`'s `defineAuthModule`](/reference/blixis-auth/) — call it once per app (typically in its own `tenancy.ts`), export the result. `getActor` and `resolveMembership` are the only two integration points: this package never assumes which auth mechanism populated the actor, or how memberships are stored.
 
 ## `TenantContext`
 
@@ -85,7 +85,7 @@ Both read from `RequestContext` fresh on every call — never cache the result a
 function assertSameTenant(resourceSpaceId: string, tenant: TenantContext): void; // throws NotFoundException on mismatch
 ```
 
-For a resource loaded another way — by id, through another module's own service, not your own tenant-scoped query. Also available as a standalone import (`import { assertSameTenant } from "@blixis/tenancy"`), independent of any specific `defineTenancyModule()` call, since it only compares two plain values.
+For a resource loaded another way — by id, through another module's own service, not your own tenant-scoped query. Also available as a standalone import (`import { assertSameTenant } from "@blixis-io/tenancy"`), independent of any specific `defineTenancyModule()` call, since it only compares two plain values.
 
 ## `MissingTenantError`
 
@@ -102,7 +102,7 @@ function tenantScope(spaceIdColumn: PgColumn, tenant: TenantContext | undefined)
 function tenantColumns(): { organizationId: PgColumnBuilder; spaceId: PgColumnBuilder };
 ```
 
-Plain [Drizzle](https://orm.drizzle.team) helpers — no dependency on `@blixis/db`, just `drizzle-orm` directly, so this package stays usable regardless of which database package (or none) an app uses.
+Plain [Drizzle](https://orm.drizzle.team) helpers — no dependency on `@blixis-io/db`, just `drizzle-orm` directly, so this package stays usable regardless of which database package (or none) an app uses.
 
 ```ts
 export const entries = pgTable("entries", {

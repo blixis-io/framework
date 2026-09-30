@@ -27,7 +27,7 @@ export type UpdatePostInput = z.infer<typeof UpdatePostSchema>;
 ## 2. Use it in the controller
 
 ```ts title="src/posts/posts.controller.ts"
-import { Body, Controller, Patch, Post } from "@blixis/http";
+import { Body, Controller, Patch, Post } from "@blixis-io/http";
 import { CreatePostSchema, UpdatePostSchema, type CreatePostInput, type UpdatePostInput } from "./post.schema.js";
 
 @Controller("posts")

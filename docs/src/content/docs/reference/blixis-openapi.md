@@ -1,5 +1,5 @@
 ---
-title: "@blixis/openapi"
+title: "@blixis-io/openapi"
 description: Full API reference for the openapi package.
 sidebar:
   order: 10
@@ -66,6 +66,6 @@ type JsonSchema = Record<string, unknown>; // z.toJSONSchema() output, minus its
 
 ## How it reads your routes
 
-Walks `app.controllers` using the same public metadata readers `@blixis/http`'s own `buildRouter` uses internally (`getControllerPrefix`, `getRoutes`, `getParamSources`, `getHttpCode`, `getReturnsSchema`), plus [`getApiOperation`/`getClassApiTags`/`getMethodApiTags`](/reference/blixis-http/#api-documentation-metadata). See [API Documentation](/concepts/api-documentation/#what-gets-documented-and-what-deliberately-doesnt) for exactly what each decorator maps to, and the documented limitations (schema-less `@Query`/`@Body`, wildcard routes, undeclared response shapes).
+Walks `app.controllers` using the same public metadata readers `@blixis-io/http`'s own `buildRouter` uses internally (`getControllerPrefix`, `getRoutes`, `getParamSources`, `getHttpCode`, `getReturnsSchema`), plus [`getApiOperation`/`getClassApiTags`/`getMethodApiTags`](/reference/blixis-http/#api-documentation-metadata). See [API Documentation](/concepts/api-documentation/#what-gets-documented-and-what-deliberately-doesnt) for exactly what each decorator maps to, and the documented limitations (schema-less `@Query`/`@Body`, wildcard routes, undeclared response shapes).
 
 `:param` path segments become OpenAPI's `{param}` syntax; `*` wildcard routes are excluded from `paths` entirely.

@@ -1,5 +1,5 @@
 {
-  "name": "@blixis/openapi",
+  "name": "@blixis-io/openapi",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -8,7 +8,7 @@
   },
   "exports": {
     ".": {
-      "@blixis/source": "./src/index.ts",
+      "@blixis-io/source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     }
@@ -18,8 +18,8 @@
     "build": "rolldown -c"
   },
   "dependencies": {
-    "@blixis/di": "workspace:*",
-    "@blixis/http": "workspace:*",
+    "@blixis-io/di": "workspace:*",
+    "@blixis-io/http": "workspace:*",
     "zod": "^4.6.5"
   }
 }

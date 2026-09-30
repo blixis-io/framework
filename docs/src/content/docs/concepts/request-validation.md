@@ -10,7 +10,7 @@ Every controller method parameter that needs data from the request is built by a
 ## The five decorators
 
 ```ts
-import { Body, Headers, Param, Query, Req } from "@blixis/http";
+import { Body, Headers, Param, Query, Req } from "@blixis-io/http";
 
 @Post(":id/comments")
 addComment(

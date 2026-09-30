@@ -5,14 +5,14 @@ sidebar:
   order: 18
 ---
 
-`@blixis/tenancy` provides the *mechanism* for scoping requests and queries to a tenant — a `TenantScopedGuard` that resolves and verifies a tenant from a route, and a `tenantScope()` database helper that refuses to build an unscoped query. It does **not** provide an Organization/Space/Membership data model — that's application data, supplied via one function you write. This keeps the package usable by any multi-tenant app, not just a CMS.
+`@blixis-io/tenancy` provides the *mechanism* for scoping requests and queries to a tenant — a `TenantScopedGuard` that resolves and verifies a tenant from a route, and a `tenantScope()` database helper that refuses to build an unscoped query. It does **not** provide an Organization/Space/Membership data model — that's application data, supplied via one function you write. This keeps the package usable by any multi-tenant app, not just a CMS.
 
 ## The shape
 
 Hierarchy: **Organization → Space → Environment**. A route names a space (`:spaceId`) and, optionally, an environment (`:environment`, defaulting to `"main"`); the guard verifies the current actor belongs to that space and makes the resolved tenant available to everything downstream.
 
 ```ts
-import { defineTenancyModule } from "@blixis/tenancy";
+import { defineTenancyModule } from "@blixis-io/tenancy";
 
 export const { TenancyModule, TenantScopedGuard, getTenant, requireTenant } = defineTenancyModule<CurrentUser>({
   getActor: (ctx) => getCurrentUser(ctx), // however your app's auth populated RequestContext
@@ -43,7 +43,7 @@ class EntriesController {
 }
 ```
 
-Same guard-ordering rule already established for [`@blixis/auth`](/concepts/authentication/): the auth guard runs first (populates the actor), tenancy runs second (needs that actor to check membership) — both in the same `@UseGuards(...)` list.
+Same guard-ordering rule already established for [`@blixis-io/auth`](/concepts/authentication/): the auth guard runs first (populates the actor), tenancy runs second (needs that actor to check membership) — both in the same `@UseGuards(...)` list.
 
 ## Fail-closed rules — adopted deliberately, not incidental
 
@@ -55,7 +55,7 @@ Same guard-ordering rule already established for [`@blixis/auth`](/concepts/auth
 ## Scoping database queries
 
 ```ts
-import { tenantColumns, tenantScope } from "@blixis/tenancy";
+import { tenantColumns, tenantScope } from "@blixis-io/tenancy";
 import { pgTable, text } from "drizzle-orm/pg-core";
 
 export const entries = pgTable("entries", {
@@ -75,7 +75,7 @@ const rows = await db.select().from(entries).where(tenantScope(entries.spaceId, 
 For a resource already loaded another way (by id, through another module's own service — not your own scoped query), confirm it actually belongs to the current tenant before using it:
 
 ```ts
-import { assertSameTenant } from "@blixis/tenancy";
+import { assertSameTenant } from "@blixis-io/tenancy";
 
 const post = await otherModuleService.findById(id); // not tenant-scoped by construction
 assertSameTenant(post.spaceId, tenant); // throws NotFoundException on mismatch — 404, not 403, same reasoning as the guard
@@ -83,10 +83,10 @@ assertSameTenant(post.spaceId, tenant); // throws NotFoundException on mismatch 
 
 ## Testing cross-tenant isolation
 
-This package doesn't ship a test harness — it needs real tenant-scoped routes to test against, which don't exist until you've built some. The recipe, once you have: seed two organizations/spaces with distinct data, then replay every tenant-scoped route as a member of the *other* organization and assert every one returns `404`/`403` with the victim's data unchanged. Build it with [`@blixis/testing`](/concepts/testing/)'s `Test.createModule().compile()` — a real application, real requests, no mocking the guard itself. Worth doing as soon as you have two or three real routes, not deferred until many exist.
+This package doesn't ship a test harness — it needs real tenant-scoped routes to test against, which don't exist until you've built some. The recipe, once you have: seed two organizations/spaces with distinct data, then replay every tenant-scoped route as a member of the *other* organization and assert every one returns `404`/`403` with the victim's data unchanged. Build it with [`@blixis-io/testing`](/concepts/testing/)'s `Test.createModule().compile()` — a real application, real requests, no mocking the guard itself. Worth doing as soon as you have two or three real routes, not deferred until many exist.
 
 ## Next
 
-- Every exported symbol: [`@blixis/tenancy` reference](/reference/blixis-tenancy/).
+- Every exported symbol: [`@blixis-io/tenancy` reference](/reference/blixis-tenancy/).
 - The guard primitive this builds on: [Guards & Authorization](/concepts/guards-and-authorization/).
 - Where the resolved tenant lives between guards and handlers: [Request Context](/concepts/request-context/).

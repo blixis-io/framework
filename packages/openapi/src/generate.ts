@@ -1,4 +1,4 @@
-import type { Class } from "@blixis/di";
+import type { Class } from "@blixis-io/di";
 import {
   getApiOperation,
   getClassApiTags,
@@ -9,7 +9,7 @@ import {
   getReturnsSchema,
   getRoutes,
   type RouteDefinition,
-} from "@blixis/http";
+} from "@blixis-io/http";
 import { z, type ZodType } from "zod";
 
 /** The one thing `generateOpenApiDocument` needs — a real `HttpApplication` satisfies this structurally, no import of the class itself required. */
@@ -166,7 +166,7 @@ function buildOperation(controller: Class, route: RouteDefinition): OpenApiOpera
 
 /**
  * Builds an OpenAPI 3.1 document from `app`'s real controller list —
- * walking the same public decorator-metadata readers `@blixis/http`'s own
+ * walking the same public decorator-metadata readers `@blixis-io/http`'s own
  * `buildRouter` uses internally, so the document always reflects the
  * routes actually registered, not a separately-maintained description of
  * them. Returns a plain object; mount it yourself (`@Get("openapi.json")

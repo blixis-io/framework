@@ -1,5 +1,5 @@
 {
-  "name": "@blixis/cli",
+  "name": "@blixis-io/cli",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -11,7 +11,7 @@
   },
   "exports": {
     ".": {
-      "@blixis/source": "./src/index.ts",
+      "@blixis-io/source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     }

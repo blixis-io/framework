@@ -1,5 +1,5 @@
-import { Injectable } from "@blixis/di";
-import { RequestContext, type CanActivate, type ExecutionContext } from "@blixis/http";
+import { Injectable } from "@blixis-io/di";
+import { RequestContext, type CanActivate, type ExecutionContext } from "@blixis-io/http";
 
 // Dev-only stub: a real CMS auth guard would resolve a UserService/config
 // here, which is exactly why guards go through DI instead of `new`.

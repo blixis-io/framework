@@ -1,5 +1,5 @@
 {
-  "name": "@blixis/core",
+  "name": "@blixis-io/core",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -8,7 +8,7 @@
   },
   "exports": {
     ".": {
-      "@blixis/source": "./src/index.ts",
+      "@blixis-io/source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     }
@@ -18,6 +18,6 @@
     "build": "rolldown -c"
   },
   "dependencies": {
-    "@blixis/di": "workspace:*"
+    "@blixis-io/di": "workspace:*"
   }
 }

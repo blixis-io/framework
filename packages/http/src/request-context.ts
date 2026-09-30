@@ -1,4 +1,4 @@
-import { Injectable } from "@blixis/di";
+import { Injectable } from "@blixis-io/di";
 import { AsyncLocalStorage } from "node:async_hooks";
 
 const storage = new AsyncLocalStorage<Map<string, unknown>>();

@@ -10,7 +10,7 @@ This is the shortest path from nothing to a working route. For the concepts behi
 ## 1. Write the controller
 
 ```ts title="src/health/health.controller.ts"
-import { Controller, Get } from "@blixis/http";
+import { Controller, Get } from "@blixis-io/http";
 
 @Controller("health")
 export class HealthController {
@@ -24,7 +24,7 @@ export class HealthController {
 A controller with no constructor dependencies doesn't even need `@Injectable()` — the container only reflects constructor parameters when there are any (see [Dependency Injection](/concepts/dependency-injection/)). Once this controller needs a service, add one:
 
 ```ts title="src/health/health.controller.ts"
-import { Controller, Get } from "@blixis/http";
+import { Controller, Get } from "@blixis-io/http";
 import { HealthService } from "./health.service.js";
 
 @Controller("health")
@@ -41,7 +41,7 @@ export class HealthController {
 ## 2. Register it on a module
 
 ```ts title="src/health/health.module.ts"
-import { Module } from "@blixis/core";
+import { Module } from "@blixis-io/core";
 import { HealthController } from "./health.controller.js";
 import { HealthService } from "./health.service.js";
 

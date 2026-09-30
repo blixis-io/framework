@@ -1,5 +1,5 @@
 ---
-title: "@blixis/cli"
+title: "@blixis-io/cli"
 description: Full reference for the blix command-line tool.
 sidebar:
   order: 11
@@ -33,7 +33,7 @@ Exits `0` on success, `1` on any error (missing arguments, an unknown type, or a
 blix g controller posts   # src/posts/posts.controller.ts
 ```
 ```ts
-import { Controller, Get } from "@blixis/http";
+import { Controller, Get } from "@blixis-io/http";
 
 @Controller("posts")
 export class PostsController {
@@ -48,7 +48,7 @@ export class PostsController {
 blix g service posts      # src/posts/posts.service.ts
 ```
 ```ts
-import { Injectable } from "@blixis/di";
+import { Injectable } from "@blixis-io/di";
 
 @Injectable()
 export class PostsService {}
@@ -58,7 +58,7 @@ export class PostsService {}
 blix g module posts       # src/posts/posts.module.ts
 ```
 ```ts
-import { Module } from "@blixis/core";
+import { Module } from "@blixis-io/core";
 
 @Module({})
 export class PostsModule {}
@@ -68,8 +68,8 @@ export class PostsModule {}
 blix g guard posts        # src/posts/posts.guard.ts
 ```
 ```ts
-import { Injectable } from "@blixis/di";
-import type { CanActivate, ExecutionContext } from "@blixis/http";
+import { Injectable } from "@blixis-io/di";
+import type { CanActivate, ExecutionContext } from "@blixis-io/http";
 
 @Injectable()
 export class PostsGuard implements CanActivate {
@@ -83,8 +83,8 @@ export class PostsGuard implements CanActivate {
 blix g interceptor posts  # src/posts/posts.interceptor.ts
 ```
 ```ts
-import { Injectable } from "@blixis/di";
-import type { ExecutionContext, Interceptor } from "@blixis/http";
+import { Injectable } from "@blixis-io/di";
+import type { ExecutionContext, Interceptor } from "@blixis-io/http";
 
 @Injectable()
 export class PostsInterceptor implements Interceptor {
@@ -99,7 +99,7 @@ export class PostsInterceptor implements Interceptor {
 ```json title="package.json"
 {
   "devDependencies": {
-    "@blixis/cli": "workspace:*"
+    "@blixis-io/cli": "workspace:*"
   }
 }
 ```

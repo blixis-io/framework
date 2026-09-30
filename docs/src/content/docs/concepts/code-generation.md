@@ -5,7 +5,7 @@ sidebar:
   order: 17
 ---
 
-`@blixis/cli` ships one binary, `blix`, with one command: `generate` (`g` for short). It writes one file from a template — a controller, service, module, guard, or interceptor — matching the exact shape this framework's own examples already use. Nothing else: no whole-project scaffolding (`blix new` doesn't exist), no cross-file wiring.
+`@blixis-io/cli` ships one binary, `blix`, with one command: `generate` (`g` for short). It writes one file from a template — a controller, service, module, guard, or interceptor — matching the exact shape this framework's own examples already use. Nothing else: no whole-project scaffolding (`blix new` doesn't exist), no cross-file wiring.
 
 ## Usage
 
@@ -21,7 +21,7 @@ blix generate controller posts
 ```
 
 ```ts
-import { Controller, Get } from "@blixis/http";
+import { Controller, Get } from "@blixis-io/http";
 
 @Controller("posts")
 export class PostsController {

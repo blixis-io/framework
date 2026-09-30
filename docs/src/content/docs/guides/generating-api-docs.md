@@ -1,19 +1,19 @@
 ---
 title: Generating API Docs
-description: Mount an OpenAPI 3.1 document with @blixis/openapi and point a UI at it.
+description: Mount an OpenAPI 3.1 document with @blixis-io/openapi and point a UI at it.
 sidebar:
   order: 9
 ---
 
-`@blixis/openapi`'s `generateOpenApiDocument` returns a plain object — there's no auto-mounted route and no bundled Swagger UI. You mount it yourself with the same `@Controller`/`@Get` primitives as any other route. See [API Documentation](/concepts/api-documentation/) for what actually goes into the generated document.
+`@blixis-io/openapi`'s `generateOpenApiDocument` returns a plain object — there's no auto-mounted route and no bundled Swagger UI. You mount it yourself with the same `@Controller`/`@Get` primitives as any other route. See [API Documentation](/concepts/api-documentation/) for what actually goes into the generated document.
 
 ## 1. A place to hold the app reference
 
 The document needs `app.controllers`, but `app` doesn't exist until *after* the module graph — including whatever controller will serve the document — is already built. Solve it with a small DI-registered provider, set once right after boot:
 
 ```ts title="src/docs/app-ref.ts"
-import type { HttpApplication } from "@blixis/http";
-import { Injectable } from "@blixis/di";
+import type { HttpApplication } from "@blixis-io/http";
+import { Injectable } from "@blixis-io/di";
 
 @Injectable()
 export class AppRef {
@@ -24,8 +24,8 @@ export class AppRef {
 ## 2. The controller
 
 ```ts title="src/docs/docs.controller.ts"
-import { Controller, Get } from "@blixis/http";
-import { generateOpenApiDocument } from "@blixis/openapi";
+import { Controller, Get } from "@blixis-io/http";
+import { generateOpenApiDocument } from "@blixis-io/openapi";
 import { AppRef } from "./app-ref.js";
 
 @Controller()
@@ -50,7 +50,7 @@ export class DocsController {
 ## 3. The module
 
 ```ts title="src/docs/docs.module.ts"
-import { Module } from "@blixis/core";
+import { Module } from "@blixis-io/core";
 import { AppRef } from "./app-ref.js";
 import { DocsController } from "./docs.controller.js";
 

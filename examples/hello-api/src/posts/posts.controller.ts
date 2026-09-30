@@ -12,7 +12,7 @@ import {
   Returns,
   UseGuards,
   UseInterceptors,
-} from "@blixis/http";
+} from "@blixis-io/http";
 import { ApiKeyGuard } from "./api-key.guard.js";
 import {
   CreatePostSchema,

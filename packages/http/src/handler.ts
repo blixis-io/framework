@@ -1,5 +1,5 @@
-import type { Application } from "@blixis/core";
-import type { Class } from "@blixis/di";
+import type { Application } from "@blixis-io/core";
+import type { Class } from "@blixis-io/di";
 import type { ZodType } from "zod";
 import { getControllerPrefix } from "./decorators/controller.js";
 import { getClassGuards, getMethodGuards, type CanActivate } from "./decorators/guards.js";

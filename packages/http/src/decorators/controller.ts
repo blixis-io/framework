@@ -1,4 +1,4 @@
-import { defineMetadata, getMetadata } from "@blixis/di";
+import { defineMetadata, getMetadata } from "@blixis-io/di";
 
 const CONTROLLER_PREFIX = Symbol("blixis:controller-prefix");
 

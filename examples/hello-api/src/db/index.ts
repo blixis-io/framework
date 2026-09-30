@@ -1,4 +1,4 @@
-import { defineDrizzleModule } from "@blixis/db";
+import { defineDrizzleModule } from "@blixis-io/db";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import { schema } from "./schema.js";
 

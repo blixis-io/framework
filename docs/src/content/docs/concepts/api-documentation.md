@@ -1,11 +1,11 @@
 ---
 title: API Documentation
-description: Generating an OpenAPI 3.1 document from the running app with @blixis/openapi.
+description: Generating an OpenAPI 3.1 document from the running app with @blixis-io/openapi.
 sidebar:
   order: 16
 ---
 
-`@blixis/openapi` builds an OpenAPI 3.1 document from your app's real controllers — the same `@Controller`/`@Get`/`@Body`/`@Query`/`@Param`/`@Returns` metadata the router itself already reads, plus two optional decorators for human-facing detail. It's a plain function returning a plain object; there's no auto-mounted route and no bundled Swagger UI — you wire it in with the same primitives every other route uses.
+`@blixis-io/openapi` builds an OpenAPI 3.1 document from your app's real controllers — the same `@Controller`/`@Get`/`@Body`/`@Query`/`@Param`/`@Returns` metadata the router itself already reads, plus two optional decorators for human-facing detail. It's a plain function returning a plain object; there's no auto-mounted route and no bundled Swagger UI — you wire it in with the same primitives every other route uses.
 
 ## Why OpenAPI 3.1, not 3.0
 
@@ -14,7 +14,7 @@ sidebar:
 ## Generating the document
 
 ```ts
-import { generateOpenApiDocument } from "@blixis/openapi";
+import { generateOpenApiDocument } from "@blixis-io/openapi";
 
 const app = await createHttpApplication(AppModule);
 
@@ -88,6 +88,6 @@ Both are entirely optional — a route with neither still gets a valid, unique `
 
 ## Next
 
-- Every exported symbol: [`@blixis/openapi` reference](/reference/blixis-openapi/).
+- Every exported symbol: [`@blixis-io/openapi` reference](/reference/blixis-openapi/).
 - Mounting a route for it, step by step: [guide](/guides/generating-api-docs/).
 - The decorators this builds on: [Routing & Controllers](/concepts/routing-controllers/), [Response Validation](/concepts/response-validation/).

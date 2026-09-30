@@ -1,5 +1,5 @@
-import { Module } from "@blixis/core";
-import { createHttpApplication, NotFoundException, RequestContext, runInRequestContext, UnauthorizedException } from "@blixis/http";
+import { Module } from "@blixis-io/core";
+import { createHttpApplication, NotFoundException, RequestContext, runInRequestContext, UnauthorizedException } from "@blixis-io/http";
 import { describe, expect, it } from "vitest";
 import { MissingTenantError } from "./errors.js";
 import { defineTenancyModule, type Membership } from "./module.js";

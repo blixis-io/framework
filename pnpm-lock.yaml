@@ -54,25 +54,25 @@ importers:
 
   examples/hello-api:
     dependencies:
-      '@blixis/config':
+      '@blixis-io/config':
         specifier: workspace:*
         version: link:../../packages/config
-      '@blixis/core':
+      '@blixis-io/core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@blixis/db':
+      '@blixis-io/db':
         specifier: workspace:*
         version: link:../../packages/db
-      '@blixis/di':
+      '@blixis-io/di':
         specifier: workspace:*
         version: link:../../packages/di
-      '@blixis/http':
+      '@blixis-io/http':
         specifier: workspace:*
         version: link:../../packages/http
-      '@blixis/logging':
+      '@blixis-io/logging':
         specifier: workspace:*
         version: link:../../packages/logging
-      '@blixis/openapi':
+      '@blixis-io/openapi':
         specifier: workspace:*
         version: link:../../packages/openapi
       drizzle-orm:
@@ -82,22 +82,22 @@ importers:
         specifier: ^4.6.5
         version: 4.6.5
     devDependencies:
-      '@blixis/cli':
+      '@blixis-io/cli':
         specifier: workspace:*
         version: link:../../packages/cli
-      '@blixis/testing':
+      '@blixis-io/testing':
         specifier: workspace:*
         version: link:../../packages/testing
 
   packages/auth:
     dependencies:
-      '@blixis/core':
+      '@blixis-io/core':
         specifier: workspace:*
         version: link:../core
-      '@blixis/di':
+      '@blixis-io/di':
         specifier: workspace:*
         version: link:../di
-      '@blixis/http':
+      '@blixis-io/http':
         specifier: workspace:*
         version: link:../http
       jose:
@@ -111,10 +111,10 @@ importers:
 
   packages/config:
     dependencies:
-      '@blixis/core':
+      '@blixis-io/core':
         specifier: workspace:*
         version: link:../core
-      '@blixis/di':
+      '@blixis-io/di':
         specifier: workspace:*
         version: link:../di
       zod:
@@ -123,16 +123,16 @@ importers:
 
   packages/core:
     dependencies:
-      '@blixis/di':
+      '@blixis-io/di':
         specifier: workspace:*
         version: link:../di
 
   packages/db:
     dependencies:
-      '@blixis/core':
+      '@blixis-io/core':
         specifier: workspace:*
         version: link:../core
-      '@blixis/di':
+      '@blixis-io/di':
         specifier: workspace:*
         version: link:../di
       drizzle-orm:
@@ -154,19 +154,19 @@ importers:
 
   packages/events:
     dependencies:
-      '@blixis/core':
+      '@blixis-io/core':
         specifier: workspace:*
         version: link:../core
-      '@blixis/di':
+      '@blixis-io/di':
         specifier: workspace:*
         version: link:../di
 
   packages/http:
     dependencies:
-      '@blixis/core':
+      '@blixis-io/core':
         specifier: workspace:*
         version: link:../core
-      '@blixis/di':
+      '@blixis-io/di':
         specifier: workspace:*
         version: link:../di
       zod:
@@ -175,10 +175,10 @@ importers:
 
   packages/logging:
     dependencies:
-      '@blixis/core':
+      '@blixis-io/core':
         specifier: workspace:*
         version: link:../core
-      '@blixis/di':
+      '@blixis-io/di':
         specifier: workspace:*
         version: link:../di
 
@@ -186,10 +186,10 @@ importers:
 
   packages/openapi:
     dependencies:
-      '@blixis/di':
+      '@blixis-io/di':
         specifier: workspace:*
         version: link:../di
-      '@blixis/http':
+      '@blixis-io/http':
         specifier: workspace:*
         version: link:../http
       zod:
@@ -198,13 +198,13 @@ importers:
 
   packages/tenancy:
     dependencies:
-      '@blixis/core':
+      '@blixis-io/core':
         specifier: workspace:*
         version: link:../core
-      '@blixis/di':
+      '@blixis-io/di':
         specifier: workspace:*
         version: link:../di
-      '@blixis/http':
+      '@blixis-io/http':
         specifier: workspace:*
         version: link:../http
       drizzle-orm:
@@ -220,13 +220,13 @@ importers:
 
   packages/testing:
     dependencies:
-      '@blixis/core':
+      '@blixis-io/core':
         specifier: workspace:*
         version: link:../core
-      '@blixis/di':
+      '@blixis-io/di':
         specifier: workspace:*
         version: link:../di
-      '@blixis/http':
+      '@blixis-io/http':
         specifier: workspace:*
         version: link:../http
 

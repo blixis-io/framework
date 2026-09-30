@@ -24,7 +24,7 @@ export function resolveGeneratorType(input: string): GeneratorType | undefined {
 }
 
 function renderController(pascal: string, kebab: string): string {
-  return `import { Controller, Get } from "@blixis/http";
+  return `import { Controller, Get } from "@blixis-io/http";
 
 @Controller("${kebab}")
 export class ${pascal}Controller {
@@ -37,7 +37,7 @@ export class ${pascal}Controller {
 }
 
 function renderService(pascal: string): string {
-  return `import { Injectable } from "@blixis/di";
+  return `import { Injectable } from "@blixis-io/di";
 
 @Injectable()
 export class ${pascal}Service {}
@@ -45,7 +45,7 @@ export class ${pascal}Service {}
 }
 
 function renderModule(pascal: string): string {
-  return `import { Module } from "@blixis/core";
+  return `import { Module } from "@blixis-io/core";
 
 @Module({})
 export class ${pascal}Module {}
@@ -53,8 +53,8 @@ export class ${pascal}Module {}
 }
 
 function renderGuard(pascal: string): string {
-  return `import { Injectable } from "@blixis/di";
-import type { CanActivate, ExecutionContext } from "@blixis/http";
+  return `import { Injectable } from "@blixis-io/di";
+import type { CanActivate, ExecutionContext } from "@blixis-io/http";
 
 @Injectable()
 export class ${pascal}Guard implements CanActivate {
@@ -66,8 +66,8 @@ export class ${pascal}Guard implements CanActivate {
 }
 
 function renderInterceptor(pascal: string): string {
-  return `import { Injectable } from "@blixis/di";
-import type { ExecutionContext, Interceptor } from "@blixis/http";
+  return `import { Injectable } from "@blixis-io/di";
+import type { ExecutionContext, Interceptor } from "@blixis-io/http";
 
 @Injectable()
 export class ${pascal}Interceptor implements Interceptor {

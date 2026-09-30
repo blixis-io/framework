@@ -1,6 +1,6 @@
 ---
 title: "Tutorial: Test-Driven API Development"
-description: Add a new feature to the blog API test-first, using @blixis/testing's real-application testing.
+description: Add a new feature to the blog API test-first, using @blixis-io/testing's real-application testing.
 sidebar:
   order: 3
 ---
@@ -67,7 +67,7 @@ Run the tests again — both pass. Nothing else in `PostsService` needed to chan
 The unit test proves the *service* filters correctly. It doesn't prove a request with `?search=` actually reaches it — that's a controller/routing concern, and it deserves its own test, through the real application:
 
 ```ts title="src/posts/posts.e2e.test.ts"
-import { Test } from "@blixis/testing";
+import { Test } from "@blixis-io/testing";
 import { describe, expect, it } from "vitest";
 import { PostsModule } from "./posts.module.js";
 
@@ -95,7 +95,7 @@ This fails too, for a different reason than the unit test did: `PostsController.
 ## Green: wire the query param through
 
 ```ts title="src/posts/posts.controller.ts" {1}
-import { Query } from "@blixis/http";
+import { Query } from "@blixis-io/http";
 import { z } from "zod";
 
 @Get()

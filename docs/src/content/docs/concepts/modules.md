@@ -5,12 +5,12 @@ sidebar:
   order: 3
 ---
 
-`@blixis/core` groups providers and controllers into modules, and modules into an import graph, so you write one `@Module({...})` per feature instead of registering every provider directly on a `Container` yourself.
+`@blixis-io/core` groups providers and controllers into modules, and modules into an import graph, so you write one `@Module({...})` per feature instead of registering every provider directly on a `Container` yourself.
 
 ## `@Module`
 
 ```ts
-import { Module } from "@blixis/core";
+import { Module } from "@blixis-io/core";
 
 @Module({
   imports: [DatabaseModule],
@@ -25,7 +25,7 @@ All fields are optional and default to empty. `providers` and `controllers` are 
 ## Building an application from a root module
 
 ```ts
-import { createApplication } from "@blixis/core";
+import { createApplication } from "@blixis-io/core";
 
 const app = await createApplication(AppModule);
 
@@ -34,7 +34,7 @@ app.controllers;      // every controller class collected from the graph
 await app.close();    // runs OnApplicationShutdown hooks, in reverse dependency order
 ```
 
-`createApplication` walks the import graph starting from `AppModule`, flattens every module's providers and controllers into one `Container`, resolves everything eagerly, and runs `OnModuleInit` hooks in dependency order (see [Lifecycle Hooks](/concepts/lifecycle-hooks/)). `@blixis/http`'s `createHttpApplication` wraps this same function — see [Routing & Controllers](/concepts/routing-controllers/).
+`createApplication` walks the import graph starting from `AppModule`, flattens every module's providers and controllers into one `Container`, resolves everything eagerly, and runs `OnModuleInit` hooks in dependency order (see [Lifecycle Hooks](/concepts/lifecycle-hooks/)). `@blixis-io/http`'s `createHttpApplication` wraps this same function — see [Routing & Controllers](/concepts/routing-controllers/).
 
 If a class listed as an import isn't actually decorated with `@Module()`, this throws `NotAModuleError` naming the class.
 
@@ -98,7 +98,7 @@ Requiring every feature module to explicitly import cross-cutting infra like log
 class CacheModule {}
 ```
 
-Both [`@blixis/logging`](/concepts/logging/)'s `LoggerModule` and [`@blixis/config`](/concepts/config/)'s `ConfigModule` are `global: true` for exactly this reason — see either one's `forRoot()` for a real example, and `examples/hello-api` for it working end to end (`PostsService` injects `LOGGER` without `PostsModule` importing `LoggerModule` at all).
+Both [`@blixis-io/logging`](/concepts/logging/)'s `LoggerModule` and [`@blixis-io/config`](/concepts/config/)'s `ConfigModule` are `global: true` for exactly this reason — see either one's `forRoot()` for a real example, and `examples/hello-api` for it working end to end (`PostsService` injects `LOGGER` without `PostsModule` importing `LoggerModule` at all).
 
 Use `global` sparingly — it's the right call for genuinely app-wide infrastructure, not a way to skip thinking about a feature module's own boundaries.
 
@@ -107,7 +107,7 @@ Use `global` sparingly — it's the right call for genuinely app-wide infrastruc
 A module class's own `@Module()` metadata is static — decided once, at class-definition time. For a module that needs *runtime* configuration (a database connection string, a feature flag), return a `DynamicModule` object instead of the class:
 
 ```ts
-import type { DynamicModule } from "@blixis/core";
+import type { DynamicModule } from "@blixis-io/core";
 
 @Module()
 export class ConfigModule {
@@ -135,10 +135,10 @@ await createApplication(AppModule, {
 });
 ```
 
-You'll rarely call this directly; it's what `@blixis/testing`'s `.override()` is built on. See [Testing](/concepts/testing/) and [Overriding Providers in Tests](/guides/overriding-providers-in-tests/).
+You'll rarely call this directly; it's what `@blixis-io/testing`'s `.override()` is built on. See [Testing](/concepts/testing/) and [Overriding Providers in Tests](/guides/overriding-providers-in-tests/).
 
 ## Next
 
 - What happens to each provider as the graph resolves: [Lifecycle Hooks](/concepts/lifecycle-hooks/).
 - Turning `controllers` into actual HTTP routes: [Routing & Controllers](/concepts/routing-controllers/).
-- Every exported symbol: [`@blixis/core` reference](/reference/blixis-core/).
+- Every exported symbol: [`@blixis-io/core` reference](/reference/blixis-core/).

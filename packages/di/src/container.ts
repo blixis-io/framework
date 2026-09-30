@@ -114,7 +114,7 @@ export class Container {
   /**
    * Resolved singletons in the order they finished constructing — always
    * dependencies before dependents, since a provider can't finish building
-   * until everything it depends on already has. `@blixis/core` uses this
+   * until everything it depends on already has. `@blixis-io/core` uses this
    * order to run `OnModuleInit` hooks correctly. Transient instances are
    * never cached, so they never appear here.
    */

@@ -10,8 +10,8 @@ A guard decides, before a controller method ever runs, whether a request is allo
 ## `CanActivate`
 
 ```ts
-import type { CanActivate, ExecutionContext } from "@blixis/http";
-import { Injectable } from "@blixis/di";
+import type { CanActivate, ExecutionContext } from "@blixis-io/http";
+import { Injectable } from "@blixis-io/di";
 
 @Injectable()
 export class ApiKeyGuard implements CanActivate {

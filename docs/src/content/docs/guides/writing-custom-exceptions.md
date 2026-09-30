@@ -8,7 +8,7 @@ sidebar:
 The [built-in exception classes](/concepts/error-handling/#named-exception-classes) cover the standard HTTP statuses. For a domain-specific error — a business rule violation that isn't naturally "not found" or "bad request" — subclass `HttpException` directly, the same way the built-ins do:
 
 ```ts title="src/posts/post-already-published.exception.ts"
-import { HttpException } from "@blixis/http";
+import { HttpException } from "@blixis-io/http";
 
 export class PostAlreadyPublishedException extends HttpException {
   constructor(postId: string) {

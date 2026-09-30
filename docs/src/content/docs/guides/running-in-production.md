@@ -8,7 +8,7 @@ sidebar:
 ## The entry point
 
 ```ts title="src/main.ts"
-import { createHttpApplication } from "@blixis/http";
+import { createHttpApplication } from "@blixis-io/http";
 import { AppModule } from "./app.module.js";
 
 const port = Number(process.env["PORT"] ?? 3000);
@@ -47,7 +47,7 @@ async generateReport(@Req() req: Request) {
 
 ## In-process, without a socket at all
 
-`app.handle(request)` runs the exact same request-handling logic — routing, validation, guards, error mapping — against an in-memory `Request`, with no server, no port, no network stack. This is what `@blixis/testing` is built on (see [Testing](/concepts/testing/)), and it's also a reasonable way to invoke the same application logic from a non-HTTP entry point (a CLI command, a queue worker) without spinning up a socket you don't need.
+`app.handle(request)` runs the exact same request-handling logic — routing, validation, guards, error mapping — against an in-memory `Request`, with no server, no port, no network stack. This is what `@blixis-io/testing` is built on (see [Testing](/concepts/testing/)), and it's also a reasonable way to invoke the same application logic from a non-HTTP entry point (a CLI command, a queue worker) without spinning up a socket you don't need.
 
 ## What isn't handled for you yet
 

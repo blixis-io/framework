@@ -1,6 +1,6 @@
-import { Module, type DynamicModule, type ModuleRef } from "@blixis/core";
-import { Inject, Injectable, InjectionToken, type Class, type Provider, type Token } from "@blixis/di";
-import { RequestContext, UnauthorizedException, type CanActivate, type ExecutionContext } from "@blixis/http";
+import { Module, type DynamicModule, type ModuleRef } from "@blixis-io/core";
+import { Inject, Injectable, InjectionToken, type Class, type Provider, type Token } from "@blixis-io/di";
+import { RequestContext, UnauthorizedException, type CanActivate, type ExecutionContext } from "@blixis-io/http";
 import { jwtVerify } from "jose";
 import type { ZodType, z } from "zod";
 import {
@@ -55,7 +55,7 @@ let authInstanceCounter = 0;
 
 /**
  * Builds a `JwtAuthGuard` + `createRolesGuard` bound to one claims schema,
- * same factory-closure shape as `@blixis/config`'s `defineConfigModule` —
+ * same factory-closure shape as `@blixis-io/config`'s `defineConfigModule` —
  * the claims shape is app-specific, so there's no single fixed type to
  * validate against.
  */

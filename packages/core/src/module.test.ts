@@ -1,4 +1,4 @@
-import { InjectionToken } from "@blixis/di";
+import { InjectionToken } from "@blixis-io/di";
 import { describe, expect, it } from "vitest";
 import { getModuleMetadata, isDynamicModule, Module, moduleClassOf } from "./module.js";
 

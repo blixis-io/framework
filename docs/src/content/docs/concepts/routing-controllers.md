@@ -5,12 +5,12 @@ sidebar:
   order: 5
 ---
 
-`@blixis/http` turns `@Controller`-decorated classes into routes on an internal trie-based router, and wraps the whole thing into one `(Request) => Promise<Response>` function.
+`@blixis-io/http` turns `@Controller`-decorated classes into routes on an internal trie-based router, and wraps the whole thing into one `(Request) => Promise<Response>` function.
 
 ## `@Controller` and HTTP method decorators
 
 ```ts
-import { Body, Controller, Delete, Get, Param, Post } from "@blixis/http";
+import { Body, Controller, Delete, Get, Param, Post } from "@blixis-io/http";
 
 @Controller("posts")
 export class PostController {
@@ -72,16 +72,16 @@ get() {}
 ## Building the app
 
 ```ts
-import { createHttpApplication } from "@blixis/http";
+import { createHttpApplication } from "@blixis-io/http";
 
 const app = await createHttpApplication(AppModule);
 await app.listen(3000);
 ```
 
-`createHttpApplication` wraps `@blixis/core`'s `createApplication` (see [Modules](/concepts/modules/)) — it builds the module graph, then builds the router from `app.controllers`. `listen()` binds a real `node:http` server; `app.handle(request)` runs the same logic against an in-memory `Request` with no socket at all, which is what `@blixis/testing` uses (see [Testing](/concepts/testing/)).
+`createHttpApplication` wraps `@blixis-io/core`'s `createApplication` (see [Modules](/concepts/modules/)) — it builds the module graph, then builds the router from `app.controllers`. `listen()` binds a real `node:http` server; `app.handle(request)` runs the same logic against an in-memory `Request` with no socket at all, which is what `@blixis-io/testing` uses (see [Testing](/concepts/testing/)).
 
 ## Next
 
 - What `@Body`/`@Query`/`@Param` actually do with each argument: [Request Validation](/concepts/request-validation/).
 - Denying a request before the controller method ever runs: [Guards & Authorization](/concepts/guards-and-authorization/).
-- Every exported symbol: [`@blixis/http` reference](/reference/blixis-http/).
+- Every exported symbol: [`@blixis-io/http` reference](/reference/blixis-http/).

@@ -1,5 +1,5 @@
-import { Controller, Get } from "@blixis/http";
-import { generateOpenApiDocument } from "@blixis/openapi";
+import { Controller, Get } from "@blixis-io/http";
+import { generateOpenApiDocument } from "@blixis-io/openapi";
 import { AppRef } from "./app-ref.js";
 
 @Controller()

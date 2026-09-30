@@ -1,4 +1,4 @@
-import { createApplication } from "@blixis/core";
+import { createApplication } from "@blixis-io/core";
 import { describe, expect, it, vi } from "vitest";
 import { defineEventsModule } from "./module.js";
 

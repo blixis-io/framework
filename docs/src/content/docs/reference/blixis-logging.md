@@ -1,5 +1,5 @@
 ---
-title: "@blixis/logging"
+title: "@blixis-io/logging"
 description: Full API reference for the logging package.
 sidebar:
   order: 5
@@ -81,7 +81,7 @@ interface ConsoleTransportOptions {
 
 Routes by level: `trace`→`console.log`, `debug`→`console.debug`, `info`→`console.info`, `warn`→`console.warn`, `error`/`fatal`→`console.error`. Human-readable format is `<timestamp> <LEVEL> <message>`, with non-empty context appended as trailing JSON; `{ json: true }` writes the whole `LogRecord` as one JSON line instead.
 
-The only transport shipped so far — Sentry/Slack/Logstash transports are planned as separate subpath exports (`@blixis/logging/sentry`, etc.), each pulling its own SDK as an optional peer dependency, not yet built.
+The only transport shipped so far — Sentry/Slack/Logstash transports are planned as separate subpath exports (`@blixis-io/logging/sentry`, etc.), each pulling its own SDK as an optional peer dependency, not yet built.
 
 ## DI integration
 
@@ -105,4 +105,4 @@ class PostsService {
 }
 ```
 
-`LoggerModule` is the only piece of this package that depends on `@blixis/core`/`@blixis/di` — `createLogger`, `Logger`, `Transport`, and `consoleTransport` are plain, framework-agnostic TypeScript usable without a `Container` at all.
+`LoggerModule` is the only piece of this package that depends on `@blixis-io/core`/`@blixis-io/di` — `createLogger`, `Logger`, `Transport`, and `consoleTransport` are plain, framework-agnostic TypeScript usable without a `Container` at all.

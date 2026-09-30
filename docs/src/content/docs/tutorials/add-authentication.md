@@ -12,7 +12,7 @@ This continues the blog API from [Build Your First API](/tutorials/build-your-fi
 A real app would check a database or an identity provider; this tutorial uses a hardcoded token so the auth *mechanism* stays the focus:
 
 ```ts title="src/auth/auth.service.ts"
-import { Injectable } from "@blixis/di";
+import { Injectable } from "@blixis-io/di";
 
 @Injectable()
 export class AuthService {
@@ -28,8 +28,8 @@ export class AuthService {
 ## 2. The guard
 
 ```ts title="src/auth/auth.guard.ts"
-import { Injectable } from "@blixis/di";
-import type { CanActivate, ExecutionContext } from "@blixis/http";
+import { Injectable } from "@blixis-io/di";
+import type { CanActivate, ExecutionContext } from "@blixis-io/http";
 import { AuthService } from "./auth.service.js";
 
 @Injectable()
@@ -49,7 +49,7 @@ Notice `AuthGuard` takes `AuthService` as a constructor parameter, exactly like 
 ## 3. An auth module
 
 ```ts title="src/auth/auth.module.ts"
-import { Module } from "@blixis/core";
+import { Module } from "@blixis-io/core";
 import { AuthGuard } from "./auth.guard.js";
 import { AuthService } from "./auth.service.js";
 
@@ -64,7 +64,7 @@ No controllers here — this module exists purely to provide `AuthService`/`Auth
 ## 4. Wire it in
 
 ```ts title="src/app.module.ts"
-import { Module } from "@blixis/core";
+import { Module } from "@blixis-io/core";
 import { AuthModule } from "./auth/auth.module.js";
 import { PostsModule } from "./posts/posts.module.js";
 
@@ -77,7 +77,7 @@ export class AppModule {}
 ## 5. Protect the write routes
 
 ```ts title="src/posts/posts.controller.ts" ins={1,10,17,24}
-import { UseGuards } from "@blixis/http";
+import { UseGuards } from "@blixis-io/http";
 // ...other imports
 
 @Controller("posts")
@@ -126,7 +126,7 @@ curl localhost:3000/posts
 ## 7. Test it without curl
 
 ```ts title="src/posts/posts.e2e.test.ts"
-import { Test } from "@blixis/testing";
+import { Test } from "@blixis-io/testing";
 import { describe, expect, it } from "vitest";
 import { AppModule } from "../app.module.js";
 
