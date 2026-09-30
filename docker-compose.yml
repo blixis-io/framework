@@ -1,0 +1,19 @@
+services:
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: blixis
+      POSTGRES_PASSWORD: blixis
+      POSTGRES_DB: blixis
+    ports:
+      - "5434:5432"
+    volumes:
+      - blixis-framework-postgres:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U blixis"]
+      interval: 2s
+      timeout: 2s
+      retries: 15
+
+volumes:
+  blixis-framework-postgres:
