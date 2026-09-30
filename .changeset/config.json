@@ -5,20 +5,5 @@
   "access": "public",
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
-  "ignore": [
-    "hello-api",
-    "blixis-docs",
-    "@blixis-io/core",
-    "@blixis-io/http",
-    "@blixis-io/logging",
-    "@blixis-io/config",
-    "@blixis-io/db",
-    "@blixis-io/auth",
-    "@blixis-io/method-hooks",
-    "@blixis-io/openapi",
-    "@blixis-io/cli",
-    "@blixis-io/tenancy",
-    "@blixis-io/events",
-    "@blixis-io/testing"
-  ]
+  "ignore": ["hello-api", "blixis-docs"]
 }
