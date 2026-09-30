@@ -191,6 +191,28 @@ importers:
         specifier: workspace:*
         version: link:../di
 
+  packages/tenancy:
+    dependencies:
+      '@blixis/core':
+        specifier: workspace:*
+        version: link:../core
+      '@blixis/di':
+        specifier: workspace:*
+        version: link:../di
+      '@blixis/http':
+        specifier: workspace:*
+        version: link:../http
+      drizzle-orm:
+        specifier: ^0.45.3
+        version: 0.45.3(@types/pg@8.23.1)(pg@8.23.0)
+    devDependencies:
+      '@types/pg':
+        specifier: ^8.15.6
+        version: 8.23.1
+      pg:
+        specifier: ^8.23.0
+        version: 8.23.0
+
   packages/testing:
     dependencies:
       '@blixis/core':
