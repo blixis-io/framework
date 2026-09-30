@@ -36,6 +36,7 @@ export function createProjectConfig(name: string, config: UserProjectConfigExpor
           blixisAlias("auth"),
           blixisAlias("plugins"),
           blixisAlias("openapi"),
+          blixisAlias("cli"),
         ],
       },
       test: {

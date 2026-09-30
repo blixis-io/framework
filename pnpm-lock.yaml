@@ -82,6 +82,9 @@ importers:
         specifier: ^4.6.5
         version: 4.6.5
     devDependencies:
+      '@blixis/cli':
+        specifier: workspace:*
+        version: link:../../packages/cli
       '@blixis/testing':
         specifier: workspace:*
         version: link:../../packages/testing
@@ -103,6 +106,8 @@ importers:
       zod:
         specifier: ^4.6.5
         version: 4.6.5
+
+  packages/cli: {}
 
   packages/config:
     dependencies:
