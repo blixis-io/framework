@@ -14,7 +14,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "build": "turbo run build",
-    "ci": "turbo run build typecheck lint test && pnpm run format:check",
+    "ci": "turbo run build && turbo run typecheck lint test && pnpm run format:check",
     "changeset": "changeset",
     "version-packages": "changeset version",
     "release": "pnpm run build && changeset publish"
