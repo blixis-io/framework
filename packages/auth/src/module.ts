@@ -1,19 +1,49 @@
-import { Module, type DynamicModule } from "@blixis/core";
-import { Inject, Injectable, InjectionToken, type Class } from "@blixis/di";
+import { Module, type DynamicModule, type ModuleRef } from "@blixis/core";
+import { Inject, Injectable, InjectionToken, type Class, type Provider, type Token } from "@blixis/di";
 import { RequestContext, UnauthorizedException, type CanActivate, type ExecutionContext } from "@blixis/http";
 import { jwtVerify } from "jose";
 import type { ZodType, z } from "zod";
+import {
+  createAuthServiceClass,
+  type AuthService,
+  type CredentialStore,
+  type NormalizedIssuingOptions,
+  type RefreshTokenStore,
+} from "./issuing.js";
 
-export interface AuthModuleOptions {
+const DEFAULT_ACCESS_TOKEN_TTL_SECONDS = 900; // 15 minutes
+const DEFAULT_REFRESH_TOKEN_TTL_SECONDS = 2_592_000; // 30 days
+
+export interface IssuingOptions<Claims> {
+  /**
+   * Modules to import alongside `AuthModule` itself, so `credentialStore`
+   * and `refreshTokenStore` can see whatever they depend on (e.g. a
+   * `DATABASE` token exported by a `DbModule`). Without the exporting
+   * module listed here, module encapsulation throws `ProviderNotVisibleError`.
+   */
+  imports?: ModuleRef[] | undefined;
+  /** The app's own store implementation — a DI class, so it can inject `DATABASE` or anything else it needs. */
+  credentialStore: Class<CredentialStore<Claims>>;
+  /** The app's own store implementation for issued refresh tokens. */
+  refreshTokenStore: Class<RefreshTokenStore>;
+  /** Seconds. Defaults to 900 (15 minutes). */
+  accessTokenTtl?: number | undefined;
+  /** Seconds. Defaults to 2,592,000 (30 days). */
+  refreshTokenTtl?: number | undefined;
+}
+
+export interface AuthModuleOptions<Claims = unknown> {
   /** HMAC secret used to verify the token's signature. */
   secret: string;
   /** Defaults to `"HS256"`. */
   algorithm?: "HS256" | "HS384" | "HS512";
-  /** Makes `JwtAuthGuard` visible to every module without each one importing this one directly. Defaults to `false`. */
+  /** Makes `JwtAuthGuard` (and `AUTH_SERVICE`, if `issuing` is set) visible to every module without each one importing this one directly. Defaults to `false`. */
   global?: boolean;
+  /** Omit for a verify-only app (the original scope). Set to enable `AUTH_SERVICE` — password sign-in, refresh rotation, sign-out. */
+  issuing?: IssuingOptions<Claims> | undefined;
 }
 
-interface NormalizedAuthOptions {
+export interface NormalizedAuthOptions {
   key: Uint8Array;
   algorithm: string;
 }
@@ -32,13 +62,19 @@ let authInstanceCounter = 0;
 export function defineAuthModule<Schema extends ZodType>(
   claimsSchema: Schema,
 ): {
-  AuthModule: { forRoot(options: AuthModuleOptions): DynamicModule };
+  AuthModule: { forRoot(options: AuthModuleOptions<z.infer<Schema>>): DynamicModule };
   JwtAuthGuard: Class<CanActivate>;
   createRolesGuard: (...roles: readonly string[]) => Class<CanActivate>;
   getCurrentUser: (ctx: RequestContext) => z.infer<Schema> | undefined;
+  /** Resolvable only when `forRoot({ issuing })` was set — otherwise `MissingProviderError` at boot. */
+  AUTH_SERVICE: InjectionToken<AuthService>;
 } {
   type Claims = z.infer<Schema>;
   const AUTH_OPTIONS = new InjectionToken<NormalizedAuthOptions>("blixis.auth.options");
+  const ISSUING_OPTIONS = new InjectionToken<NormalizedIssuingOptions>("blixis.auth.issuingOptions");
+  const CREDENTIAL_STORE = new InjectionToken<CredentialStore<Claims>>("blixis.auth.credentialStore");
+  const REFRESH_TOKEN_STORE = new InjectionToken<RefreshTokenStore>("blixis.auth.refreshTokenStore");
+  const AUTH_SERVICE = new InjectionToken<AuthService>("blixis.auth.service");
   const CURRENT_USER_KEY = `blixis.auth.currentUser.${authInstanceCounter++}`;
 
   /** Reads the claims `JwtAuthGuard` verified for the current request, or `undefined` outside a request (or before the guard has run). */
@@ -105,19 +141,41 @@ export function defineAuthModule<Schema extends ZodType>(
 
   @Module()
   class AuthModule {
-    static forRoot(options: AuthModuleOptions): DynamicModule {
+    static forRoot(options: AuthModuleOptions<Claims>): DynamicModule {
       const normalized: NormalizedAuthOptions = {
         key: new TextEncoder().encode(options.secret),
         algorithm: options.algorithm ?? "HS256",
       };
-      return {
-        module: AuthModule,
-        providers: [{ provide: AUTH_OPTIONS, useValue: normalized }, JwtAuthGuard],
-        exports: [AUTH_OPTIONS, JwtAuthGuard],
-        global: options.global ?? false,
-      };
+      const imports: ModuleRef[] = [];
+      const providers: Provider[] = [{ provide: AUTH_OPTIONS, useValue: normalized }, JwtAuthGuard];
+      const exports: Token[] = [AUTH_OPTIONS, JwtAuthGuard];
+
+      if (options.issuing) {
+        const issuingNormalized: NormalizedIssuingOptions = {
+          accessTokenTtlSeconds: options.issuing.accessTokenTtl ?? DEFAULT_ACCESS_TOKEN_TTL_SECONDS,
+          refreshTokenTtlSeconds: options.issuing.refreshTokenTtl ?? DEFAULT_REFRESH_TOKEN_TTL_SECONDS,
+        };
+        const AuthServiceImpl = createAuthServiceClass<Claims>({
+          claimsSchema,
+          authOptionsToken: AUTH_OPTIONS,
+          issuingOptionsToken: ISSUING_OPTIONS,
+          credentialStoreToken: CREDENTIAL_STORE,
+          refreshTokenStoreToken: REFRESH_TOKEN_STORE,
+        });
+
+        imports.push(...(options.issuing.imports ?? []));
+        providers.push(
+          { provide: ISSUING_OPTIONS, useValue: issuingNormalized },
+          { provide: CREDENTIAL_STORE, useClass: options.issuing.credentialStore },
+          { provide: REFRESH_TOKEN_STORE, useClass: options.issuing.refreshTokenStore },
+          { provide: AUTH_SERVICE, useClass: AuthServiceImpl },
+        );
+        exports.push(AUTH_SERVICE);
+      }
+
+      return { module: AuthModule, imports, providers, exports, global: options.global ?? false };
     }
   }
 
-  return { AuthModule, JwtAuthGuard, createRolesGuard, getCurrentUser };
+  return { AuthModule, JwtAuthGuard, createRolesGuard, getCurrentUser, AUTH_SERVICE };
 }
