@@ -7,7 +7,7 @@ sidebar:
 
 Blixis is a TypeScript framework for building API-first backends: a dependency injection container, a decorator-based HTTP layer, and a module system, built from scratch rather than assembled from an existing framework.
 
-It's made of seven independent packages:
+It's made of eight independent packages:
 
 - **`@blixis/di`** — the dependency injection container. `@Injectable`, `@Inject`, tokens, providers, singleton/transient scopes.
 - **`@blixis/core`** — the module system built on top of `@blixis/di`. `@Module`, lifecycle hooks, application bootstrapping.
@@ -15,9 +15,10 @@ It's made of seven independent packages:
 - **`@blixis/logging`** — a multi-transport logger built on top of `@blixis/core`, injectable the same way any other provider is. Doesn't depend on `@blixis/http` — usable in any app, HTTP or not.
 - **`@blixis/config`** — Zod-validated environment config, also built on `@blixis/core`, also HTTP-independent.
 - **`@blixis/db`** — [Drizzle](https://orm.drizzle.team)-backed Postgres persistence, also built on `@blixis/core`, also HTTP-independent. Connects and disconnects via the same lifecycle hooks as everything else.
+- **`@blixis/auth`** — JWT verification and role checks, built on `@blixis/http`'s guard primitive. App-layer, not a framework dependency — `@blixis/http` has no idea it exists.
 - **`@blixis/testing`** — a thin testing layer on top of `@blixis/http`. Build a real application in a test, override providers with fakes, hit it with real requests.
 
-Dependencies only point down: `di` depends on nothing; `core` depends on `di`; `http`, `logging`, `config`, and `db` all depend on `core` (and, transitively, `di`) but not on each other; `testing` depends on `http`. You can use `@blixis/di` — or `@blixis/di` + `@blixis/core` + `@blixis/logging`/`@blixis/config`/`@blixis/db` — on their own without any of the HTTP machinery.
+Dependencies only point down: `di` depends on nothing; `core` depends on `di`; `http`, `logging`, `config`, and `db` all depend on `core` (and, transitively, `di`) but not on each other; `auth` depends on `http`; `testing` depends on `http`. You can use `@blixis/di` — or `@blixis/di` + `@blixis/core` + `@blixis/logging`/`@blixis/config`/`@blixis/db` — on their own without any of the HTTP machinery.
 
 ## Why build this instead of using an existing framework
 

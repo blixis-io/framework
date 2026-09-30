@@ -83,6 +83,24 @@ importers:
         specifier: workspace:*
         version: link:../../packages/testing
 
+  packages/auth:
+    dependencies:
+      '@blixis/core':
+        specifier: workspace:*
+        version: link:../core
+      '@blixis/di':
+        specifier: workspace:*
+        version: link:../di
+      '@blixis/http':
+        specifier: workspace:*
+        version: link:../http
+      jose:
+        specifier: ^6.2.12
+        version: 6.2.12
+      zod:
+        specifier: ^4.6.5
+        version: 4.6.5
+
   packages/config:
     dependencies:
       '@blixis/core':
@@ -2017,6 +2035,9 @@ packages:
   is-plain-obj@4.1.0:
     resolution: {integrity: sha512-+Pgi+vMuUNkJyExiMBt5IlFoMyKnr5zhJ4Uspz58WOhBF5QoIZkFyNHIbBAtHwzVAgk5RtndVNsDRN61/mmDqg==}
     engines: {node: '>=12'}
+
+  jose@6.2.12:
+    resolution: {integrity: sha512-9NiFmJEex0sy2Dk58j2UGBSHgUs2ypF9eZSu4L6vjOX3Dp96Sw1F3uL+H+D1sx02jZZdzUT0HgvCy59CuvXcWw==}
 
   js-tokens@10.0.0:
     resolution: {integrity: sha512-lM/UBzQmfJRo9ABXbPWemivdCW8V2G8FHaHdypQaIy523snUjog0W71ayWXTjiR+ixeMyVHN2XcpnTd/liPg/Q==}
@@ -4529,6 +4550,8 @@ snapshots:
   is-hexadecimal@2.0.1: {}
 
   is-plain-obj@4.1.0: {}
+
+  jose@6.2.12: {}
 
   js-tokens@10.0.0: {}
 
