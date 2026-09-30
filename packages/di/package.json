@@ -1,11 +1,24 @@
 {
   "name": "@blixis-io/di",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.1.0",
+  "description": "A small, readable dependency injection container — @Injectable, @Inject, tokens, providers, singleton/transient scopes.",
+  "license": "MIT",
+  "author": "Michael Voeten <michael@voeten.online>",
+  "homepage": "https://blixis-io.github.io/framework/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/blixis-io/framework.git",
+    "directory": "packages/di"
+  },
   "type": "module",
   "engines": {
     "node": ">=24"
   },
+  "keywords": ["dependency-injection", "ioc", "typescript", "decorators"],
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": ["dist"],
   "exports": {
     ".": {
       "@blixis-io/source": "./src/index.ts",

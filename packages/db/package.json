@@ -1,11 +1,24 @@
 {
   "name": "@blixis-io/db",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.1.0",
+  "description": "Drizzle-backed Postgres persistence, built on @blixis-io/core. Connects and disconnects via the same lifecycle hooks as everything else.",
+  "license": "MIT",
+  "author": "Michael Voeten <michael@voeten.online>",
+  "homepage": "https://blixis-io.github.io/framework/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/blixis-io/framework.git",
+    "directory": "packages/db"
+  },
   "type": "module",
   "engines": {
     "node": ">=24"
   },
+  "keywords": ["postgres", "drizzle", "database", "typescript"],
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": ["dist"],
   "exports": {
     ".": {
       "@blixis-io/source": "./src/index.ts",

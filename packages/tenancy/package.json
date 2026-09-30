@@ -1,11 +1,24 @@
 {
   "name": "@blixis-io/tenancy",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.1.0",
+  "description": "Request-scoped multi-tenant access control (TenantScopedGuard, a fail-closed tenantScope() query helper). Mechanism only — no Organization/Space/Membership data model — reusable by any multi-tenant app.",
+  "license": "MIT",
+  "author": "Michael Voeten <michael@voeten.online>",
+  "homepage": "https://blixis-io.github.io/framework/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/blixis-io/framework.git",
+    "directory": "packages/tenancy"
+  },
   "type": "module",
   "engines": {
     "node": ">=24"
   },
+  "keywords": ["multi-tenancy", "authorization", "typescript"],
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": ["dist"],
   "exports": {
     ".": {
       "@blixis-io/source": "./src/index.ts",
