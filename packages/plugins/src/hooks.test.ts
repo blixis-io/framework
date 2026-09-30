@@ -1,6 +1,30 @@
 import { describe, expect, it } from "vitest";
 import { After, Around, Before } from "./hooks.js";
 
+/**
+ * A genuine `PromiseLike` that's deliberately not `instanceof Promise` —
+ * the stand-in for a cross-realm Promise (a worker, a vm context, a
+ * bundled polyfill), which is what `isThenable()` exists to still handle
+ * correctly.
+ */
+function toThenable<T>(value: T): PromiseLike<T> {
+  return {
+    // oxlint-disable-next-line unicorn/no-thenable -- the whole point of this helper
+    then<TResult1 = T, TResult2 = never>(
+      onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | null,
+    ): PromiseLike<TResult1 | TResult2> {
+      if (onfulfilled) {
+        return Promise.resolve(onfulfilled(value));
+      }
+      // No onfulfilled means TResult1 defaulted to T, so `value` already
+      // *is* TResult1 — TS can't see that default flow through a
+      // conditional call site, hence the assertion.
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion
+      return Promise.resolve(value as unknown as TResult1);
+    },
+  };
+}
+
 describe("Before", () => {
   it("calls the original with unchanged args when the hook returns nothing", () => {
     class Calc {
@@ -61,6 +85,17 @@ describe("Before", () => {
     }
 
     await expect(new Calc().add(2, 3)).resolves.toBe(5);
+  });
+
+  it("awaits a genuine thenable that isn't `instanceof Promise`", async () => {
+    class Calc {
+      @Before((a: number, b: number) => toThenable<[number, number]>([a * 10, b * 10]))
+      add(a: number, b: number): number {
+        return a + b;
+      }
+    }
+
+    await expect(new Calc().add(2, 3)).resolves.toBe(50);
   });
 
   it("preserves `this` binding in the decorated method", () => {
@@ -129,6 +164,17 @@ describe("After", () => {
     }
 
     await expect(new AsyncCalc().add(2, 3)).resolves.toBe(10);
+  });
+
+  it("awaits an original method returning a genuine thenable that isn't `instanceof Promise`", async () => {
+    class Calc {
+      @After((result: number) => result * 2)
+      add(a: number, b: number) {
+        return toThenable(a + b);
+      }
+    }
+
+    await expect(new Calc().add(2, 3)).resolves.toBe(10);
   });
 
   it("preserves `this` binding in the decorated method", () => {
