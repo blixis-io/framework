@@ -14,9 +14,11 @@
   "dependencies": {
     "@blixis/config": "workspace:*",
     "@blixis/core": "workspace:*",
+    "@blixis/db": "workspace:*",
     "@blixis/di": "workspace:*",
     "@blixis/http": "workspace:*",
     "@blixis/logging": "workspace:*",
+    "drizzle-orm": "^0.45.3",
     "zod": "^4.6.5"
   },
   "devDependencies": {

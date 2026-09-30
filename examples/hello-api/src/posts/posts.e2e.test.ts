@@ -1,13 +1,18 @@
 import { Test, type TestApplication } from "@blixis/testing";
 import { consoleTransport, LoggerModule } from "@blixis/logging";
 import { describe, expect, it } from "vitest";
+import { DATABASE } from "../db/index.js";
+import { posts } from "../db/schema.js";
 import { PostsModule } from "./posts.module.js";
 import type { Post } from "./post.schema.js";
 
-function createTestApp(): Promise<TestApplication> {
-  return Test.createModule({
+async function createTestApp(): Promise<TestApplication> {
+  const app = await Test.createModule({
     imports: [LoggerModule.forRoot({ transports: [consoleTransport()] }), PostsModule],
   }).compile();
+  // Real Postgres table, shared across tests — start each test from empty.
+  await app.get(DATABASE).delete(posts);
+  return app;
 }
 
 describe("Posts API (e2e)", () => {
