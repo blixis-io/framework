@@ -43,8 +43,8 @@ export class PostsController {
 
   @UseGuards(ApiKeyGuard)
   @Delete(":id")
-  remove(@Param("id") id: string): undefined {
-    this.posts.remove(id);
+  async remove(@Param("id") id: string): Promise<undefined> {
+    await this.posts.remove(id);
     return undefined;
   }
 }
