@@ -41,7 +41,7 @@ export class PostController {
 
 The controller's prefix (`"posts"`) and each method's path (`""`, `":id"`) are joined and normalized — leading/trailing slashes don't matter, so `@Controller("posts")` + `@Get(":id")` and `@Controller("/posts/")` + `@Get("/:id")` register the identical route.
 
-`@Get`/`@Post`/`@Put`/`@Patch`/`@Delete` are the five supported HTTP methods. A class used as a controller **must** have `@Controller()` — a class listed in a module's `controllers` array without it throws `NotAControllerError` when the HTTP app is built.
+`@Get`/`@Post`/`@Put`/`@Patch`/`@Delete` are the five supported HTTP methods. A class used as a controller **must** have `@Controller()` — a class listed in a module's `controllers` array without it throws `NotAControllerError` when the HTTP app is built. Registering the same method+path twice (two controllers, or two methods on one controller, that resolve to an identical route) throws `DuplicateRouteError` at the same point — the router never silently lets the second registration win.
 
 ## How a request is matched
 

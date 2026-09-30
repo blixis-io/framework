@@ -17,6 +17,14 @@ export interface RouteMethodNotAllowed {
 
 export type RouteLookupResult<T> = RouteFound<T> | RouteNotFound | RouteMethodNotAllowed;
 
+export class DuplicateRouteError extends Error {
+  override readonly name = "DuplicateRouteError";
+
+  constructor(method: HttpMethod, path: string) {
+    super(`Duplicate route: ${method} ${path} is already registered — each method+path pair must be unique.`);
+  }
+}
+
 interface TrieNode<T> {
   staticChildren: Map<string, TrieNode<T>>;
   paramChild?: { name: string; node: TrieNode<T> };
@@ -110,6 +118,9 @@ export class Router<T> {
       }
     }
 
+    if (node.handlers.has(method)) {
+      throw new DuplicateRouteError(method, path);
+    }
     node.handlers.set(method, handler);
   }
 

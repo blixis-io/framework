@@ -42,7 +42,7 @@ interface HandlerOptions {
 }
 ```
 
-The lower-level pieces `createHttpApplication` composes — `createHandler` builds the actual request-handling function from a resolved application's controllers; `buildRouter` alone builds just the route table (used internally, exposed for introspection). Throws `NotAControllerError` (naming the class) if a listed controller has no `@Controller()`.
+The lower-level pieces `createHttpApplication` composes — `createHandler` builds the actual request-handling function from a resolved application's controllers; `buildRouter` alone builds just the route table (used internally, exposed for introspection). Throws `NotAControllerError` (naming the class) if a listed controller has no `@Controller()`, or `DuplicateRouteError` if two routes register the same method+path — a route table is built once at startup, so this fails fast at boot rather than silently letting the second registration replace the first.
 
 ## Controller decorators
 
