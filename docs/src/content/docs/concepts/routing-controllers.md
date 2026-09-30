@@ -67,7 +67,7 @@ get() {}
 
 - **No route matches the path at all** → `404` (`application/problem+json`).
 - **The path matches, but not for this method** → `405`, with an `Allow` header listing the methods that *are* registered there.
-- **The path and method both match** → the controller method runs. See [Request Validation](/concepts/request-validation/) for how its arguments are built, and [Error Handling](/concepts/error-handling/) for exactly how the return value (or a thrown error) becomes a `Response`.
+- **The path and method both match** → the controller method runs. See [Request Validation](/concepts/request-validation/) for how its arguments are built, and [Error Handling](/concepts/error-handling/) for exactly how the return value (or a thrown error) becomes a `Response`. For a redirect or a non-JSON content type, see the [Cookbook](/examples/cookbook/#returning-a-raw-response-and-setting-a-content-type).
 
 ## Building the app
 
