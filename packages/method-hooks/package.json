@@ -1,11 +1,24 @@
 {
   "name": "@blixis-io/method-hooks",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.1.0",
+  "description": "@Before/@After/@Around method decorators for adding behavior without editing a method's body. No dependency on any other @blixis-io/* package — works on any class.",
+  "license": "MIT",
+  "author": "Michael Voeten <michael@voeten.online>",
+  "homepage": "https://blixis-io.github.io/framework/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/blixis-io/framework.git",
+    "directory": "packages/method-hooks"
+  },
   "type": "module",
   "engines": {
     "node": ">=24"
   },
+  "keywords": ["decorators", "aop", "method-interception", "typescript"],
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": ["dist"],
   "exports": {
     ".": {
       "@blixis-io/source": "./src/index.ts",

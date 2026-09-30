@@ -1,11 +1,24 @@
 {
   "name": "@blixis-io/events",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.1.0",
+  "description": "An in-process domain event bus (defineEventsModule, EventBus.emit/on). Depends only on @blixis-io/core — usable in any app, HTTP or not.",
+  "license": "MIT",
+  "author": "Michael Voeten <michael@voeten.online>",
+  "homepage": "https://blixis-io.github.io/framework/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/blixis-io/framework.git",
+    "directory": "packages/events"
+  },
   "type": "module",
   "engines": {
     "node": ">=24"
   },
+  "keywords": ["events", "pub-sub", "event-bus", "typescript"],
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": ["dist"],
   "exports": {
     ".": {
       "@blixis-io/source": "./src/index.ts",

@@ -1,11 +1,24 @@
 {
   "name": "@blixis-io/core",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.1.0",
+  "description": "The module system built on @blixis-io/di — @Module, lifecycle hooks, application bootstrapping.",
+  "license": "MIT",
+  "author": "Michael Voeten <michael@voeten.online>",
+  "homepage": "https://blixis-io.github.io/framework/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/blixis-io/framework.git",
+    "directory": "packages/core"
+  },
   "type": "module",
   "engines": {
     "node": ">=24"
   },
+  "keywords": ["dependency-injection", "modules", "typescript", "framework"],
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": ["dist"],
   "exports": {
     ".": {
       "@blixis-io/source": "./src/index.ts",

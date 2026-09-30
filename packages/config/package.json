@@ -1,11 +1,24 @@
 {
   "name": "@blixis-io/config",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.1.0",
+  "description": "Zod-validated environment config, built on @blixis-io/core, HTTP-independent.",
+  "license": "MIT",
+  "author": "Michael Voeten <michael@voeten.online>",
+  "homepage": "https://blixis-io.github.io/framework/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/blixis-io/framework.git",
+    "directory": "packages/config"
+  },
   "type": "module",
   "engines": {
     "node": ">=24"
   },
+  "keywords": ["config", "environment-variables", "zod", "typescript"],
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": ["dist"],
   "exports": {
     ".": {
       "@blixis-io/source": "./src/index.ts",

@@ -1,11 +1,24 @@
 {
   "name": "@blixis-io/testing",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.1.0",
+  "description": "A thin testing layer on top of @blixis-io/http. Build a real application in a test, override providers with fakes, hit it with real requests.",
+  "license": "MIT",
+  "author": "Michael Voeten <michael@voeten.online>",
+  "homepage": "https://blixis-io.github.io/framework/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/blixis-io/framework.git",
+    "directory": "packages/testing"
+  },
   "type": "module",
   "engines": {
     "node": ">=24"
   },
+  "keywords": ["testing", "http", "typescript"],
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": ["dist"],
   "exports": {
     ".": {
       "@blixis-io/source": "./src/index.ts",

@@ -1,11 +1,24 @@
 {
   "name": "@blixis-io/http",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.1.0",
+  "description": "The HTTP layer built on @blixis-io/core — routing, controllers, request validation with Zod, guards, RFC 9457 error responses.",
+  "license": "MIT",
+  "author": "Michael Voeten <michael@voeten.online>",
+  "homepage": "https://blixis-io.github.io/framework/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/blixis-io/framework.git",
+    "directory": "packages/http"
+  },
   "type": "module",
   "engines": {
     "node": ">=24"
   },
+  "keywords": ["http", "framework", "rest", "typescript"],
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": ["dist"],
   "exports": {
     ".": {
       "@blixis-io/source": "./src/index.ts",

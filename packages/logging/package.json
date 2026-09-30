@@ -1,11 +1,24 @@
 {
   "name": "@blixis-io/logging",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.1.0",
+  "description": "A multi-transport logger, injectable like any other provider. Doesn't depend on @blixis-io/http — usable in any app, HTTP or not.",
+  "license": "MIT",
+  "author": "Michael Voeten <michael@voeten.online>",
+  "homepage": "https://blixis-io.github.io/framework/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/blixis-io/framework.git",
+    "directory": "packages/logging"
+  },
   "type": "module",
   "engines": {
     "node": ">=24"
   },
+  "keywords": ["logging", "typescript"],
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": ["dist"],
   "exports": {
     ".": {
       "@blixis-io/source": "./src/index.ts",

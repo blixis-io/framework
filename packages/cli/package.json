@@ -1,11 +1,24 @@
 {
   "name": "@blixis-io/cli",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.1.0",
+  "description": "The blix binary. blix generate <type> <name> scaffolds one controller/service/module/guard/interceptor file from a template. No @blixis-io/* runtime dependency.",
+  "license": "MIT",
+  "author": "Michael Voeten <michael@voeten.online>",
+  "homepage": "https://blixis-io.github.io/framework/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/blixis-io/framework.git",
+    "directory": "packages/cli"
+  },
   "type": "module",
   "engines": {
     "node": ">=24"
   },
+  "keywords": ["cli", "code-generation", "scaffolding"],
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": ["dist"],
   "bin": {
     "blix": "./dist/index.js"
   },
