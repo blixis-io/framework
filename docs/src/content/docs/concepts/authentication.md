@@ -5,7 +5,7 @@ sidebar:
   order: 14
 ---
 
-`@blixis-io/auth` verifies bearer JWTs and checks roles, built entirely on primitives [Guards & Authorization](/concepts/guards-and-authorization/) and [Request Context](/concepts/request-context/) already introduced — it's app-layer, not a framework dependency: `@blixis-io/http` has no idea `@blixis-io/auth` exists.
+`@blixis-io/auth` verifies bearer JWTs and checks roles, built entirely on primitives [Guards & Authorization](/framework/concepts/guards-and-authorization/) and [Request Context](/framework/concepts/request-context/) already introduced — it's app-layer, not a framework dependency: `@blixis-io/http` has no idea `@blixis-io/auth` exists.
 
 By default this is **verification only** — `@blixis-io/auth` starts from "here's a bearer token," not "here's a password." Pass `issuing` to `forRoot()` to also get password sign-in, refresh-token rotation, and sign-out — see [Issuing tokens](#issuing-tokens) below.
 
@@ -43,7 +43,7 @@ me() {
 
 `JwtAuthGuard` reads the `Authorization` header, verifies the token (HMAC — `HS256` by default, or `HS384`/`HS512`) against the `secret` from `forRoot()`, and validates the decoded payload against your claims schema. Any failure — missing header, bad signature, expired token, a payload that fails the schema — throws `UnauthorizedException` (a real `401`), never a plain `false`: a bad token is a client authentication failure, not a generic "denied," so it gets its own status rather than folding into a guard's usual `403`.
 
-On success, the verified claims are stored in [`RequestContext`](/concepts/request-context/) for the rest of the request. Read them back with `getCurrentUser`:
+On success, the verified claims are stored in [`RequestContext`](/framework/concepts/request-context/) for the rest of the request. Read them back with `getCurrentUser`:
 
 ```ts
 @Injectable()
@@ -61,7 +61,7 @@ class PostsService {
 
 ## Role checks with `createRolesGuard`
 
-Role-based access is a **second guard**, not a decorator — consistent with this framework's guard-is-the-authorization-primitive philosophy (see [Guards & Authorization](/concepts/guards-and-authorization/)) rather than introducing a parallel `@Roles()` metadata system:
+Role-based access is a **second guard**, not a decorator — consistent with this framework's guard-is-the-authorization-primitive philosophy (see [Guards & Authorization](/framework/concepts/guards-and-authorization/)) rather than introducing a parallel `@Roles()` metadata system:
 
 ```ts
 export const AdminGuard = createRolesGuard("admin");
@@ -83,7 +83,7 @@ remove(@Param("id") id: string) {
 }
 ```
 
-`createRolesGuard(...roles)` returns a **fresh class each call** — same shape as `defineConfigModule` returning an app-specific class from a closure. Assign it to a named export and list it in `providers`, exactly like any other guard — leaving a guard class out of `providers` is the single most common mistake with `@UseGuards`, see [Guards & Authorization](/concepts/guards-and-authorization/#guard-classes-must-be-registered-providers).
+`createRolesGuard(...roles)` returns a **fresh class each call** — same shape as `defineConfigModule` returning an app-specific class from a closure. Assign it to a named export and list it in `providers`, exactly like any other guard — leaving a guard class out of `providers` is the single most common mistake with `@UseGuards`, see [Guards & Authorization](/framework/concepts/guards-and-authorization/#guard-classes-must-be-registered-providers).
 
 `AdminGuard` must run **after** `JwtAuthGuard` in the same `@UseGuards(...)` list: guards run sequentially and short-circuit, so by the time `AdminGuard` checks `getCurrentUser(ctx).roles`, `JwtAuthGuard` has already populated it. If no user is in `RequestContext` yet — guards misordered, or `JwtAuthGuard` left off entirely — `AdminGuard` throws `UnauthorizedException` rather than silently returning `false`, since "no identity at all" and "identity, but wrong role" are different failures worth telling apart.
 
@@ -135,7 +135,7 @@ class AuthController {
 }
 ```
 
-See the [Issuing Tokens guide](/guides/issuing-tokens/) for a full working `CredentialStore`/`RefreshTokenStore` pair backed by Drizzle, plus a sign-up flow using `hashPassword`.
+See the [Issuing Tokens guide](/framework/guides/issuing-tokens/) for a full working `CredentialStore`/`RefreshTokenStore` pair backed by Drizzle, plus a sign-up flow using `hashPassword`.
 
 ### Password hashing
 
@@ -185,7 +185,7 @@ This is a first pass, scoped to match what a real caller needs today rather than
 
 ## Next
 
-- Every exported symbol: [`@blixis-io/auth` reference](/reference/blixis-auth/).
-- The guard primitive this is built on: [Guards & Authorization](/concepts/guards-and-authorization/).
-- Where verified claims live between guards, interceptors, and the handler: [Request Context](/concepts/request-context/).
-- A full Drizzle-backed implementation: [Issuing Tokens guide](/guides/issuing-tokens/).
+- Every exported symbol: [`@blixis-io/auth` reference](/framework/reference/blixis-auth/).
+- The guard primitive this is built on: [Guards & Authorization](/framework/concepts/guards-and-authorization/).
+- Where verified claims live between guards, interceptors, and the handler: [Request Context](/framework/concepts/request-context/).
+- A full Drizzle-backed implementation: [Issuing Tokens guide](/framework/guides/issuing-tokens/).

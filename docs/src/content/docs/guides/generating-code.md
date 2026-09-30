@@ -5,7 +5,7 @@ sidebar:
   order: 10
 ---
 
-`blix` writes one file per call, from a template matching this framework's own conventions. It never edits anything else — wiring a generated file into your app is always a separate, explicit step. This walks through generating a real route end to end, the same way it happened in [hello-api](/examples/hello-api-walkthrough/).
+`blix` writes one file per call, from a template matching this framework's own conventions. It never edits anything else — wiring a generated file into your app is always a separate, explicit step. This walks through generating a real route end to end, the same way it happened in [hello-api](/framework/examples/hello-api-walkthrough/).
 
 ## 1. Add the dependency
 
@@ -74,7 +74,7 @@ import { HealthController } from "./health/health.controller.js";
 export class AppModule {}
 ```
 
-(For a route with real providers/guards behind it, generate a `module` too and import that instead — see [Modules](/concepts/modules/).)
+(For a route with real providers/guards behind it, generate a `module` too and import that instead — see [Modules](/framework/concepts/modules/).)
 
 ## 5. Verify it
 
@@ -101,5 +101,5 @@ export class PostTagsService {}
 
 ## Next
 
-- Every flag and template: [reference](/reference/blixis-cli/).
-- Why nothing gets auto-wired: [Code Generation](/concepts/code-generation/#what-it-deliberately-doesnt-do).
+- Every flag and template: [reference](/framework/reference/blixis-cli/).
+- Why nothing gets auto-wired: [Code Generation](/framework/concepts/code-generation/#what-it-deliberately-doesnt-do).

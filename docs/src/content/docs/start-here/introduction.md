@@ -37,10 +37,10 @@ The framework prioritizes:
 
 ## Why legacy decorators, not the new JavaScript decorators
 
-If you've read about the newer [TC39 decorators proposal](https://github.com/tc39/proposal-decorators) landing in TypeScript, you might expect Blixis to use it. It doesn't — and the reason is a hard constraint, not a preference. See [Why Legacy Decorators](/architecture/why-legacy-decorators/) for the full explanation; the short version is that the new decorator standard dropped *parameter* decorators, and constructor-parameter injection (`constructor(private svc: Service) {}`) is the whole point of this style of DI.
+If you've read about the newer [TC39 decorators proposal](https://github.com/tc39/proposal-decorators) landing in TypeScript, you might expect Blixis to use it. It doesn't — and the reason is a hard constraint, not a preference. See [Why Legacy Decorators](/framework/architecture/why-legacy-decorators/) for the full explanation; the short version is that the new decorator standard dropped *parameter* decorators, and constructor-parameter injection (`constructor(private svc: Service) {}`) is the whole point of this style of DI.
 
 ## Where to go next
 
-- New to the framework? Start with the [Quickstart](/start-here/quickstart/) — a running API in under five minutes.
-- Want to learn by building something real? Go to [Build Your First API](/tutorials/build-your-first-api/).
-- Already comfortable and looking something up? Jump straight to the [API Reference](/reference/blixis-di/).
+- New to the framework? Start with the [Quickstart](/framework/start-here/quickstart/) — a running API in under five minutes.
+- Want to learn by building something real? Go to [Build Your First API](/framework/tutorials/build-your-first-api/).
+- Already comfortable and looking something up? Jump straight to the [API Reference](/framework/reference/blixis-di/).

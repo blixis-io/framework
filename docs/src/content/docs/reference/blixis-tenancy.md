@@ -5,7 +5,7 @@ sidebar:
   order: 12
 ---
 
-Request-scoped multi-tenant access control. See [Tenancy](/concepts/tenancy/) for the concepts and the fail-closed rules behind every method here.
+Request-scoped multi-tenant access control. See [Tenancy](/framework/concepts/tenancy/) for the concepts and the fail-closed rules behind every method here.
 
 ## `defineTenancyModule`
 
@@ -32,7 +32,7 @@ interface Membership {
 }
 ```
 
-Same factory-closure shape as [`@blixis-io/config`'s `defineConfigModule`](/reference/blixis-config/) and [`@blixis-io/auth`'s `defineAuthModule`](/reference/blixis-auth/) — call it once per app (typically in its own `tenancy.ts`), export the result. `getActor` and `resolveMembership` are the only two integration points: this package never assumes which auth mechanism populated the actor, or how memberships are stored.
+Same factory-closure shape as [`@blixis-io/config`'s `defineConfigModule`](/framework/reference/blixis-config/) and [`@blixis-io/auth`'s `defineAuthModule`](/framework/reference/blixis-auth/) — call it once per app (typically in its own `tenancy.ts`), export the result. `getActor` and `resolveMembership` are the only two integration points: this package never assumes which auth mechanism populated the actor, or how memberships are stored.
 
 ## `TenantContext`
 

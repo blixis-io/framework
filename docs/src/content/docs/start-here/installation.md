@@ -8,12 +8,12 @@ sidebar:
 ## Requirements
 
 - **Node.js 24+**. The framework targets `es2023` and uses Node's built-in `fetch`/`Request`/`Response`/`Headers` globals directly — no polyfills.
-- **pnpm 11+**. The framework repo is a pnpm workspace; the packages aren't published to npm yet, so for now you build against them as workspace dependencies (see [Quickstart](/start-here/quickstart/)) or copy the pattern into your own pnpm workspace.
+- **pnpm 11+**. The framework repo is a pnpm workspace; the packages aren't published to npm yet, so for now you build against them as workspace dependencies (see [Quickstart](/framework/start-here/quickstart/)) or copy the pattern into your own pnpm workspace.
 - **TypeScript 7** (the native `tsc` / `tsgo` compiler). Verified working with `typescript@7.0.2` and later.
 
 ## The one non-negotiable compiler setting
 
-Blixis uses **legacy decorators**, not the newer TC39 decorators — see [Why Legacy Decorators](/architecture/why-legacy-decorators/) for why. Your `tsconfig.json` must have:
+Blixis uses **legacy decorators**, not the newer TC39 decorators — see [Why Legacy Decorators](/framework/architecture/why-legacy-decorators/) for why. Your `tsconfig.json` must have:
 
 ```json title="tsconfig.json"
 {
@@ -46,7 +46,7 @@ export default defineConfig({
 });
 ```
 
-Skip this and your tests will fail in confusing ways — usually `NotInjectableError` or `UnresolvableParameterError` on classes that work fine when compiled with `tsc`, because Oxc silently emitted no metadata (or the fallback `Object` type) instead. See [Toolchain Notes & Gotchas](/architecture/toolchain-notes/) for the full story.
+Skip this and your tests will fail in confusing ways — usually `NotInjectableError` or `UnresolvableParameterError` on classes that work fine when compiled with `tsc`, because Oxc silently emitted no metadata (or the fallback `Object` type) instead. See [Toolchain Notes & Gotchas](/framework/architecture/toolchain-notes/) for the full story.
 
 ### If you're using esbuild-based tooling (tsx, older Vite)
 
@@ -58,4 +58,4 @@ The `@blixis-io/di` package depends on [`reflect-metadata`](https://www.npmjs.co
 
 ## Next
 
-Continue to the [Quickstart](/start-here/quickstart/) to see all of this wired together in a runnable example.
+Continue to the [Quickstart](/framework/start-here/quickstart/) to see all of this wired together in a runnable example.

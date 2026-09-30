@@ -34,7 +34,7 @@ export class PostsController {
 
 ## Where files land
 
-By default, every generator nests into a per-resource folder: `src/<name>/<name>.<type>.ts` — running `blix g controller posts` then `blix g service posts` puts both in `src/posts/`, matching how every real example in this framework's own docs is laid out (see the [hello-api walkthrough](/examples/hello-api-walkthrough/)). Pass `--flat` to skip the subfolder: `src/<name>.<type>.ts`.
+By default, every generator nests into a per-resource folder: `src/<name>/<name>.<type>.ts` — running `blix g controller posts` then `blix g service posts` puts both in `src/posts/`, matching how every real example in this framework's own docs is laid out (see the [hello-api walkthrough](/framework/examples/hello-api-walkthrough/)). Pass `--flat` to skip the subfolder: `src/<name>.<type>.ts`.
 
 ## Safety
 
@@ -42,9 +42,9 @@ Refuses to overwrite an existing file — you'll get a clear error, nothing is t
 
 ## What it deliberately doesn't do
 
-A generated file is a valid, self-contained starting point — it compiles, and for a controller it's a real (if minimal) route — but nothing gets wired into anything else automatically. A generated controller is never added to an existing module's `controllers` array; a generated module is never imported into `AppModule`. That's a conscious boundary, not a missing feature: editing an existing file to wire something in is exactly the kind of thing worth doing by hand, where you can see (and mean) the change — see the [hello-api walkthrough](/examples/hello-api-walkthrough/#healthhealthcontrollerts) for a real example of generating a controller and then hand-editing and wiring it in.
+A generated file is a valid, self-contained starting point — it compiles, and for a controller it's a real (if minimal) route — but nothing gets wired into anything else automatically. A generated controller is never added to an existing module's `controllers` array; a generated module is never imported into `AppModule`. That's a conscious boundary, not a missing feature: editing an existing file to wire something in is exactly the kind of thing worth doing by hand, where you can see (and mean) the change — see the [hello-api walkthrough](/framework/examples/hello-api-walkthrough/#healthhealthcontrollerts) for a real example of generating a controller and then hand-editing and wiring it in.
 
 ## Next
 
-- Every flag and type, with one example each: [reference](/reference/blixis-cli/).
-- Step-by-step, including a real generate-then-wire-in example: [guide](/guides/generating-code/).
+- Every flag and type, with one example each: [reference](/framework/reference/blixis-cli/).
+- Step-by-step, including a real generate-then-wire-in example: [guide](/framework/guides/generating-code/).

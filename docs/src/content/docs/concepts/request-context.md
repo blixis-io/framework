@@ -9,7 +9,7 @@ sidebar:
 
 ## Why not a request-scoped provider
 
-Most DI frameworks solve this with a "request" scope: a provider rebuilt fresh for every request. Blixis doesn't have one, on purpose — every provider (controllers included) is resolved **once**, at [application boot](/concepts/lifecycle-hooks/), not per request. A singleton controller's constructor only ever runs once, so it can't receive a freshly-built value each request the way a request-scoped provider would promise.
+Most DI frameworks solve this with a "request" scope: a provider rebuilt fresh for every request. Blixis doesn't have one, on purpose — every provider (controllers included) is resolved **once**, at [application boot](/framework/concepts/lifecycle-hooks/), not per request. A singleton controller's constructor only ever runs once, so it can't receive a freshly-built value each request the way a request-scoped provider would promise.
 
 `RequestContext` sidesteps this: it's a normal **singleton**, injected once like anything else. What changes per request isn't the instance — it's which internal store its methods read and write, tracked via Node's `AsyncLocalStorage`. `createHttpApplication` wraps every request in a fresh store automatically; you never call that wrapping yourself.
 
@@ -49,7 +49,7 @@ export class PostsService {
 }
 ```
 
-Both classes inject `RequestContext` like any other provider — no module needs to list it, since `createHttpApplication` registers it globally for every app. The guard runs first (guards always run before the controller method), so by the time `PostsService.remove()` executes, `apiClient` is already there. This is the actual `ApiKeyGuard`/`PostsService` pair from [hello-api](/examples/hello-api-walkthrough/) — run it and delete a post with and without `x-api-key`, and compare the two log lines.
+Both classes inject `RequestContext` like any other provider — no module needs to list it, since `createHttpApplication` registers it globally for every app. The guard runs first (guards always run before the controller method), so by the time `PostsService.remove()` executes, `apiClient` is already there. This is the actual `ApiKeyGuard`/`PostsService` pair from [hello-api](/framework/examples/hello-api-walkthrough/) — run it and delete a post with and without `x-api-key`, and compare the two log lines.
 
 ## `get`/`has` vs. `set` outside a request
 
@@ -67,6 +67,6 @@ Two requests handled concurrently never see each other's values — each gets it
 
 ## Next
 
-- Every exported symbol: [`@blixis-io/http` reference](/reference/blixis-http/#requestcontext).
-- How the guard that sets it fits into the request lifecycle: [Guards & Authorization](/concepts/guards-and-authorization/).
-- See it wired into a real app: the [hello-api walkthrough](/examples/hello-api-walkthrough/).
+- Every exported symbol: [`@blixis-io/http` reference](/framework/reference/blixis-http/#requestcontext).
+- How the guard that sets it fits into the request lifecycle: [Guards & Authorization](/framework/concepts/guards-and-authorization/).
+- See it wired into a real app: the [hello-api walkthrough](/framework/examples/hello-api-walkthrough/).

@@ -68,9 +68,9 @@ class Consumer {
 // Reflect.getMetadata("design:paramtypes", Consumer) === [Dep]
 ```
 
-Three things about this array matter a lot in practice, all covered in depth in [Toolchain Notes & Gotchas](/architecture/toolchain-notes/):
+Three things about this array matter a lot in practice, all covered in depth in [Toolchain Notes & Gotchas](/framework/architecture/toolchain-notes/):
 
-1. It only exists if the class has **at least one class decorator** — an undecorated class has no `design:paramtypes` at all, which is exactly why `@Injectable()` is required (see [Dependency Injection](/concepts/dependency-injection/)).
+1. It only exists if the class has **at least one class decorator** — an undecorated class has no `design:paramtypes` at all, which is exactly why `@Injectable()` is required (see [Dependency Injection](/framework/concepts/dependency-injection/)).
 2. A parameter typed with an interface, a union, or referencing a not-yet-declared class erases to the `Object` constructor — TypeScript can't put a runtime value for something that doesn't exist at runtime.
 3. A parameter typed `void` is the one case that erases to a literal `undefined` entry instead of `Object`.
 
@@ -78,5 +78,5 @@ Three things about this array matter a lot in practice, all covered in depth in 
 
 ## Next
 
-- How the container consumes all of this to build instances: [Dependency Injection](/concepts/dependency-injection/).
-- Every exported metadata helper: [`@blixis-io/di` reference](/reference/blixis-di/).
+- How the container consumes all of this to build instances: [Dependency Injection](/framework/concepts/dependency-injection/).
+- Every exported metadata helper: [`@blixis-io/di` reference](/framework/reference/blixis-di/).

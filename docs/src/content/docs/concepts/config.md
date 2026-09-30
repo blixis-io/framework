@@ -5,11 +5,11 @@ sidebar:
   order: 11
 ---
 
-`@blixis-io/config` turns `process.env` into a typed, validated object — reusing the exact same `DynamicModule`/`forRoot()` pattern [Modules](/concepts/modules/#dynamic-modules-the-forroot-pattern) already introduced for runtime configuration.
+`@blixis-io/config` turns `process.env` into a typed, validated object — reusing the exact same `DynamicModule`/`forRoot()` pattern [Modules](/framework/concepts/modules/#dynamic-modules-the-forroot-pattern) already introduced for runtime configuration.
 
 ## Why it's a factory, not a fixed token
 
-[`@blixis-io/logging`](/concepts/logging/) exports one `LOGGER` token because every app's `Logger` has the same shape. Config doesn't work that way — every app has its own env variables. So instead of a token, the package exports a **function** that builds one:
+[`@blixis-io/logging`](/framework/concepts/logging/) exports one `LOGGER` token because every app's `Logger` has the same shape. Config doesn't work that way — every app has its own env variables. So instead of a token, the package exports a **function** that builds one:
 
 ```ts
 import { defineConfigModule } from "@blixis-io/config";
@@ -50,7 +50,7 @@ const AppConfigSchema = z.object({
 });
 ```
 
-Every env var arrives as `string | undefined` — `z.coerce.number()`/`z.coerce.boolean()` convert it, `.default(...)` fills in what's missing, exactly like [validating a request body](/concepts/request-validation/) with the same library.
+Every env var arrives as `string | undefined` — `z.coerce.number()`/`z.coerce.boolean()` convert it, `.default(...)` fills in what's missing, exactly like [validating a request body](/framework/concepts/request-validation/) with the same library.
 
 ## Testing with a different source
 
@@ -62,5 +62,5 @@ Since `forRoot()` takes `source` as a plain argument, a test can pass its own ob
 
 ## Next
 
-- Every exported symbol: [`@blixis-io/config` reference](/reference/blixis-config/).
-- See it wired into a real app's `main.ts`: the [hello-api walkthrough](/examples/hello-api-walkthrough/).
+- Every exported symbol: [`@blixis-io/config` reference](/framework/reference/blixis-config/).
+- See it wired into a real app's `main.ts`: the [hello-api walkthrough](/framework/examples/hello-api-walkthrough/).

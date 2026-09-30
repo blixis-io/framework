@@ -5,7 +5,7 @@ sidebar:
   order: 4
 ---
 
-The [built-in exception classes](/concepts/error-handling/#named-exception-classes) cover the standard HTTP statuses. For a domain-specific error — a business rule violation that isn't naturally "not found" or "bad request" — subclass `HttpException` directly, the same way the built-ins do:
+The [built-in exception classes](/framework/concepts/error-handling/#named-exception-classes) cover the standard HTTP statuses. For a domain-specific error — a business rule violation that isn't naturally "not found" or "bad request" — subclass `HttpException` directly, the same way the built-ins do:
 
 ```ts title="src/posts/post-already-published.exception.ts"
 import { HttpException } from "@blixis-io/http";
@@ -69,4 +69,4 @@ export class PostAlreadyPublishedException extends DomainException {
 
 ## What you don't need to do
 
-You don't register exception classes anywhere, and you don't need a try/catch in the controller method itself — any `HttpException` thrown from a controller method or a guard is caught by the framework and turned into the matching response automatically. See [Error Handling](/concepts/error-handling/) for exactly how that mapping works, and why an error that *isn't* an `HttpException` becomes a generic `500` instead.
+You don't register exception classes anywhere, and you don't need a try/catch in the controller method itself — any `HttpException` thrown from a controller method or a guard is caught by the framework and turned into the matching response automatically. See [Error Handling](/framework/concepts/error-handling/) for exactly how that mapping works, and why an error that *isn't* an `HttpException` becomes a generic `500` instead.

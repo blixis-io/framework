@@ -45,7 +45,7 @@ This is the one thing that makes `@Returns` different from `@Body`/`@Query`/`@Pa
 }
 ```
 
-The real diagnostic — which field, what was expected — goes to the server log via the same path any other unexpected error does; see [Error Handling](/concepts/error-handling/) for why internal errors are always hidden from the client this way.
+The real diagnostic — which field, what was expected — goes to the server log via the same path any other unexpected error does; see [Error Handling](/framework/concepts/error-handling/) for why internal errors are always hidden from the client this way.
 
 ## What gets sent is the parsed value
 
@@ -64,11 +64,11 @@ weirdButFine() {
 
 ## Two escape hatches, unvalidated on purpose
 
-- **A route that returns `undefined`** (mapped to `204 No Content`) skips validation entirely, even with `@Returns` declared — there's no body to check, and `204` is already the established "nothing to validate" convention (see [Routing & Controllers](/concepts/routing-controllers/)).
-- **A route that returns a raw `Response`** also skips validation — returning a `Response` directly is already documented as a deliberate opt-out of the normal JSON pipeline (see the [Cookbook](/examples/cookbook/#returning-a-raw-response)), and a schema was never meant to describe it.
+- **A route that returns `undefined`** (mapped to `204 No Content`) skips validation entirely, even with `@Returns` declared — there's no body to check, and `204` is already the established "nothing to validate" convention (see [Routing & Controllers](/framework/concepts/routing-controllers/)).
+- **A route that returns a raw `Response`** also skips validation — returning a `Response` directly is already documented as a deliberate opt-out of the normal JSON pipeline (see the [Cookbook](/framework/examples/cookbook/#returning-a-raw-response)), and a schema was never meant to describe it.
 
 ## Next
 
-- Every exported symbol: [`@blixis-io/http` reference](/reference/blixis-http/#returns-response-validation).
-- The request-side equivalent: [Request Validation](/concepts/request-validation/).
-- See it applied to every route on a real controller: the [hello-api walkthrough](/examples/hello-api-walkthrough/).
+- Every exported symbol: [`@blixis-io/http` reference](/framework/reference/blixis-http/#returns-response-validation).
+- The request-side equivalent: [Request Validation](/framework/concepts/request-validation/).
+- See it applied to every route on a real controller: the [hello-api walkthrough](/framework/examples/hello-api-walkthrough/).

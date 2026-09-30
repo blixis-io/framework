@@ -5,7 +5,7 @@ sidebar:
   order: 13
 ---
 
-In-process domain event pub-sub. See [Events](/concepts/events/) for the concepts and why a transactional outbox was deferred.
+In-process domain event pub-sub. See [Events](/framework/concepts/events/) for the concepts and why a transactional outbox was deferred.
 
 ## `defineEventsModule`
 
@@ -20,7 +20,7 @@ interface EventsForRootOptions {
 }
 ```
 
-Same factory-closure shape as [`@blixis-io/config`'s `defineConfigModule`](/reference/blixis-config/), [`@blixis-io/auth`'s `defineAuthModule`](/reference/blixis-auth/), and [`@blixis-io/tenancy`'s `defineTenancyModule`](/reference/blixis-tenancy/) — call it once per app (typically in its own `events.ts`), export the result. `Events` is your app's own event-name-to-payload map, declared with `type`, not `interface` — an `interface` doesn't satisfy the `Record<string, unknown>` constraint. Each call to `defineEventsModule()` produces its own distinct `EVENT_BUS` token.
+Same factory-closure shape as [`@blixis-io/config`'s `defineConfigModule`](/framework/reference/blixis-config/), [`@blixis-io/auth`'s `defineAuthModule`](/framework/reference/blixis-auth/), and [`@blixis-io/tenancy`'s `defineTenancyModule`](/framework/reference/blixis-tenancy/) — call it once per app (typically in its own `events.ts`), export the result. `Events` is your app's own event-name-to-payload map, declared with `type`, not `interface` — an `interface` doesn't satisfy the `Record<string, unknown>` constraint. Each call to `defineEventsModule()` produces its own distinct `EVENT_BUS` token.
 
 ## `EventBus<Events>`
 
@@ -39,7 +39,7 @@ Resolve it via `@Inject(EVENT_BUS)`, typed as `EventBus<AppEvents>`.
 
 Runs every handler registered for `type` concurrently. Resolves once all of them have settled, whether they succeeded or threw — `emit()` itself never rejects. A handler with no listeners resolves immediately as a no-op. Each handler's own failure is caught individually and logged (`console.error`) without affecting sibling handlers or the caller.
 
-No persistence, no delivery guarantee across a process crash, no cross-process delivery — see [Events](/concepts/events/#what-emit-actually-does--and-doesnt) for what this does and doesn't guarantee.
+No persistence, no delivery guarantee across a process crash, no cross-process delivery — see [Events](/framework/concepts/events/#what-emit-actually-does--and-doesnt) for what this does and doesn't guarantee.
 
 ### `on(type, handler)`
 

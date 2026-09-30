@@ -5,7 +5,7 @@ sidebar:
   order: 1
 ---
 
-The dependency injection container: `Container`, decorators, tokens, providers, and the errors the container can throw. See [Dependency Injection](/concepts/dependency-injection/) for the concepts; this page is the exhaustive signature-level reference.
+The dependency injection container: `Container`, decorators, tokens, providers, and the errors the container can throw. See [Dependency Injection](/framework/concepts/dependency-injection/) for the concepts; this page is the exhaustive signature-level reference.
 
 ## Container
 
@@ -22,7 +22,7 @@ class Container {
 ```
 
 - **`register(provider)`** — registers a provider (see [Provider shapes](#provider-shapes) below). Throws `DuplicateProviderError` if the resulting token is already registered.
-- **`resolve(token)`** — resolves a token, building its full dependency graph as needed. Async because factories may be async and because building deep graphs takes real awaits. Singleton instances are cached and memoized against concurrent resolution — see [Dependency Injection](/concepts/dependency-injection/#singletons-are-memoized-against-concurrent-resolution).
+- **`resolve(token)`** — resolves a token, building its full dependency graph as needed. Async because factories may be async and because building deep graphs takes real awaits. Singleton instances are cached and memoized against concurrent resolution — see [Dependency Injection](/framework/concepts/dependency-injection/#singletons-are-memoized-against-concurrent-resolution).
 - **`get(token)`** — synchronous lookup of an *already-resolved* singleton. Throws `ProviderNotResolvedError` if `resolve()` hasn't been called for that token yet (or if it's a transient provider, which is never cached).
 - **`getResolvedEntries()`** — every resolved singleton, `[token, instance]` pairs, in the order they finished constructing (dependencies before dependents). This is what `@blixis-io/core` uses to run lifecycle hooks in the correct order. Transient instances never appear here.
 - **`resolveAll()`** — resolves every registered provider. Safe to run concurrently across providers that share dependencies (see the memoization note above).
@@ -39,7 +39,7 @@ interface DependencyDescriptor {
 }
 ```
 
-Computes what a class's constructor parameters resolve to — the same reflection `Container` uses internally to build instances — without instantiating anything. Throws the same `NotInjectableError`/`UnresolvableParameterError` a real resolution would. `@blixis-io/core` uses this to validate module `exports`/encapsulation (see [Modules](/concepts/modules/#encapsulation-exports-and-global)) before anything resolves; it's exported for any other tooling that needs to inspect a dependency graph statically.
+Computes what a class's constructor parameters resolve to — the same reflection `Container` uses internally to build instances — without instantiating anything. Throws the same `NotInjectableError`/`UnresolvableParameterError` a real resolution would. `@blixis-io/core` uses this to validate module `exports`/encapsulation (see [Modules](/framework/concepts/modules/#encapsulation-exports-and-global)) before anything resolves; it's exported for any other tooling that needs to inspect a dependency graph statically.
 
 ## Decorators
 
@@ -49,7 +49,7 @@ Computes what a class's constructor parameters resolve to — the same reflectio
 function Injectable(options?: { scope?: "singleton" | "transient" }): ClassDecorator;
 ```
 
-Marks a class as constructible by the container and required for TypeScript to emit its constructor's parameter types at all — see [Decorators & Metadata](/concepts/decorators-and-metadata/). Defaults to `scope: "singleton"`.
+Marks a class as constructible by the container and required for TypeScript to emit its constructor's parameter types at all — see [Decorators & Metadata](/framework/concepts/decorators-and-metadata/). Defaults to `scope: "singleton"`.
 
 ### `Inject(token)`
 
@@ -106,7 +106,7 @@ type Class<T = unknown> = new (...args: never[]) => T;
 type AbstractClass<T = unknown> = abstract new (...args: never[]) => T;
 ```
 
-`Class` is used for `useClass`/bare-class providers (must be concrete — you can't `new` an abstract class). `AbstractClass` extends what counts as a valid `Token`, for the Angular-style "provide an interface" pattern (see [Dependency Injection](/concepts/dependency-injection/#tokens-injecting-something-that-isnt-a-class)).
+`Class` is used for `useClass`/bare-class providers (must be concrete — you can't `new` an abstract class). `AbstractClass` extends what counts as a valid `Token`, for the Angular-style "provide an interface" pattern (see [Dependency Injection](/framework/concepts/dependency-injection/#tokens-injecting-something-that-isnt-a-class)).
 
 ### `tokenName(token)`
 
@@ -157,7 +157,7 @@ function unwrapForwardRef<T>(ref: TokenRef<T>): Token<T>;
 type TokenRef<T> = Token<T> | ForwardRef<T>;
 ```
 
-Defers resolving a token reference until it's actually needed — see [Dependency Injection](/concepts/dependency-injection/#forwardref-for-circular-references) for why this is necessary for genuinely circular class references, and the important caveat about typing the parameter `unknown` rather than the forward-referenced class itself.
+Defers resolving a token reference until it's actually needed — see [Dependency Injection](/framework/concepts/dependency-injection/#forwardref-for-circular-references) for why this is necessary for genuinely circular class references, and the important caveat about typing the parameter `unknown` rather than the forward-referenced class itself.
 
 ## Errors
 
@@ -189,11 +189,11 @@ class DuplicateProviderError extends DiError {}
 // "A provider for {tokenName} is already registered."
 ```
 
-Every message is designed to name the exact problem and the exact fix — see [Dependency Injection](/concepts/dependency-injection/) for when each one fires in practice.
+Every message is designed to name the exact problem and the exact fix — see [Dependency Injection](/framework/concepts/dependency-injection/) for when each one fires in practice.
 
 ## Metadata helpers
 
-Low-level `Reflect.metadata` wrappers, used internally and by `@blixis-io/core`/`@blixis-io/http` to build their own decorators on the same foundation — see [Decorators & Metadata](/concepts/decorators-and-metadata/).
+Low-level `Reflect.metadata` wrappers, used internally and by `@blixis-io/core`/`@blixis-io/http` to build their own decorators on the same foundation — see [Decorators & Metadata](/framework/concepts/decorators-and-metadata/).
 
 ```ts
 function defineMetadata(key: MetadataKey, value: unknown, target: object, propertyKey?: MetadataKey): void;

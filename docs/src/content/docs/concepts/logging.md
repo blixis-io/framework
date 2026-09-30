@@ -22,7 +22,7 @@ const logger = createLogger({
 });
 ```
 
-Right now only `consoleTransport` ships — see the [reference](/reference/blixis-logging/#consoletransport) — but the `Transport` interface is the whole extension point: a Sentry/Slack/Logstash transport is just another object implementing `log(record)`.
+Right now only `consoleTransport` ships — see the [reference](/framework/reference/blixis-logging/#consoletransport) — but the `Transport` interface is the whole extension point: a Sentry/Slack/Logstash transport is just another object implementing `log(record)`.
 
 ## Levels
 
@@ -72,7 +72,7 @@ class PostsService {
 class AppModule {}
 ```
 
-`LOGGER` is a plain `InjectionToken<Logger>`; `LoggerModule.forRoot(options)` is the standard `DynamicModule`/`forRoot()` pattern (see [Modules](/concepts/modules/#dynamic-modules-the-forroot-pattern)) that provides one `Logger` under that token for the whole app to `@Inject`.
+`LOGGER` is a plain `InjectionToken<Logger>`; `LoggerModule.forRoot(options)` is the standard `DynamicModule`/`forRoot()` pattern (see [Modules](/framework/concepts/modules/#dynamic-modules-the-forroot-pattern)) that provides one `Logger` under that token for the whole app to `@Inject`.
 
 ## What's out of scope for now
 
@@ -80,5 +80,5 @@ class AppModule {}
 
 ## Next
 
-- Every exported symbol with full signatures: [`@blixis-io/logging` reference](/reference/blixis-logging/).
-- See it wired into a real app: the [hello-api walkthrough](/examples/hello-api-walkthrough/).
+- Every exported symbol with full signatures: [`@blixis-io/logging` reference](/framework/reference/blixis-logging/).
+- See it wired into a real app: the [hello-api walkthrough](/framework/examples/hello-api-walkthrough/).

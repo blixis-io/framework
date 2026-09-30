@@ -43,7 +43,7 @@ class EntriesController {
 }
 ```
 
-Same guard-ordering rule already established for [`@blixis-io/auth`](/concepts/authentication/): the auth guard runs first (populates the actor), tenancy runs second (needs that actor to check membership) — both in the same `@UseGuards(...)` list.
+Same guard-ordering rule already established for [`@blixis-io/auth`](/framework/concepts/authentication/): the auth guard runs first (populates the actor), tenancy runs second (needs that actor to check membership) — both in the same `@UseGuards(...)` list.
 
 ## Fail-closed rules — adopted deliberately, not incidental
 
@@ -83,10 +83,10 @@ assertSameTenant(post.spaceId, tenant); // throws NotFoundException on mismatch 
 
 ## Testing cross-tenant isolation
 
-This package doesn't ship a test harness — it needs real tenant-scoped routes to test against, which don't exist until you've built some. The recipe, once you have: seed two organizations/spaces with distinct data, then replay every tenant-scoped route as a member of the *other* organization and assert every one returns `404`/`403` with the victim's data unchanged. Build it with [`@blixis-io/testing`](/concepts/testing/)'s `Test.createModule().compile()` — a real application, real requests, no mocking the guard itself. Worth doing as soon as you have two or three real routes, not deferred until many exist.
+This package doesn't ship a test harness — it needs real tenant-scoped routes to test against, which don't exist until you've built some. The recipe, once you have: seed two organizations/spaces with distinct data, then replay every tenant-scoped route as a member of the *other* organization and assert every one returns `404`/`403` with the victim's data unchanged. Build it with [`@blixis-io/testing`](/framework/concepts/testing/)'s `Test.createModule().compile()` — a real application, real requests, no mocking the guard itself. Worth doing as soon as you have two or three real routes, not deferred until many exist.
 
 ## Next
 
-- Every exported symbol: [`@blixis-io/tenancy` reference](/reference/blixis-tenancy/).
-- The guard primitive this builds on: [Guards & Authorization](/concepts/guards-and-authorization/).
-- Where the resolved tenant lives between guards and handlers: [Request Context](/concepts/request-context/).
+- Every exported symbol: [`@blixis-io/tenancy` reference](/framework/reference/blixis-tenancy/).
+- The guard primitive this builds on: [Guards & Authorization](/framework/concepts/guards-and-authorization/).
+- Where the resolved tenant lives between guards and handlers: [Request Context](/framework/concepts/request-context/).

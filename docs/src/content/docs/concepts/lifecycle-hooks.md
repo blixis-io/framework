@@ -54,5 +54,5 @@ process.on("SIGTERM", () => {
 
 ## Next
 
-- How `app.close()` also has to tear down a listening socket, and stays idempotent there too: [Running in Production](/guides/running-in-production/).
-- The provider graph these hooks walk: [Modules](/concepts/modules/).
+- How `app.close()` also has to tear down a listening socket, and stays idempotent there too: [Running in Production](/framework/guides/running-in-production/).
+- The provider graph these hooks walk: [Modules](/framework/concepts/modules/).

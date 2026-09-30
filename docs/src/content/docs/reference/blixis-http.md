@@ -5,7 +5,7 @@ sidebar:
   order: 3
 ---
 
-Routing, controller/param/guard decorators, Zod-backed validation, RFC 9457 errors, and the Node adapter. See [Routing & Controllers](/concepts/routing-controllers/), [Request Validation](/concepts/request-validation/), [Guards & Authorization](/concepts/guards-and-authorization/), and [Error Handling](/concepts/error-handling/) for the concepts.
+Routing, controller/param/guard decorators, Zod-backed validation, RFC 9457 errors, and the Node adapter. See [Routing & Controllers](/framework/concepts/routing-controllers/), [Request Validation](/framework/concepts/request-validation/), [Guards & Authorization](/framework/concepts/guards-and-authorization/), and [Error Handling](/framework/concepts/error-handling/) for the concepts.
 
 ## Application
 
@@ -29,7 +29,7 @@ interface ListenHandle {
 }
 ```
 
-Wraps `@blixis-io/core`'s `createApplication`, builds the router from `app.controllers`, and adds the HTTP-specific surface. `handle()` runs a request in-process, no socket — what `@blixis-io/testing` is built on. `listen()` binds a real `node:http` server. `close()` tears down both the socket (if listening) and the underlying `Application` (running `OnApplicationShutdown` hooks); **idempotent**, safe to call more than once. See [Running in Production](/guides/running-in-production/). `controllers` exposes every controller class in the app's module graph — what [`@blixis-io/openapi`](/reference/blixis-openapi/) walks to build a document that stays in sync with the real running app, without a separately-maintained route list.
+Wraps `@blixis-io/core`'s `createApplication`, builds the router from `app.controllers`, and adds the HTTP-specific surface. `handle()` runs a request in-process, no socket — what `@blixis-io/testing` is built on. `listen()` binds a real `node:http` server. `close()` tears down both the socket (if listening) and the underlying `Application` (running `OnApplicationShutdown` hooks); **idempotent**, safe to call more than once. See [Running in Production](/framework/guides/running-in-production/). `controllers` exposes every controller class in the app's module graph — what [`@blixis-io/openapi`](/framework/reference/blixis-openapi/) walks to build a document that stays in sync with the real running app, without a separately-maintained route list.
 
 ### `createHandler` / `buildRouter`
 
@@ -82,7 +82,7 @@ class ResponseValidationError extends Error {
 function validateResponse(schema: ZodType | undefined, value: unknown): Promise<unknown>;
 ```
 
-Validates a handler's return value against `schema` before serialization; the parsed/coerced value is what's actually sent. A mismatch throws `ResponseValidationError` (not an `HttpException`), which surfaces to the client as a generic `500` — never the schema issues themselves, since a response mismatch is a server bug, not client input. Skipped entirely for a route returning `undefined` (204) or a raw `Response`. See [Response Validation](/concepts/response-validation/).
+Validates a handler's return value against `schema` before serialization; the parsed/coerced value is what's actually sent. A mismatch throws `ResponseValidationError` (not an `HttpException`), which surfaces to the client as a generic `500` — never the schema issues themselves, since a response mismatch is a server bug, not client input. Skipped entirely for a route returning `undefined` (204) or a raw `Response`. See [Response Validation](/framework/concepts/response-validation/).
 
 ## API documentation metadata
 
@@ -100,7 +100,7 @@ function getClassApiTags(target: object): string[];
 function getMethodApiTags(target: object, propertyKey: string | symbol): string[];
 ```
 
-Both entirely optional — [`@blixis-io/openapi`](/reference/blixis-openapi/) derives a working document (with a valid, unique `operationId`) even without them. `ApiTags` works like `UseGuards`/`UseInterceptors` — class position or method position — except class-level and method-level tags **concatenate** rather than one replacing the other. See [API Documentation](/concepts/api-documentation/).
+Both entirely optional — [`@blixis-io/openapi`](/framework/reference/blixis-openapi/) derives a working document (with a valid, unique `operationId`) even without them. `ApiTags` works like `UseGuards`/`UseInterceptors` — class position or method position — except class-level and method-level tags **concatenate** rather than one replacing the other. See [API Documentation](/framework/concepts/api-documentation/).
 
 ## Param decorators
 
@@ -121,7 +121,7 @@ type ParamSource =
   | { kind: "req" };
 ```
 
-Every schema is optional; without one you get the raw value (parsed JSON body, parsed query object, raw route-param string, header value/object). See [Request Validation](/concepts/request-validation/).
+Every schema is optional; without one you get the raw value (parsed JSON body, parsed query object, raw route-param string, header value/object). See [Request Validation](/framework/concepts/request-validation/).
 
 ### Runtime resolution
 
@@ -154,7 +154,7 @@ function getClassGuards(target: object): Class<CanActivate>[];
 function getMethodGuards(target: object, propertyKey: string | symbol): Class<CanActivate>[];
 ```
 
-`UseGuards` works at the class position (every route) or the method position (one route); class-level guards run first. Guard classes must be registered providers — see [Guards & Authorization](/concepts/guards-and-authorization/#guard-classes-must-be-registered-providers).
+`UseGuards` works at the class position (every route) or the method position (one route); class-level guards run first. Guard classes must be registered providers — see [Guards & Authorization](/framework/concepts/guards-and-authorization/#guard-classes-must-be-registered-providers).
 
 ## Interceptors
 
@@ -168,7 +168,7 @@ function getClassInterceptors(target: object): Class<Interceptor>[];
 function getMethodInterceptors(target: object, propertyKey: string | symbol): Class<Interceptor>[];
 ```
 
-Wraps param resolution + handler invocation in an onion chain, running after guards. `UseInterceptors` works at the class position (outermost) or the method position (innermost); an interceptor class must be a registered provider, same rule as guards. See [Interceptors](/concepts/interceptors/).
+Wraps param resolution + handler invocation in an onion chain, running after guards. `UseInterceptors` works at the class position (outermost) or the method position (innermost); an interceptor class must be a registered provider, same rule as guards. See [Interceptors](/framework/concepts/interceptors/).
 
 ## RequestContext
 
@@ -184,7 +184,7 @@ class RequestContextError extends Error {}
 function runInRequestContext<T>(fn: () => T): T;
 ```
 
-Injectable anywhere without registering it — `createHttpApplication` provides it globally. `runInRequestContext` is what `createHandler` wraps around each request; you only call it yourself if you're building a request-handling pipeline outside `createHandler`. See [Request Context](/concepts/request-context/).
+Injectable anywhere without registering it — `createHttpApplication` provides it globally. `runInRequestContext` is what `createHandler` wraps around each request; you only call it yourself if you're building a request-handling pipeline outside `createHandler`. See [Request Context](/framework/concepts/request-context/).
 
 ## Router
 
@@ -201,7 +201,7 @@ interface RouteNotFound { kind: "not-found" }
 interface RouteMethodNotAllowed { kind: "method-not-allowed"; allowed: HttpMethod[] }
 ```
 
-The trie router itself, generic over an opaque handler type — `@blixis-io/http` plugs in its own route-entry type internally; you could build a different framework on top of just this. See [Routing & Controllers](/concepts/routing-controllers/#how-a-request-is-matched) for the static/param/wildcard precedence rules.
+The trie router itself, generic over an opaque handler type — `@blixis-io/http` plugs in its own route-entry type internally; you could build a different framework on top of just this. See [Routing & Controllers](/framework/concepts/routing-controllers/#how-a-request-is-matched) for the static/param/wildcard precedence rules.
 
 ## Exceptions
 
@@ -222,7 +222,7 @@ class PayloadTooLargeException extends HttpException {}        // 413, "Payload 
 class UnsupportedMediaTypeException extends HttpException {}   // 415, "Unsupported Media Type"
 ```
 
-Every named subclass's `detail` (and, for `BadRequestException` only, `extra`) is overridable via its constructor argument. See [Error Handling](/concepts/error-handling/) for the full response shape and which of these fire automatically.
+Every named subclass's `detail` (and, for `BadRequestException` only, `extra`) is overridable via its constructor argument. See [Error Handling](/framework/concepts/error-handling/) for the full response shape and which of these fire automatically.
 
 ## Node adapter
 

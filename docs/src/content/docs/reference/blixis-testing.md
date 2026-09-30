@@ -5,7 +5,7 @@ sidebar:
   order: 4
 ---
 
-Build a real application in a test, optionally with fakes swapped in, and hit it with real requests. See [Testing](/concepts/testing/) for the concepts.
+Build a real application in a test, optionally with fakes swapped in, and hit it with real requests. See [Testing](/framework/concepts/testing/) for the concepts.
 
 ## `Test.createModule(metadata).compile(options?)`
 
@@ -26,7 +26,7 @@ type OverrideDefinition<T> =
   | Omit<ExistingProvider<T>, "provide">;
 ```
 
-`createModule(metadata)` takes the same shape as `@Module({...})` (`imports`/`providers`/`controllers` — see [`@blixis-io/core` reference](/reference/blixis-core/#module)) and wraps it in a synthetic root module internally. `.override(token, definition)` is chainable and queues a provider replacement, applied before the module graph resolves — `definition` is any provider shape minus `provide` (see [`@blixis-io/di` reference](/reference/blixis-di/#provider-shapes)). `.compile(options?)` builds the real `HttpApplication` (accepting the same `bodyLimit` option as `createHttpApplication` — see [`@blixis-io/http` reference](/reference/blixis-http/#application) — but not `overrides`, since that's what `.override()` is for) and returns a `TestApplication`.
+`createModule(metadata)` takes the same shape as `@Module({...})` (`imports`/`providers`/`controllers` — see [`@blixis-io/core` reference](/framework/reference/blixis-core/#module)) and wraps it in a synthetic root module internally. `.override(token, definition)` is chainable and queues a provider replacement, applied before the module graph resolves — `definition` is any provider shape minus `provide` (see [`@blixis-io/di` reference](/framework/reference/blixis-di/#provider-shapes)). `.compile(options?)` builds the real `HttpApplication` (accepting the same `bodyLimit` option as `createHttpApplication` — see [`@blixis-io/http` reference](/framework/reference/blixis-http/#application) — but not `overrides`, since that's what `.override()` is for) and returns a `TestApplication`.
 
 ## `TestApplication`
 
@@ -44,6 +44,6 @@ interface TestRequestInit extends Omit<RequestInit, "body"> {
 }
 ```
 
-Thin sugar over a real `HttpApplication` (see [`@blixis-io/http` reference](/reference/blixis-http/#application)) — `request()` resolves `path` against `http://localhost` and builds the `Request` for you, so `app.request("/posts")` works without constructing a `URL` by hand. `get()` and `close()` pass straight through to the underlying `HttpApplication`.
+Thin sugar over a real `HttpApplication` (see [`@blixis-io/http` reference](/framework/reference/blixis-http/#application)) — `request()` resolves `path` against `http://localhost` and builds the `Request` for you, so `app.request("/posts")` works without constructing a `URL` by hand. `get()` and `close()` pass straight through to the underlying `HttpApplication`.
 
 `TestApplication`'s constructor is public — you can wrap an `HttpApplication` you built another way (say, one from `createHttpApplication` directly) to get the `request()` helper without going through `Test.createModule()` at all.

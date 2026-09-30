@@ -5,7 +5,7 @@ sidebar:
   order: 4
 ---
 
-This continues the blog API from [Build Your First API](/tutorials/build-your-first-api/) and [Add Authentication](/tutorials/add-authentication/). We'll add logging, input normalization, and timing to `PostsService.create()` — without changing a single line inside it. Read [Method Hooks](/concepts/method-hooks/) alongside this if the stacking order isn't clear from the example alone.
+This continues the blog API from [Build Your First API](/framework/tutorials/build-your-first-api/) and [Add Authentication](/framework/tutorials/add-authentication/). We'll add logging, input normalization, and timing to `PostsService.create()` — without changing a single line inside it. Read [Method Hooks](/framework/concepts/method-hooks/) alongside this if the stacking order isn't clear from the example alone.
 
 ## 1. Add the dependency
 
@@ -112,7 +112,7 @@ post created: 1
 
 The first line logs the **untrimmed** title — `@Before`'s hook receives the original arguments and only replaces them for the call it makes *after* logging. The response body's title is `"hello world"` (trimmed), since that's what `create` itself actually received.
 
-Matches [Method Hooks#stacking-order](/concepts/method-hooks/#stacking-order): `@Before` (topmost) runs first; `@Around` (bottommost, closest to `create`) wraps the actual call, so its own pre/post logic sits right against the real work; `@After` runs last, once everything inward has returned.
+Matches [Method Hooks#stacking-order](/framework/concepts/method-hooks/#stacking-order): `@Before` (topmost) runs first; `@Around` (bottommost, closest to `create`) wraps the actual call, so its own pre/post logic sits right against the real work; `@After` runs last, once everything inward has returned.
 
 ## 6. Test the call order directly
 
@@ -134,9 +134,9 @@ describe("PostsService.create hooks", () => {
 });
 ```
 
-No mocking of `@blixis-io/method-hooks` itself — this is the real `PostsService`, decorated exactly as it runs in production, asserting on real console output. Same "test the real thing" approach as [Test-Driven API Development](/tutorials/test-driven-api-development/).
+No mocking of `@blixis-io/method-hooks` itself — this is the real `PostsService`, decorated exactly as it runs in production, asserting on real console output. Same "test the real thing" approach as [Test-Driven API Development](/framework/tutorials/test-driven-api-development/).
 
 ## Next
 
-- The exact stacking-order rule these three decorators follow when combined: [Method Hooks](/concepts/method-hooks/).
-- Every exported symbol: [`@blixis-io/method-hooks` reference](/reference/blixis-method-hooks/).
+- The exact stacking-order rule these three decorators follow when combined: [Method Hooks](/framework/concepts/method-hooks/).
+- Every exported symbol: [`@blixis-io/method-hooks` reference](/framework/reference/blixis-method-hooks/).

@@ -31,7 +31,7 @@ process.on("SIGTERM", () => {
 });
 ```
 
-`app.close(signal?)` closes the listening socket *and* runs every `OnApplicationShutdown` hook in the application (see [Lifecycle Hooks](/concepts/lifecycle-hooks/)) — the string you pass through is handed to each hook as-is, so a database connection's shutdown hook can log or branch on which signal triggered it. `close()` is idempotent: calling it more than once (a signal handler *and* a test's cleanup both running it, say) is safe — the second call is a no-op, not a duplicate teardown.
+`app.close(signal?)` closes the listening socket *and* runs every `OnApplicationShutdown` hook in the application (see [Lifecycle Hooks](/framework/concepts/lifecycle-hooks/)) — the string you pass through is handed to each hook as-is, so a database connection's shutdown hook can log or branch on which signal triggered it. `close()` is idempotent: calling it more than once (a signal handler *and* a test's cleanup both running it, say) is safe — the second call is a no-op, not a duplicate teardown.
 
 ## Client disconnects propagate as a real `AbortSignal`
 
@@ -47,8 +47,8 @@ async generateReport(@Req() req: Request) {
 
 ## In-process, without a socket at all
 
-`app.handle(request)` runs the exact same request-handling logic — routing, validation, guards, error mapping — against an in-memory `Request`, with no server, no port, no network stack. This is what `@blixis-io/testing` is built on (see [Testing](/concepts/testing/)), and it's also a reasonable way to invoke the same application logic from a non-HTTP entry point (a CLI command, a queue worker) without spinning up a socket you don't need.
+`app.handle(request)` runs the exact same request-handling logic — routing, validation, guards, error mapping — against an in-memory `Request`, with no server, no port, no network stack. This is what `@blixis-io/testing` is built on (see [Testing](/framework/concepts/testing/)), and it's also a reasonable way to invoke the same application logic from a non-HTTP entry point (a CLI command, a queue worker) without spinning up a socket you don't need.
 
 ## What isn't handled for you yet
 
-There's no built-in request logging, rate limiting, CORS, or compression middleware — the framework's HTTP layer is deliberately just routing + validation + guards + error mapping (see [Introduction](/start-here/introduction/)). For now, that means wrapping `app.handle` yourself (a function that calls `app.handle(request)` and does something before/after) or reaching for `node:http`-level middleware ahead of the `createServer` callback if you need it. A first-class middleware/interceptor layer is on the framework's roadmap but doesn't exist yet.
+There's no built-in request logging, rate limiting, CORS, or compression middleware — the framework's HTTP layer is deliberately just routing + validation + guards + error mapping (see [Introduction](/framework/start-here/introduction/)). For now, that means wrapping `app.handle` yourself (a function that calls `app.handle(request)` and does something before/after) or reaching for `node:http`-level middleware ahead of the `createServer` callback if you need it. A first-class middleware/interceptor layer is on the framework's roadmap but doesn't exist yet.

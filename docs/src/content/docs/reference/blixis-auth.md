@@ -5,7 +5,7 @@ sidebar:
   order: 8
 ---
 
-JWT verification and role-based access control, wired up the same `forRoot()` way as every other `DynamicModule` in this framework. See [Authentication](/concepts/authentication/) for the concepts.
+JWT verification and role-based access control, wired up the same `forRoot()` way as every other `DynamicModule` in this framework. See [Authentication](/framework/concepts/authentication/) for the concepts.
 
 ## `defineAuthModule`
 
@@ -113,7 +113,7 @@ class PostsService {
 
 ## Issuing tokens
 
-See [Authentication § Issuing tokens](/concepts/authentication/#issuing-tokens) for the concepts, the fail-closed rules, and what's deliberately deferred (most importantly: **sign-in is unthrottled** — rate limiting is not built in).
+See [Authentication § Issuing tokens](/framework/concepts/authentication/#issuing-tokens) for the concepts, the fail-closed rules, and what's deliberately deferred (most importantly: **sign-in is unthrottled** — rate limiting is not built in).
 
 ### `IssuingOptions<Claims>`
 

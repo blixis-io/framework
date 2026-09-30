@@ -5,7 +5,7 @@ sidebar:
   order: 2
 ---
 
-See [Request Validation](/concepts/request-validation/) for the full behavior; this is the pattern to actually reach for.
+See [Request Validation](/framework/concepts/request-validation/) for the full behavior; this is the pattern to actually reach for.
 
 ## 1. Define the schema and its type together
 
@@ -81,4 +81,4 @@ get(@Param("id", z.uuid()) id: string) { /* ... */ }
 
 ## What a validation failure looks like
 
-A `400` with the Zod issues attached — see [Error Handling](/concepts/error-handling/#what-happens-automatically) for the exact response shape.
+A `400` with the Zod issues attached — see [Error Handling](/framework/concepts/error-handling/#what-happens-automatically) for the exact response shape.

@@ -5,7 +5,7 @@ sidebar:
   order: 1
 ---
 
-This is the shortest path from nothing to a working route. For the concepts behind each step, see [Routing & Controllers](/concepts/routing-controllers/).
+This is the shortest path from nothing to a working route. For the concepts behind each step, see [Routing & Controllers](/framework/concepts/routing-controllers/).
 
 ## 1. Write the controller
 
@@ -21,7 +21,7 @@ export class HealthController {
 }
 ```
 
-A controller with no constructor dependencies doesn't even need `@Injectable()` — the container only reflects constructor parameters when there are any (see [Dependency Injection](/concepts/dependency-injection/)). Once this controller needs a service, add one:
+A controller with no constructor dependencies doesn't even need `@Injectable()` — the container only reflects constructor parameters when there are any (see [Dependency Injection](/framework/concepts/dependency-injection/)). Once this controller needs a service, add one:
 
 ```ts title="src/health/health.controller.ts"
 import { Controller, Get } from "@blixis-io/http";
@@ -73,4 +73,4 @@ getOne(@Param("id") id: string) { /* ... */ }
 create(@Body(CreateSchema) input: CreateInput) { /* ... */ }
 ```
 
-See [Request Validation](/concepts/request-validation/) for `@Body`/`@Query`/`@Param`/`@Headers`, and [Protecting Routes with Guards](/guides/protecting-routes-with-guards/) to add auth.
+See [Request Validation](/framework/concepts/request-validation/) for `@Body`/`@Query`/`@Param`/`@Headers`, and [Protecting Routes with Guards](/framework/guides/protecting-routes-with-guards/) to add auth.

@@ -81,7 +81,7 @@ An interface, a union type, or a circular import all erase to `Object` at runtim
 Parameter #0 of UserService is Object — add @Inject(token) or import the class as a value.
 ```
 
-The one other case worth knowing: a parameter typed `void` reflects as a literal `undefined`, not `Object` — same fix, different message (`... is undefined — ...`). See [Toolchain Notes & Gotchas](/architecture/toolchain-notes/) for why.
+The one other case worth knowing: a parameter typed `void` reflects as a literal `undefined`, not `Object` — same fix, different message (`... is undefined — ...`). See [Toolchain Notes & Gotchas](/framework/architecture/toolchain-notes/) for why.
 
 ## Tokens: injecting something that isn't a class
 
@@ -197,6 +197,6 @@ If two branches of the same resolve call need the same singleton dependency — 
 
 ## Next
 
-- How `@Injectable`/`@Inject` actually store and read their metadata: [Decorators & Metadata](/concepts/decorators-and-metadata/).
-- Grouping providers into modules and wiring up a whole app: [Modules](/concepts/modules/).
-- Every exported symbol with full signatures: [`@blixis-io/di` reference](/reference/blixis-di/).
+- How `@Injectable`/`@Inject` actually store and read their metadata: [Decorators & Metadata](/framework/concepts/decorators-and-metadata/).
+- Grouping providers into modules and wiring up a whole app: [Modules](/framework/concepts/modules/).
+- Every exported symbol with full signatures: [`@blixis-io/di` reference](/framework/reference/blixis-di/).

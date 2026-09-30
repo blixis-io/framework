@@ -5,7 +5,7 @@ sidebar:
   order: 6
 ---
 
-Zod-validated environment configuration, wired up the same `forRoot()` way as every other `DynamicModule` in this framework. See [Configuration](/concepts/config/) for the concepts.
+Zod-validated environment configuration, wired up the same `forRoot()` way as every other `DynamicModule` in this framework. See [Configuration](/framework/concepts/config/) for the concepts.
 
 ## `defineConfigModule`
 

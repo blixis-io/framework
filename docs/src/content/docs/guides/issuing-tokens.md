@@ -5,7 +5,7 @@ sidebar:
   order: 11
 ---
 
-`@blixis-io/auth`'s `issuing` option needs two small stores. This walks through a real [Drizzle](https://orm.drizzle.team) implementation on top of [`@blixis-io/db`](/concepts/database/) — the same pattern works with any database, `@blixis-io/auth` never depends on Drizzle itself. See [Authentication § Issuing tokens](/concepts/authentication/#issuing-tokens) for the concepts and fail-closed rules this builds on.
+`@blixis-io/auth`'s `issuing` option needs two small stores. This walks through a real [Drizzle](https://orm.drizzle.team) implementation on top of [`@blixis-io/db`](/framework/concepts/database/) — the same pattern works with any database, `@blixis-io/auth` never depends on Drizzle itself. See [Authentication § Issuing tokens](/framework/concepts/authentication/#issuing-tokens) for the concepts and fail-closed rules this builds on.
 
 ## 1. The schema
 
@@ -43,7 +43,7 @@ export const { DATABASE, DrizzleModule } = defineDrizzleModule(schema);
 export type Database = NodePgDatabase<typeof schema>;
 ```
 
-Same `defineDrizzleModule` factory as [Database](/concepts/database/) — nothing issuing-specific here yet.
+Same `defineDrizzleModule` factory as [Database](/framework/concepts/database/) — nothing issuing-specific here yet.
 
 ## 2. The stores
 
@@ -216,4 +216,4 @@ export class AuthController {
 
 ## Before this goes to production
 
-**Rate-limit `sign-in`.** Nothing above throttles repeated attempts — that's explicitly out of scope for this pass, see [Authentication § What this deliberately doesn't do yet](/concepts/authentication/#what-this-deliberately-doesnt-do-yet). Add it at a proxy or with an interceptor before shipping this for real.
+**Rate-limit `sign-in`.** Nothing above throttles repeated attempts — that's explicitly out of scope for this pass, see [Authentication § What this deliberately doesn't do yet](/framework/concepts/authentication/#what-this-deliberately-doesnt-do-yet). Add it at a proxy or with an interceptor before shipping this for real.
