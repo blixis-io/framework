@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { Router } from "./router.js";
+import { DuplicateRouteError, Router } from "./router.js";
 
 describe("Router: static routes", () => {
   it("matches an exact static path", () => {
@@ -118,6 +118,14 @@ describe("Router: method handling", () => {
 
     expect(result.kind).toBe("method-not-allowed");
     expect(result.kind === "method-not-allowed" && result.allowed.toSorted()).toEqual(["GET", "POST"]);
+  });
+
+  it("throws DuplicateRouteError when the same method+path is registered twice, instead of silently replacing the handler", () => {
+    const router = new Router<string>();
+    router.add("GET", "/posts", "list-posts");
+
+    expect(() => router.add("GET", "/posts", "list-posts-again")).toThrow(DuplicateRouteError);
+    expect(router.match("GET", "/posts")).toMatchObject({ handler: "list-posts" });
   });
 });
 
