@@ -1,11 +1,11 @@
 ---
-title: "@blixis/plugins"
-description: Full API reference for the plugins package.
+title: "@blixis/method-hooks"
+description: Full API reference for the method-hooks package.
 sidebar:
   order: 9
 ---
 
-`@Before`/`@After`/`@Around` method decorators — no DI container involvement, works on any class. See [Method Plugins](/concepts/method-plugins/) for the concepts and the stacking-order rule.
+`@Before`/`@After`/`@Around` method decorators — no DI container involvement, works on any class. See [Method Hooks](/concepts/method-hooks/) for the concepts and the stacking-order rule.
 
 ## `Before(hook)`
 
@@ -71,4 +71,4 @@ create(input: CreatePostInput): Post { /* ... */ }
 
 ## Composing multiple decorators
 
-Stacking `@Before`/`@After`/`@Around` on one method composes them like nested function calls — see [Method Plugins#stacking-order](/concepts/method-plugins/#stacking-order) for the exact rule and a worked example.
+Stacking `@Before`/`@After`/`@Around` on one method composes them like nested function calls — see [Method Hooks#stacking-order](/concepts/method-hooks/#stacking-order) for the exact rule and a worked example.

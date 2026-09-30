@@ -1,3 +1,3 @@
 import { createProjectConfig } from "../../vitest.shared.ts";
 
-export default createProjectConfig("plugins");
+export default createProjectConfig("method-hooks");

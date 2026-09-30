@@ -1,28 +1,28 @@
 ---
-title: "Tutorial: Extend Behavior with Plugins"
-description: Add before/after/around behavior to a service method without touching its body, using @blixis/plugins.
+title: "Tutorial: Extend Behavior with Method Hooks"
+description: Add before/after/around behavior to a service method without touching its body, using @blixis/method-hooks.
 sidebar:
   order: 4
 ---
 
-This continues the blog API from [Build Your First API](/tutorials/build-your-first-api/) and [Add Authentication](/tutorials/add-authentication/). We'll add logging, input normalization, and timing to `PostsService.create()` — without changing a single line inside it. Read [Method Plugins](/concepts/method-plugins/) alongside this if the stacking order isn't clear from the example alone.
+This continues the blog API from [Build Your First API](/tutorials/build-your-first-api/) and [Add Authentication](/tutorials/add-authentication/). We'll add logging, input normalization, and timing to `PostsService.create()` — without changing a single line inside it. Read [Method Hooks](/concepts/method-hooks/) alongside this if the stacking order isn't clear from the example alone.
 
 ## 1. Add the dependency
 
 ```json title="package.json"
 {
   "dependencies": {
-    "@blixis/plugins": "workspace:*"
+    "@blixis/method-hooks": "workspace:*"
   }
 }
 ```
 
-`@blixis/plugins` has no dependency on `@blixis/core` or `@blixis/http` — it works on any class, `@Injectable()` or not. Nothing to wire into a module; `@Before`/`@After`/`@Around` are just method decorators.
+`@blixis/method-hooks` has no dependency on `@blixis/core` or `@blixis/http` — it works on any class, `@Injectable()` or not. Nothing to wire into a module; `@Before`/`@After`/`@Around` are just method decorators.
 
 ## 2. `@Before` — normalize and log the attempt
 
 ```ts title="src/posts/posts.service.ts" ins={1,7-10}
-import { Before } from "@blixis/plugins";
+import { Before } from "@blixis/method-hooks";
 // ...other imports
 
 @Injectable()
@@ -47,7 +47,7 @@ The hook returns an array (`[newInput]`) — that becomes `create`'s actual argu
 ## 3. `@After` — shape the response
 
 ```ts title="src/posts/posts.service.ts" ins={1,8-11}
-import { After, Before } from "@blixis/plugins";
+import { After, Before } from "@blixis/method-hooks";
 // ...other imports
 
 @Injectable()
@@ -71,7 +71,7 @@ export class PostsService {
 ## 4. `@Around` — time it
 
 ```ts title="src/posts/posts.service.ts" ins={1,12-17}
-import { After, Around, Before } from "@blixis/plugins";
+import { After, Around, Before } from "@blixis/method-hooks";
 // ...other imports
 
 @Injectable()
@@ -112,7 +112,7 @@ post created: 1
 
 The first line logs the **untrimmed** title — `@Before`'s hook receives the original arguments and only replaces them for the call it makes *after* logging. The response body's title is `"hello world"` (trimmed), since that's what `create` itself actually received.
 
-Matches [Method Plugins#stacking-order](/concepts/method-plugins/#stacking-order): `@Before` (topmost) runs first; `@Around` (bottommost, closest to `create`) wraps the actual call, so its own pre/post logic sits right against the real work; `@After` runs last, once everything inward has returned.
+Matches [Method Hooks#stacking-order](/concepts/method-hooks/#stacking-order): `@Before` (topmost) runs first; `@Around` (bottommost, closest to `create`) wraps the actual call, so its own pre/post logic sits right against the real work; `@After` runs last, once everything inward has returned.
 
 ## 6. Test the call order directly
 
@@ -120,7 +120,7 @@ Matches [Method Plugins#stacking-order](/concepts/method-plugins/#stacking-order
 import { describe, expect, it, vi } from "vitest";
 import { PostsService } from "./posts.service.js";
 
-describe("PostsService.create plugins", () => {
+describe("PostsService.create hooks", () => {
   it("trims the title before create runs, in the order before → around → after", () => {
     const log: string[] = [];
     const service = new PostsService();
@@ -134,9 +134,9 @@ describe("PostsService.create plugins", () => {
 });
 ```
 
-No mocking of `@blixis/plugins` itself — this is the real `PostsService`, decorated exactly as it runs in production, asserting on real console output. Same "test the real thing" approach as [Test-Driven API Development](/tutorials/test-driven-api-development/).
+No mocking of `@blixis/method-hooks` itself — this is the real `PostsService`, decorated exactly as it runs in production, asserting on real console output. Same "test the real thing" approach as [Test-Driven API Development](/tutorials/test-driven-api-development/).
 
 ## Next
 
-- The exact stacking-order rule these three decorators follow when combined: [Method Plugins](/concepts/method-plugins/).
-- Every exported symbol: [`@blixis/plugins` reference](/reference/blixis-plugins/).
+- The exact stacking-order rule these three decorators follow when combined: [Method Hooks](/concepts/method-hooks/).
+- Every exported symbol: [`@blixis/method-hooks` reference](/reference/blixis-method-hooks/).

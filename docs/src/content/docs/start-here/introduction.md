@@ -16,14 +16,14 @@ It's made of thirteen independent packages:
 - **`@blixis/config`** — Zod-validated environment config, also built on `@blixis/core`, also HTTP-independent.
 - **`@blixis/db`** — [Drizzle](https://orm.drizzle.team)-backed Postgres persistence, also built on `@blixis/core`, also HTTP-independent. Connects and disconnects via the same lifecycle hooks as everything else.
 - **`@blixis/auth`** — JWT verification and role checks, built on `@blixis/http`'s guard primitive, plus optional password sign-in and refresh-token rotation (`Argon2id` hashing, storage-agnostic `CredentialStore`/`RefreshTokenStore` interfaces). App-layer, not a framework dependency — `@blixis/http` has no idea it exists.
-- **`@blixis/plugins`** — `@Before`/`@After`/`@Around` method decorators for adding behavior without editing a method's body. No dependency on any other `@blixis/*` package — works on any class.
+- **`@blixis/method-hooks`** — `@Before`/`@After`/`@Around` method decorators for adding behavior without editing a method's body. No dependency on any other `@blixis/*` package — works on any class.
 - **`@blixis/openapi`** — generates an OpenAPI 3.1 document from a running app's real controllers. Built on `@blixis/http`'s decorator metadata; no serving mechanism or bundled UI of its own.
 - **`@blixis/cli`** — the `blix` binary. `blix generate <type> <name>` scaffolds one controller/service/module/guard/interceptor file from a template. No `@blixis/*` dependency at all — a dev-time text-template tool, not a runtime library.
 - **`@blixis/tenancy`** — request-scoped multi-tenant access control (`TenantScopedGuard`, a fail-closed `tenantScope()` query helper). Owns the mechanism only — no Organization/Space/Membership data model — so it's reusable by any multi-tenant app, not just a CMS.
 - **`@blixis/events`** — an in-process domain event bus (`defineEventsModule`, `EventBus.emit`/`on`). Depends only on `@blixis/core`, like `@blixis/logging`/`@blixis/config`/`@blixis/db` — usable in any app, HTTP or not.
 - **`@blixis/testing`** — a thin testing layer on top of `@blixis/http`. Build a real application in a test, override providers with fakes, hit it with real requests.
 
-Dependencies only point down: `di` depends on nothing; `core` depends on `di`; `http`, `logging`, `config`, `db`, and `events` all depend on `core` (and, transitively, `di`) but not on each other; `auth`, `openapi`, and `tenancy` all depend on `http`; `plugins` and `cli` both depend on nothing; `testing` depends on `http`. You can use `@blixis/di` — or `@blixis/di` + `@blixis/core` + `@blixis/logging`/`@blixis/config`/`@blixis/db`/`@blixis/events` — on their own without any of the HTTP machinery.
+Dependencies only point down: `di` depends on nothing; `core` depends on `di`; `http`, `logging`, `config`, `db`, and `events` all depend on `core` (and, transitively, `di`) but not on each other; `auth`, `openapi`, and `tenancy` all depend on `http`; `method-hooks` and `cli` both depend on nothing; `testing` depends on `http`. You can use `@blixis/di` — or `@blixis/di` + `@blixis/core` + `@blixis/logging`/`@blixis/config`/`@blixis/db`/`@blixis/events` — on their own without any of the HTTP machinery.
 
 ## Why build this instead of using an existing framework
 
