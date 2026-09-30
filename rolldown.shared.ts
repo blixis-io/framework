@@ -6,7 +6,7 @@ import { dts } from "rolldown-plugin-dts";
 // that imports its dependencies at the consumer's node_modules, exactly
 // like the source did. Bundling @blixis/di into @blixis/http, for
 // instance, would create a second, disconnected DI container instance.
-const EXTERNAL = [/^node:/, /^@blixis\//, "reflect-metadata", "zod", "drizzle-orm", /^drizzle-orm\//, "pg"];
+const EXTERNAL = [/^node:/, /^@blixis\//, "reflect-metadata", "zod", "drizzle-orm", /^drizzle-orm\//, "pg", "jose"];
 
 export function createBuildConfig(): RolldownOptions {
   return defineConfig({
