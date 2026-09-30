@@ -1,5 +1,5 @@
 import { createApplication, Module, type Application, type CreateApplicationOptions, type ModuleRef } from "@blixis/core";
-import type { Token } from "@blixis/di";
+import type { Class, Token } from "@blixis/di";
 import { createServer, type Server } from "node:http";
 import { createHandler, type HandlerOptions } from "./handler.js";
 import { sendWebResponse, toWebRequest } from "./node-adapter.js";
@@ -40,6 +40,11 @@ export class HttpApplication {
   /** Fetches an already-resolved provider directly, bypassing HTTP entirely. */
   get<T>(token: Token<T>): T {
     return this.#app.get(token);
+  }
+
+  /** Every controller class in this app's module graph — what `@blixis/openapi` walks to build a document that stays in sync with the real running app. */
+  get controllers(): readonly Class[] {
+    return this.#app.controllers;
   }
 
   /** Runs a request through the handler in-process, without a socket. */
