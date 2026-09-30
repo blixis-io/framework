@@ -9,6 +9,23 @@ concurrency: ${{ github.workflow }}-${{ github.ref }}
 jobs:
   release:
     runs-on: ubuntu-latest
+    services:
+      # Same requirement as ci.yml, for the same reason: @blixis-io/db and
+      # @blixis-io/tenancy test against a real Postgres, and this job also
+      # runs the full pnpm run ci pipeline before publishing.
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: blixis
+          POSTGRES_PASSWORD: blixis
+          POSTGRES_DB: blixis
+        ports:
+          - 5434:5432
+        options: >-
+          --health-cmd "pg_isready -U blixis"
+          --health-interval 2s
+          --health-timeout 2s
+          --health-retries 15
     permissions:
       contents: write
       pull-requests: write
