@@ -18,6 +18,7 @@ type HttpApplicationOptions = HandlerOptions & CreateApplicationOptions; // body
 
 class HttpApplication {
   get<T>(token: Token<T>): T;
+  get controllers(): readonly Class[];
   handle(request: Request): Promise<Response>;
   listen(port: number, hostname?: string): Promise<ListenHandle>; // hostname defaults to "0.0.0.0"
   close(signal?: string): Promise<void>;
@@ -28,7 +29,7 @@ interface ListenHandle {
 }
 ```
 
-Wraps `@blixis/core`'s `createApplication`, builds the router from `app.controllers`, and adds the HTTP-specific surface. `handle()` runs a request in-process, no socket — what `@blixis/testing` is built on. `listen()` binds a real `node:http` server. `close()` tears down both the socket (if listening) and the underlying `Application` (running `OnApplicationShutdown` hooks); **idempotent**, safe to call more than once. See [Running in Production](/guides/running-in-production/).
+Wraps `@blixis/core`'s `createApplication`, builds the router from `app.controllers`, and adds the HTTP-specific surface. `handle()` runs a request in-process, no socket — what `@blixis/testing` is built on. `listen()` binds a real `node:http` server. `close()` tears down both the socket (if listening) and the underlying `Application` (running `OnApplicationShutdown` hooks); **idempotent**, safe to call more than once. See [Running in Production](/guides/running-in-production/). `controllers` exposes every controller class in the app's module graph — what [`@blixis/openapi`](/reference/blixis-openapi/) walks to build a document that stays in sync with the real running app, without a separately-maintained route list.
 
 ### `createHandler` / `buildRouter`
 
@@ -82,6 +83,24 @@ function validateResponse(schema: ZodType | undefined, value: unknown): Promise<
 ```
 
 Validates a handler's return value against `schema` before serialization; the parsed/coerced value is what's actually sent. A mismatch throws `ResponseValidationError` (not an `HttpException`), which surfaces to the client as a generic `500` — never the schema issues themselves, since a response mismatch is a server bug, not client input. Skipped entirely for a route returning `undefined` (204) or a raw `Response`. See [Response Validation](/concepts/response-validation/).
+
+## API documentation metadata
+
+```ts
+interface ApiOperationOptions {
+  summary?: string;
+  description?: string;
+  operationId?: string; // defaults to `${ControllerName}_${methodName}` when omitted
+}
+function ApiOperation(options: ApiOperationOptions): MethodDecorator;
+function getApiOperation(target: object, propertyKey: string | symbol): ApiOperationOptions | undefined;
+
+function ApiTags(...tags: string[]): ClassDecorator & MethodDecorator;
+function getClassApiTags(target: object): string[];
+function getMethodApiTags(target: object, propertyKey: string | symbol): string[];
+```
+
+Both entirely optional — [`@blixis/openapi`](/reference/blixis-openapi/) derives a working document (with a valid, unique `operationId`) even without them. `ApiTags` works like `UseGuards`/`UseInterceptors` — class position or method position — except class-level and method-level tags **concatenate** rather than one replacing the other. See [API Documentation](/concepts/api-documentation/).
 
 ## Param decorators
 
