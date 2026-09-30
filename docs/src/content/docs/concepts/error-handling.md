@@ -69,7 +69,7 @@ Anything thrown that *isn't* an `HttpException` — a real bug, a database conne
 
 ## Return values that aren't errors
 
-A controller method's return value becomes the response body too, via the same path — see [Routing & Controllers](/concepts/routing-controllers/) for the full mapping (`undefined` → `204`, a returned `Response` passed through unchanged, everything else → JSON with `200` or a status set via `@HttpCode`).
+A controller method's return value becomes the response body too, via the same path — see [Routing & Controllers](/concepts/routing-controllers/) for the full mapping (`undefined` → `204`, a returned `Response` passed through unchanged, everything else → JSON with `200` or a status set via `@HttpCode`). Returning a raw `Response` is also how you redirect or set a non-JSON content type — see the [Cookbook](/examples/cookbook/#returning-a-raw-response-and-setting-a-content-type) for both.
 
 ## Next
 

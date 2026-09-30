@@ -5,9 +5,9 @@ sidebar:
   order: 2
 ---
 
-## Returning a raw `Response`
+## Returning a raw `Response`, and setting a content type
 
-A controller method can return a `Response` directly instead of a plain value — it passes through completely unchanged, no JSON-wrapping, no status override from `@HttpCode`:
+A controller method can return a `Response` directly instead of a plain value — it passes through completely unchanged, no JSON-wrapping, no status override from `@HttpCode`, no `@Returns` validation:
 
 ```ts
 @Get("robots.txt")
@@ -19,7 +19,35 @@ robots() {
 }
 ```
 
-Useful for anything that isn't JSON — plain text, a redirect (`Response.redirect(url, 302)`), or a response with headers the default JSON path doesn't set.
+Same for HTML, or any other content type — set `content-type` yourself, there's no `@ContentType()`/`@Produces()` decorator:
+
+```ts
+@Get("status")
+statusPage() {
+  return new Response("<h1>All systems normal</h1>", {
+    headers: { "content-type": "text/html" },
+  });
+}
+```
+
+A GraphQL endpoint doesn't need this at all — its response body is just JSON, so a normal `@Post("graphql")` handler returning a plain object (through the default JSON path, or via `@Returns` if you want the shape enforced) is enough.
+
+## Redirecting
+
+Also just a raw `Response` — `Response.redirect` is a Web standard, not something Blixis adds:
+
+```ts
+@Get("old-path")
+goToNewPath() {
+  return Response.redirect("/new-path", 302);
+}
+```
+
+Any redirect status works (`301`, `302`, `307`, `308`), or build it by hand if you need to set other headers alongside `Location`:
+
+```ts
+return new Response(null, { status: 302, headers: { location: "/new-path" } });
+```
 
 ## A factory provider that depends on other providers
 
