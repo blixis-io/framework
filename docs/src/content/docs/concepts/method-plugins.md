@@ -37,6 +37,8 @@ class PostsService {
 
 Any hook may be `async` — the decorated method becomes effectively async at runtime whenever a hook is, exactly like a [`CanActivate`](/concepts/guards-and-authorization/) guard returning `Promise<boolean>` instead of `boolean`. One real caveat: TypeScript can't change a method's *static* return type from a legacy decorator, only its runtime behavior — if you add an async `@Before` to a method TypeScript still thinks returns `number`, callers see `number` at the type level even though it's actually a `Promise<number>` at runtime. Awaiting it directly still works; TypeScript just won't flag the `await` as necessary.
 
+Async detection is duck-typed (anything with a `.then` method), not `instanceof Promise` — a real `Promise` minted in a different realm (a worker, a vm context, a bundled polyfill) is still fully spec-compliant but fails `instanceof` against this realm's own `Promise` constructor. `@Before`'s `BeforeHook` and `@After`'s `AfterHook` types are declared as `PromiseLike<T>`, not `Promise<T>`, for the same reason.
+
 ## Stacking order
 
 Multiple decorators on one method compose exactly like nested function calls — read top-to-bottom in source, **each decorator wraps everything below it**:

@@ -12,9 +12,13 @@ export type NextFn<Args extends unknown[], Result> = (...args: Args) => Result;
  * arguments the original method is called with; returning nothing (or
  * `undefined`) leaves them unchanged. May be async — the wrapped method
  * becomes effectively async too in that case, same as a `CanActivate`
- * guard returning `Promise<boolean>`.
+ * guard returning `Promise<boolean>`. `PromiseLike`, not just `Promise` —
+ * any spec-compliant thenable works, including a real `Promise` minted in
+ * a different realm (a worker, a vm context), not only this one's own.
  */
-export type BeforeHook<Args extends unknown[] = unknown[]> = (...args: Args) => Args | void | Promise<Args | void>;
+export type BeforeHook<Args extends unknown[] = unknown[]> = (
+  ...args: Args
+) => Args | void | PromiseLike<Args | void>;
 
 /**
  * Runs after the original method, receiving its (already-awaited) result.
@@ -25,7 +29,7 @@ export type BeforeHook<Args extends unknown[] = unknown[]> = (...args: Args) => 
 export type AfterHook<Result = unknown, Args extends unknown[] = unknown[]> = (
   result: Result,
   ...args: Args
-) => Result | Promise<Result>;
+) => Result | PromiseLike<Result>;
 
 /**
  * Wraps the original method entirely. Call `next(...)` to invoke whatever
@@ -43,6 +47,21 @@ function methodOf(descriptor: PropertyDescriptor): (...args: unknown[]) => unkno
 }
 
 /**
+ * Duck-typed thenable check, not `instanceof Promise` — a hook's return
+ * value can be a real `Promise` minted in a different realm (a worker, a
+ * vm context, a bundled polyfill), which has its own `Promise.prototype`
+ * and fails `instanceof` against this realm's `Promise` even though it's
+ * fully spec-compliant. Same check `await` itself uses internally.
+ */
+function isThenable(value: unknown): value is PromiseLike<unknown> {
+  return (
+    (typeof value === "object" || typeof value === "function") &&
+    value !== null &&
+    typeof (value as { then?: unknown }).then === "function"
+  );
+}
+
+/**
  * Runs `hook` before the decorated method, optionally replacing its
  * arguments. Composes with other `@Before`/`@After`/`@Around` decorators on
  * the same method by wrapping whatever's already there — see
@@ -54,8 +73,13 @@ export function Before<Args extends unknown[] = unknown[]>(hook: BeforeHook<Args
     const original = methodOf(descriptor);
     descriptor.value = function (this: unknown, ...args: unknown[]): unknown {
       const maybeNewArgs = hook(...(args as Args));
-      if (maybeNewArgs instanceof Promise) {
-        return maybeNewArgs.then((resolved) => original.apply(this, resolved ?? args));
+      if (isThenable(maybeNewArgs)) {
+        // Promise.resolve(...) first, not a direct .then() call — an
+        // arbitrary thenable's own .then() implementation isn't guaranteed
+        // to return a proper chainable Promise (only Promise.prototype.then
+        // is); wrapping normalizes any spec-compliant thenable into a real
+        // native Promise before chaining onto it.
+        return Promise.resolve(maybeNewArgs).then((resolved) => original.apply(this, resolved ?? args));
       }
       return original.apply(this, maybeNewArgs ?? args);
     };
@@ -74,8 +98,9 @@ export function After<Result = unknown, Args extends unknown[] = unknown[]>(
     const original = methodOf(descriptor);
     descriptor.value = function (this: unknown, ...args: unknown[]): unknown {
       const result = original.apply(this, args) as Result | Promise<Result>;
-      if (result instanceof Promise) {
-        return result.then((resolved) => hook(resolved, ...(args as Args)));
+      if (isThenable(result)) {
+        // See Before's identical Promise.resolve(...) note above.
+        return Promise.resolve(result).then((resolved) => hook(resolved, ...(args as Args)));
       }
       return hook(result, ...(args as Args));
     };

@@ -14,10 +14,10 @@ function Before<Args extends unknown[] = unknown[]>(hook: BeforeHook<Args>): Met
 
 type BeforeHook<Args extends unknown[] = unknown[]> = (
   ...args: Args
-) => Args | void | Promise<Args | void>;
+) => Args | void | PromiseLike<Args | void>;
 ```
 
-Runs `hook` before the decorated method. Returning an array replaces the arguments the method is called with; returning `undefined` (or nothing) leaves them unchanged. `hook` may be `async`.
+Runs `hook` before the decorated method. Returning an array replaces the arguments the method is called with; returning `undefined` (or nothing) leaves them unchanged. `hook` may be `async` — detected by duck-typing (`.then` presence), not `instanceof Promise`, so a thenable from a different realm still works.
 
 ```ts
 @Before((input: CreatePostInput) => {
@@ -34,7 +34,7 @@ function After<Result = unknown, Args extends unknown[] = unknown[]>(hook: After
 type AfterHook<Result = unknown, Args extends unknown[] = unknown[]> = (
   result: Result,
   ...args: Args
-) => Result | Promise<Result>;
+) => Result | PromiseLike<Result>;
 ```
 
 Runs `hook` after the decorated method, with its result (awaited first, if the method returned a `Promise`) and its original arguments. Must return the result to use.
