@@ -8,6 +8,10 @@
     "typecheck": {
       "outputs": []
     },
+    "blixis-docs#typecheck": {
+      "dependsOn": ["blixis-docs#build"],
+      "outputs": []
+    },
     "//#lint": {
       "outputs": []
     },
