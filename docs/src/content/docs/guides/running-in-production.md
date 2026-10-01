@@ -58,3 +58,20 @@ async generateReport(@Req() req: Request) {
 ## What isn't handled for you yet
 
 There's no built-in request logging, rate limiting, CORS, or compression middleware — the framework's HTTP layer is deliberately just routing + validation + guards + error mapping (see [Introduction](/framework/start-here/introduction/)). For now, that means wrapping `app.handle` yourself (a function that calls `app.handle(request)` and does something before/after) or reaching for `node:http`-level middleware ahead of the `createServer` callback if you need it. A first-class middleware/interceptor layer is on the framework's roadmap but doesn't exist yet.
+
+## On a platform that calls `fetch` (Vercel, Netlify, Cloudflare Workers)
+
+`listen()` is for a long-lived Node process. On a serverless or edge platform the platform owns the socket and calls your code once per request, so export a fetch handler instead:
+
+```ts title="api/index.js"
+import { createFetchHandler } from "@blixis-io/http";
+import { AppModule } from "../dist/app.module.js";
+
+export default createFetchHandler(AppModule);
+```
+
+The object has `fetch(request)` (what Vercel and Workers look for) and `close()`. The application boots on the first request, once; requests that arrive while it is booting share that boot, and later requests reuse it. If boot fails, that request gets a generic `500` (the real error is logged, never sent to the client) and the next request tries again instead of caching the failure.
+
+`listen()`, `shutdownTimeout` and the `SIGTERM` handler don't apply here. Options such as `requestTimeout`, `bodyLimit` and `responseValidation` do: `createFetchHandler(AppModule, { requestTimeout: 8000 })`.
+
+Run it from compiled JavaScript (`tsc` or Rolldown output). The providers' own TypeScript bundlers use esbuild, which drops the decorator metadata the DI container needs. See [Compatibility](/framework/architecture/compatibility/#deployment-targets) for what has been run where.

@@ -20,6 +20,13 @@ interface ShutdownOptions {
   shutdownTimeout?: number; // ms close() waits for in-flight requests, default 10000; Infinity = wait forever
 }
 
+function createFetchHandler(rootModule: ModuleRef, options?: HttpApplicationOptions): FetchHandler;
+
+interface FetchHandler {
+  fetch(request: Request): Promise<Response>;
+  close(signal?: string): Promise<void>;
+}
+
 class HttpApplication {
   get<T>(token: Token<T>): T;
   get controllers(): readonly Class[];
