@@ -99,7 +99,7 @@ export async function runCreate(argv: readonly string[], options: CreateOptions)
       }
     }
     const run = pm === "npm" ? "npm run" : pm;
-    stdout += `\nNext:\n  cd ${dir}\n  ${run} build && ${pm} start\n  curl http://localhost:3000/hello/world\n`;
+    stdout += `\nNext:\n  cd ${dir}\n  ${run} dev\n  curl http://localhost:3000/hello/world\n`;
   }
 
   return { exitCode: 0, stdout, stderr: "" };

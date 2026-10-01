@@ -92,13 +92,14 @@ describe("runCreate", () => {
       name: "my-app",
       private: true,
       type: "module",
+      scripts: { dev: expect.stringContaining("--watch") },
     });
     expect(readFileSync(join(cwd, "my-app", "tsconfig.json"), "utf8")).toContain('"emitDecoratorMetadata": true');
     expect(calls).toEqual([
       { command: "pnpm", args: ["add", "@blixis-io/core", "@blixis-io/di", "@blixis-io/http"], cwd: join(cwd, "my-app") },
-      { command: "pnpm", args: ["add", "-D", "typescript", "@types/node"], cwd: join(cwd, "my-app") },
+      { command: "pnpm", args: ["add", "-D", "typescript", "@types/node", "concurrently"], cwd: join(cwd, "my-app") },
     ]);
-    expect(result.stdout).toContain("pnpm start");
+    expect(result.stdout).toContain("pnpm dev");
   });
 
   it("uses `npm install` and `npm run` for npm", async () => {
@@ -114,8 +115,8 @@ describe("runCreate", () => {
     });
 
     expect(calls[0]).toEqual(["install", "@blixis-io/core", "@blixis-io/di", "@blixis-io/http"]);
-    expect(calls[1]).toEqual(["install", "-D", "typescript", "@types/node"]);
-    expect(result.stdout).toContain("npm run build && npm start");
+    expect(calls[1]).toEqual(["install", "-D", "typescript", "@types/node", "concurrently"]);
+    expect(result.stdout).toContain("npm run dev");
   });
 
   it("skips installing and prints the commands with --no-install", async () => {
@@ -132,7 +133,7 @@ describe("runCreate", () => {
 
     expect(calls).toEqual([]);
     expect(result.stdout).toContain("pnpm add @blixis-io/core @blixis-io/di @blixis-io/http");
-    expect(result.stdout).toContain("pnpm add -D typescript @types/node");
+    expect(result.stdout).toContain("pnpm add -D typescript @types/node concurrently");
   });
 
   it("keeps the files and reports a failed install", async () => {
