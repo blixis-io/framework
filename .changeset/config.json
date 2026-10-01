@@ -5,5 +5,5 @@
   "access": "public",
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
-  "ignore": ["hello-api", "blixis-docs", "@blixis-io/events", "@blixis-io/testing"]
+  "ignore": ["hello-api", "blixis-docs"]
 }
