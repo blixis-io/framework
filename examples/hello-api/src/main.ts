@@ -1,11 +1,15 @@
 import { createHttpApplication } from "@blixis-io/http";
 import { LOGGER } from "@blixis-io/logging";
+import { serveOpenApi } from "@blixis-io/openapi";
 import { AppModule } from "./app.module.js";
 import { CONFIG } from "./config.js";
-import { AppRef } from "./docs/app-ref.js";
 
 const app = await createHttpApplication(AppModule);
-app.get(AppRef).current = app;
+serveOpenApi(app, "/openapi.json", {
+  title: "hello-api",
+  version: "1.0.0",
+  description: "The framework's own reference example — a Postgres-backed posts CRUD API.",
+});
 
 const { PORT } = app.get(CONFIG);
 await app.listen(PORT);
