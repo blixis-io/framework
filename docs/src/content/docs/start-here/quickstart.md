@@ -7,45 +7,54 @@ sidebar:
 
 This walks through the smallest possible Blixis app: one service, one controller, one module, running on a real socket. It mirrors the shape of the framework's own `examples/hello-api` reference app — see the [hello-api Walkthrough](/framework/examples/hello-api-walkthrough/) for the full CRUD version.
 
-:::note
-The framework packages aren't published to npm yet. The setup below adds a new app *inside* the Blixis Framework pnpm workspace, consuming `@blixis-io/*` as `workspace:*` dependencies — the same way `examples/hello-api` does. Once the packages are published, this becomes an ordinary `pnpm add @blixis-io/http @blixis-io/core @blixis-io/di`.
+:::tip
+`pnpm create blixis my-app` generates exactly this app and installs its dependencies. This page builds it by hand so you can see each piece.
 :::
 
 ## 1. Create the app
 
-Inside the Blixis Framework repo:
-
 ```bash
-mkdir -p examples/hello-quickstart/src
-cd examples/hello-quickstart
+mkdir hello-quickstart && cd hello-quickstart
+pnpm init
+pnpm add @blixis-io/core @blixis-io/di @blixis-io/http
+pnpm add -D typescript @types/node
+mkdir src
 ```
+
+In `package.json`, add `"type": "module"` and these scripts:
 
 ```json title="package.json"
 {
-  "name": "hello-quickstart",
-  "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "tsc -p tsconfig.json",
     "start": "node dist/main.js"
-  },
-  "dependencies": {
-    "@blixis-io/core": "workspace:*",
-    "@blixis-io/di": "workspace:*",
-    "@blixis-io/http": "workspace:*"
   }
 }
 ```
 
-```json title="tsconfig.build.json"
+```json title="tsconfig.json"
 {
-  "extends": "../../tsconfig.base.json",
-  "compilerOptions": { "outDir": "dist", "rootDir": "src" },
+  "compilerOptions": {
+    "target": "es2023",
+    "lib": ["es2023"],
+    "types": ["node"],
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "strict": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "useDefineForClassFields": false,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "outDir": "dist",
+    "rootDir": "src"
+  },
   "include": ["src"]
 }
 ```
 
-Then `pnpm install` from the repo root so the new package joins the workspace. Note there's no `tsx`/`ts-node` step here: Node's own TypeScript support strips *types* but doesn't transform *decorators* (they're runtime JavaScript, not type syntax), so every app in this framework builds with `tsc` first and runs the compiled output. See [Installation](/framework/start-here/installation/) for why the two decorator compiler flags in `tsconfig.base.json` are non-negotiable.
+Note there's no `tsx`/`ts-node` step here: Node's own TypeScript support strips *types* but doesn't transform *decorators* (they're runtime JavaScript, not type syntax), so every app in this framework builds with `tsc` first and runs the compiled output. See [Installation](/framework/start-here/installation/) for why the two decorator compiler flags are non-negotiable.
 
 ## 2. Write a service
 

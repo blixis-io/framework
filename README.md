@@ -10,6 +10,14 @@ Blixis is a TypeScript framework for building API-first backends: a dependency i
 
 ## Get started
 
+Scaffold a runnable app:
+
+```bash
+pnpm create blixis my-app
+```
+
+Or add the packages to an existing project:
+
 ```bash
 npm install @blixis-io/di @blixis-io/core @blixis-io/http
 ```
@@ -71,6 +79,7 @@ Legacy decorators are required (`experimentalDecorators` + `emitDecoratorMetadat
 | [`@blixis-io/method-hooks`](packages/method-hooks) | `@Before`/`@After`/`@Around` method decorators for adding behavior without editing a method's body. |
 | [`@blixis-io/openapi`](packages/openapi) | Generates an OpenAPI 3.1 document from a running app's real controllers. |
 | [`@blixis-io/cli`](packages/cli) | The `blix` binary — scaffolds controller/service/module/guard/interceptor files from a template. |
+| [`create-blixis`](packages/create-blixis) | `pnpm create blixis my-app` — scaffolds a runnable starter app and installs its dependencies. |
 | [`@blixis-io/tenancy`](packages/tenancy) | Request-scoped multi-tenant access control — mechanism only, no data model. |
 | [`@blixis-io/events`](packages/events) | An in-process domain event bus. |
 | [`@blixis-io/testing`](packages/testing) | A thin testing layer on top of `@blixis-io/http` — real requests, fakeable providers. |

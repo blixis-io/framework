@@ -1,0 +1,36 @@
+{
+  "name": "create-blixis",
+  "version": "0.1.0",
+  "description": "Scaffold a new Blixis app: pnpm create blixis my-app. No @blixis-io/* runtime dependency.",
+  "license": "MIT",
+  "author": "Michael Voeten <michael@voeten.online>",
+  "homepage": "https://blixis-io.github.io/framework/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/blixis-io/framework.git",
+    "directory": "packages/create-blixis"
+  },
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "keywords": ["create", "scaffold", "starter", "blixis"],
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": ["dist"],
+  "bin": {
+    "create-blixis": "./dist/index.js"
+  },
+  "exports": {
+    ".": {
+      "@blixis-io/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "build": "rolldown -c"
+  }
+}

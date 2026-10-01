@@ -8,8 +8,16 @@ sidebar:
 ## Requirements
 
 - **Node.js 24+**. The framework targets `es2023` and uses Node's built-in `fetch`/`Request`/`Response`/`Headers` globals directly — no polyfills.
-- **pnpm 11+**. The framework repo is a pnpm workspace; the packages aren't published to npm yet, so for now you build against them as workspace dependencies (see [Quickstart](/framework/start-here/quickstart/)) or copy the pattern into your own pnpm workspace.
+- **A package manager**: pnpm, npm, yarn or bun all work. The framework repo itself uses pnpm 11+.
 - **TypeScript 7** (the native `tsc` / `tsgo` compiler). Verified working with `typescript@7.0.2` and later.
+
+## Fastest start
+
+```bash
+pnpm create blixis my-app
+```
+
+This writes a runnable app (service, controller, module, `main.ts`, and a `tsconfig.json` with the settings below), installs `@blixis-io/core`, `@blixis-io/di`, `@blixis-io/http`, `typescript` and `@types/node`, and tells you how to run it. It detects pnpm, npm, yarn or bun from how you invoked it (`npm create blixis@latest my-app` works too); pass `--no-install` to only write the files. The [Quickstart](/framework/start-here/quickstart/) builds the same app by hand.
 
 ## The one non-negotiable compiler setting
 
