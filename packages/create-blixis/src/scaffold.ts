@@ -15,7 +15,7 @@ export interface ScaffoldResult {
 }
 
 /** Writes the starter app into `cwd/<target>`. The directory may not exist yet, or must be empty. */
-export function scaffold(cwd: string, target: string): ScaffoldResult {
+export function scaffold(cwd: string, target: string, packageManagerPin?: string): ScaffoldResult {
   const directory = resolve(cwd, target);
   const packageName = basename(directory);
 
@@ -28,7 +28,7 @@ export function scaffold(cwd: string, target: string): ScaffoldResult {
     throw new ScaffoldError(`${target} already exists and is not empty.`);
   }
 
-  const files = Object.entries(templateFiles(packageName));
+  const files = Object.entries(templateFiles(packageName, packageManagerPin));
   for (const [path, content] of files) {
     const absolute = join(directory, path);
     mkdirSync(dirname(absolute), { recursive: true });

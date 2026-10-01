@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { detectPackageManager, runCreate } from "./index.js";
+import { detectPackageManager, packageManagerPin, runCreate } from "./index.js";
 
 let cwd: string;
 
@@ -27,6 +27,19 @@ describe("detectPackageManager", () => {
     [undefined, "npm"],
   ] as const)("%s -> %s", (agent, expected) => {
     expect(detectPackageManager(agent)).toBe(expected);
+  });
+});
+
+describe("packageManagerPin", () => {
+  it.each([
+    ["pnpm/11.25.0 npm/? node/v24.0.0 darwin arm64", "pnpm@11.25.0"],
+    ["npm/11.0.0 node/v24.0.0", "npm@11.0.0"],
+    ["yarn/4.1.0 npm/? node/v24.0.0", "yarn@4.1.0"],
+    ["bun/1.2.0 npm/? node/v24.0.0", undefined],
+    ["pnpm/next npm/? node/v24.0.0", undefined],
+    [undefined, undefined],
+  ] as const)("%s -> %s", (agent, expected) => {
+    expect(packageManagerPin(agent)).toBe(expected);
   });
 });
 
@@ -100,6 +113,14 @@ describe("runCreate", () => {
       { command: "pnpm", args: ["add", "-D", "typescript", "@types/node", "concurrently"], cwd: join(cwd, "my-app") },
     ]);
     expect(result.stdout).toContain("pnpm dev");
+  });
+
+  it("pins the package manager that ran create in package.json, and leaves it out when unknown", async () => {
+    await runCreate(["pinned", "--no-install"], { cwd, userAgent: "pnpm/11.25.0 npm/? node/v24.0.0" });
+    await runCreate(["unpinned", "--no-install"], { cwd });
+
+    expect(JSON.parse(readFileSync(join(cwd, "pinned", "package.json"), "utf8"))).toMatchObject({ packageManager: "pnpm@11.25.0" });
+    expect(JSON.parse(readFileSync(join(cwd, "unpinned", "package.json"), "utf8"))).not.toHaveProperty("packageManager");
   });
 
   it("uses `npm install` and `npm run` for npm", async () => {
