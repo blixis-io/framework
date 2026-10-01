@@ -303,3 +303,66 @@ describe("createHttpApplication: RequestContext", () => {
     }
   });
 });
+
+describe("HttpApplication.close(): graceful shutdown", () => {
+  @Controller("work")
+  class WorkController {
+    static aborted = false;
+
+    @Get("quick")
+    async quick() {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      return { done: true };
+    }
+
+    @Get("hang")
+    async hang(@Req() request: Request) {
+      await new Promise<void>((resolve) => {
+        request.signal.addEventListener("abort", () => {
+          WorkController.aborted = true;
+          resolve();
+        });
+      });
+      return { done: false };
+    }
+  }
+
+  @Module({ controllers: [WorkController] })
+  class WorkModule {}
+
+  it("lets an in-flight request finish before close() resolves", async () => {
+    const app = await createHttpApplication(WorkModule);
+    const { port } = await app.listen(0, "127.0.0.1");
+
+    const pending = fetch(`http://127.0.0.1:${port}/work/quick`);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    await app.close();
+
+    const res = await pending;
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ done: true });
+  });
+
+  it("cuts off a request still running at shutdownTimeout and aborts its signal", async () => {
+    WorkController.aborted = false;
+    const app = await createHttpApplication(WorkModule, { shutdownTimeout: 50 });
+    const { port } = await app.listen(0, "127.0.0.1");
+
+    const pending = fetch(`http://127.0.0.1:${port}/work/hang`).catch((error: unknown) => error);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    await app.close();
+
+    expect(await pending).toBeInstanceOf(Error);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(WorkController.aborted).toBe(true);
+  });
+
+  it("does not hang close() on an idle keep-alive connection", async () => {
+    const app = await createHttpApplication(WorkModule, { shutdownTimeout: 60_000 });
+    const { port } = await app.listen(0, "127.0.0.1");
+
+    await (await fetch(`http://127.0.0.1:${port}/work/quick`)).json();
+
+    await expect(app.close()).resolves.toBeUndefined();
+  });
+});

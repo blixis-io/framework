@@ -35,6 +35,12 @@ process.on("SIGTERM", () => {
 
 ## Client disconnects propagate as a real `AbortSignal`
 
+`close()` stops accepting new connections, drops idle keep-alive sockets, and lets in-flight requests finish. Anything still running after `shutdownTimeout` (default 10 seconds) has its socket destroyed, which aborts its `request.signal`. Pass `shutdownTimeout: Infinity` to wait indefinitely, or a smaller value to fit your orchestrator's kill grace period.
+
+```ts
+const app = await createHttpApplication(AppModule, { shutdownTimeout: 5_000 });
+```
+
 If a client closes the connection before a handler finishes, the `Request`'s `signal` fires `"abort"` — useful for cancelling expensive work early:
 
 ```ts

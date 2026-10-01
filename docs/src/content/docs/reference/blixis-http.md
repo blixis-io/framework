@@ -14,7 +14,11 @@ Routing, controller/param/guard decorators, Zod-backed validation, RFC 9457 erro
 ```ts
 function createHttpApplication(rootModule: ModuleRef, options?: HttpApplicationOptions): Promise<HttpApplication>;
 
-type HttpApplicationOptions = HandlerOptions & CreateApplicationOptions; // bodyLimit + requestTimeout + overrides
+type HttpApplicationOptions = HandlerOptions & CreateApplicationOptions & ShutdownOptions; // bodyLimit + requestTimeout + overrides + shutdownTimeout
+
+interface ShutdownOptions {
+  shutdownTimeout?: number; // ms close() waits for in-flight requests, default 10000; Infinity = wait forever
+}
 
 class HttpApplication {
   get<T>(token: Token<T>): T;

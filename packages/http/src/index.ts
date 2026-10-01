@@ -32,6 +32,7 @@ export {
   HttpApplication,
   type HttpApplicationOptions,
   type ListenHandle,
+  type ShutdownOptions,
 } from "./http-application.js";
 export { sendWebResponse, toWebRequest } from "./node-adapter.js";
 export type { ParamResolutionContext } from "./params.js";
