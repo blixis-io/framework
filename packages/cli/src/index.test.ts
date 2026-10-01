@@ -1,9 +1,10 @@
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdtempSync, rmSync, symlinkSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { installFakePlugin } from "./test-helpers.js";
 import { runCli } from "./index.js";
 
 let cwd: string;
@@ -17,66 +18,160 @@ afterEach(() => {
 });
 
 describe("runCli", () => {
-  it("prints usage and exits 0 with no command", () => {
-    const result = runCli([], cwd);
+  it("prints usage and exits 0 with no command", async () => {
+    const result = await runCli([], cwd);
     expect(result.exitCode).toBe(0);
     expect(result.stdout).toContain("blix generate <type> <name>");
   });
 
-  it("prints usage and exits 0 for --help / -h", () => {
-    expect(runCli(["--help"], cwd).stdout).toContain("blix generate");
-    expect(runCli(["-h"], cwd).stdout).toContain("blix generate");
+  it("prints usage and exits 0 for --help / -h", async () => {
+    expect((await runCli(["--help"], cwd)).stdout).toContain("blix generate");
+    expect((await runCli(["-h"], cwd)).stdout).toContain("blix generate");
   });
 
-  it("exits 1 with an error for an unknown command", () => {
-    const result = runCli(["bogus"], cwd);
+  it("exits 1 with an error for an unknown command", async () => {
+    const result = await runCli(["bogus"], cwd);
     expect(result.exitCode).toBe(1);
     expect(result.stderr).toContain('Unknown command "bogus"');
   });
 
-  it("exits 1 with usage when generate is missing type or name", () => {
-    const result = runCli(["generate", "controller"], cwd);
+  it("exits 1 with usage when generate is missing type or name", async () => {
+    const result = await runCli(["generate", "controller"], cwd);
     expect(result.exitCode).toBe(1);
     expect(result.stderr).toContain("Usage: blix generate <type> <name>");
   });
 
-  it("exits 1 for an unknown generator type", () => {
-    const result = runCli(["generate", "bogus", "posts"], cwd);
+  it("exits 1 for an unknown generator type", async () => {
+    const result = await runCli(["generate", "bogus", "posts"], cwd);
     expect(result.exitCode).toBe(1);
     expect(result.stderr).toContain('Unknown type "bogus"');
   });
 
-  it("generates a file and reports the relative path, via the g alias", () => {
-    const result = runCli(["g", "controller", "posts"], cwd);
+  it("generates a file and reports the relative path, via the g alias", async () => {
+    const result = await runCli(["g", "controller", "posts"], cwd);
     expect(result.exitCode).toBe(0);
     expect(result.stdout).toBe("created src/posts/posts.controller.ts\n");
     expect(existsSync(join(cwd, "src", "posts", "posts.controller.ts"))).toBe(true);
   });
 
-  it("--dry-run prints the path and content without writing", () => {
-    const result = runCli(["generate", "service", "posts", "--dry-run"], cwd);
+  it("--dry-run prints the path and content without writing", async () => {
+    const result = await runCli(["generate", "service", "posts", "--dry-run"], cwd);
     expect(result.exitCode).toBe(0);
     expect(result.stdout).toContain("Would create src/posts/posts.service.ts:");
     expect(result.stdout).toContain("export class PostsService {}");
     expect(existsSync(join(cwd, "src", "posts", "posts.service.ts"))).toBe(false);
   });
 
-  it("exits 1 when refusing to overwrite an existing file without --force", () => {
-    runCli(["generate", "module", "posts"], cwd);
+  it("exits 1 when refusing to overwrite an existing file without --force", async () => {
+    await runCli(["generate", "module", "posts"], cwd);
 
-    const result = runCli(["generate", "module", "posts"], cwd);
+    const result = await runCli(["generate", "module", "posts"], cwd);
 
     expect(result.exitCode).toBe(1);
     expect(result.stderr).toContain("already exists");
   });
 
-  it("--force overwrites an existing file", () => {
-    runCli(["generate", "module", "posts"], cwd);
+  it("--force overwrites an existing file", async () => {
+    await runCli(["generate", "module", "posts"], cwd);
 
-    const result = runCli(["generate", "module", "posts", "--force"], cwd);
+    const result = await runCli(["generate", "module", "posts", "--force"], cwd);
 
     expect(result.exitCode).toBe(0);
     expect(result.stdout).toContain("created");
+  });
+});
+
+describe("runCli: version, help and plugins", () => {
+  it("prints the package version", async () => {
+    const result = await runCli(["--version"], cwd);
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toMatch(/^\d+\.\d+\.\d+\n$/);
+    expect((await runCli(["-v"], cwd)).stdout).toBe(result.stdout);
+  });
+
+  it("lists the add command and the plugin commands in the help", async () => {
+    const result = await runCli(["--help"], cwd);
+
+    expect(result.stdout).toContain("blix add <plugin>");
+    expect(result.stdout).toContain("blix deploy");
+    expect(result.stdout).toContain("@blixis-io/deploy");
+  });
+
+  it("tells you how to install a plugin that is missing", async () => {
+    const result = await runCli(["deploy"], cwd);
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain("needs @blixis-io/deploy");
+    expect(result.stderr).toContain("blix add deploy");
+  });
+
+  it("runs an installed plugin with its args, cwd and loaded config", async () => {
+    installFakePlugin(cwd, "deploy");
+    writeFileSync(join(cwd, "blix.config.ts"), 'export default { deploy: { target: "docker" } };\n');
+
+    const result = await runCli(["deploy", "--dry-run", "prod"], cwd);
+
+    expect(result.exitCode).toBe(0);
+    expect(JSON.parse(result.stdout)).toEqual({ args: ["--dry-run", "prod"], cwd, config: { deploy: { target: "docker" } } });
+  });
+
+  it("runs a plugin without a config file, passing config as undefined", async () => {
+    installFakePlugin(cwd, "deploy");
+
+    expect(JSON.parse((await runCli(["deploy"], cwd)).stdout)).toMatchObject({ args: [], config: null });
+  });
+
+  it("surfaces a broken config as an error without running the plugin", async () => {
+    installFakePlugin(cwd, "deploy");
+    writeFileSync(join(cwd, "blix.config.json"), "{nope");
+
+    const result = await runCli(["deploy"], cwd);
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain("Could not load blix.config.json");
+  });
+
+  it("does not need a valid config for built-in commands", async () => {
+    writeFileSync(join(cwd, "blix.config.json"), "{nope");
+
+    expect((await runCli(["generate", "service", "posts"], cwd)).exitCode).toBe(0);
+  });
+
+  it("turns a plugin that throws into a clean error", async () => {
+    installFakePlugin(
+      cwd,
+      "deploy",
+      'export const blixCommand = { name: "deploy", description: "x", run() { throw new Error("kaboom"); } };\n',
+    );
+
+    const result = await runCli(["deploy"], cwd);
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toBe("blix deploy failed: kaboom\n");
+  });
+
+  it("reports an installed-but-broken plugin", async () => {
+    installFakePlugin(cwd, "deploy", "export const nothing = 1;\n");
+
+    const result = await runCli(["deploy"], cwd);
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain("Could not load @blixis-io/deploy");
+  });
+
+  it("add installs through the injected runner", async () => {
+    const calls: (readonly string[])[] = [];
+
+    const result = await runCli(["add", "deploy"], cwd, {
+      install: (_command, args) => {
+        calls.push(args);
+        return Promise.resolve(0);
+      },
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(calls).toEqual([["install", "-D", "@blixis-io/deploy"]]);
   });
 });
 
@@ -101,6 +196,19 @@ describe("the real built CLI (spawned, not imported)", () => {
 
     expect(stdout).toBe("created src/posts/posts.controller.ts\n");
     expect(existsSync(join(cwd, "src", "posts", "posts.controller.ts"))).toBe(true);
+  });
+
+  it("runs a plugin from the project's node_modules with a real blix.config.ts", () => {
+    installFakePlugin(cwd, "deploy");
+    writeFileSync(join(cwd, "blix.config.ts"), 'export default { deploy: { target: "vercel" } };\n');
+
+    const stdout = execFileSync("node", [distEntry, "deploy", "prod"], { cwd, encoding: "utf8" });
+
+    expect(JSON.parse(stdout)).toMatchObject({ args: ["prod"], config: { deploy: { target: "vercel" } } });
+  });
+
+  it("prints its version", () => {
+    expect(execFileSync("node", [distEntry, "--version"], { cwd, encoding: "utf8" })).toMatch(/^\d+\.\d+\.\d+\n$/);
   });
 
   it("exits non-zero on a real error", () => {

@@ -1,11 +1,22 @@
 #!/usr/bin/env node
 import { realpathSync } from "node:fs";
+import { createRequire } from "node:module";
 import { relative } from "node:path";
 import { pathToFileURL } from "node:url";
+import { runAdd, spawnInstall, type InstallRunner } from "./add.js";
+import { ConfigError, loadConfig } from "./config.js";
 import { generateFile, type GenerateOptions } from "./generate.js";
+import { KNOWN_PLUGINS, loadPlugin } from "./plugins.js";
 import { GENERATOR_TYPES, resolveGeneratorType } from "./templates.js";
+import type { CliResult } from "./types.js";
 
-const USAGE = `blix generate <type> <name> [--flat] [--force] [--dry-run]
+export { ConfigError, defineConfig, loadConfig, type BlixConfig, type LoadedConfig } from "./config.js";
+export { addDevDependencyArgs, detectPackageManager, type PackageManager } from "./pm.js";
+export { KNOWN_PLUGINS, type BlixCommand, type CommandContext } from "./plugins.js";
+export type { InstallRunner } from "./add.js";
+export type { CliResult } from "./types.js";
+
+const GENERATE_USAGE = `blix generate <type> <name> [--flat] [--force] [--dry-run]
 blix g <type> <name> [--flat] [--force] [--dry-run]
 
 <type>: ${GENERATOR_TYPES.join(", ")} (or their first letter: c, s, m, g, i)
@@ -15,11 +26,18 @@ blix g <type> <name> [--flat] [--force] [--dry-run]
   --dry-run   print what would be written, without writing it
 `;
 
-export interface CliResult {
-  exitCode: number;
-  stdout: string;
-  stderr: string;
+function usage(): string {
+  const plugins = Object.entries(KNOWN_PLUGINS)
+    .map(([name, plugin]) => `blix ${name.padEnd(10)}${plugin.description} (${plugin.package})`)
+    .join("\n");
+  return `${GENERATE_USAGE}
+blix add <plugin>   install a plugin package (${Object.keys(KNOWN_PLUGINS).join(", ")})
+${plugins}
+
+blix --version
+`;
 }
+
 
 function parseFlags(args: readonly string[]): GenerateOptions {
   return {
@@ -33,7 +51,7 @@ function runGenerate(cwd: string, args: readonly string[]): CliResult {
   const [typeArg, name] = args.filter((arg) => !arg.startsWith("--"));
 
   if (!typeArg || !name) {
-    return { exitCode: 1, stdout: "", stderr: `Usage: blix generate <type> <name>\n\n${USAGE}` };
+    return { exitCode: 1, stdout: "", stderr: `Usage: blix generate <type> <name>\n\n${GENERATE_USAGE}` };
   }
 
   const type = resolveGeneratorType(typeArg);
@@ -61,17 +79,62 @@ function runGenerate(cwd: string, args: readonly string[]): CliResult {
   }
 }
 
-/** The whole CLI, as a pure function of argv + cwd — no process.exit()/console.log() here, so it's directly testable. */
-export function runCli(argv: readonly string[], cwd: string): CliResult {
+export interface RunCliOptions {
+  /** Defaults to spawning the project's package manager; tests inject a fake. */
+  install?: InstallRunner;
+}
+
+function packageVersion(): string {
+  // `../package.json` resolves to the package root from both src/ and the bundled dist/.
+  const manifest: unknown = createRequire(import.meta.url)("../package.json");
+  return typeof manifest === "object" && manifest !== null && "version" in manifest && typeof manifest.version === "string"
+    ? manifest.version
+    : "unknown";
+}
+
+async function runPlugin(command: string, args: readonly string[], cwd: string): Promise<CliResult> {
+  const lookup = await loadPlugin(command, cwd);
+
+  if (lookup.kind === "not-installed") {
+    return {
+      exitCode: 1,
+      stdout: "",
+      stderr: `"blix ${command}" needs ${lookup.packageName}, which isn't installed in this project.\nInstall it with: blix add ${command}\n`,
+    };
+  }
+  if (lookup.kind === "invalid") {
+    return { exitCode: 1, stdout: "", stderr: `Could not load ${lookup.packageName}: ${lookup.reason}\n` };
+  }
+
+  try {
+    const config = await loadConfig(cwd);
+    return await lookup.command.run({ args, cwd, config });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return { exitCode: 1, stdout: "", stderr: `${error instanceof ConfigError ? "" : `blix ${command} failed: `}${message}\n` };
+  }
+}
+
+/** The whole CLI, as a function of argv + cwd — no process.exit()/console.log() here, so it's directly testable. */
+export async function runCli(argv: readonly string[], cwd: string, options: RunCliOptions = {}): Promise<CliResult> {
   const [command, ...rest] = argv;
 
   if (command === "generate" || command === "g") {
     return runGenerate(cwd, rest);
   }
-  if (!command || command === "--help" || command === "-h") {
-    return { exitCode: 0, stdout: USAGE, stderr: "" };
+  if (command === "add") {
+    return runAdd(rest, cwd, options.install ?? spawnInstall);
   }
-  return { exitCode: 1, stdout: "", stderr: `Unknown command "${command}"\n\n${USAGE}` };
+  if (command === "--version" || command === "-v") {
+    return { exitCode: 0, stdout: `${packageVersion()}\n`, stderr: "" };
+  }
+  if (!command || command === "--help" || command === "-h") {
+    return { exitCode: 0, stdout: usage(), stderr: "" };
+  }
+  if (command in KNOWN_PLUGINS) {
+    return runPlugin(command, rest, cwd);
+  }
+  return { exitCode: 1, stdout: "", stderr: `Unknown command "${command}"\n\n${usage()}` };
 }
 
 // Only run for real when executed directly (not when imported by tests).
@@ -86,7 +149,7 @@ export function runCli(argv: readonly string[], cwd: string): CliResult {
 // "is this module the entry point" checks.
 /* v8 ignore start -- @preserve: process wiring, exercised by index.test.ts spawning the real built CLI, not by importing this module */
 if (process.argv[1] && import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href) {
-  const result = runCli(process.argv.slice(2), process.cwd());
+  const result = await runCli(process.argv.slice(2), process.cwd());
   if (result.stdout) {
     process.stdout.write(result.stdout);
   }
