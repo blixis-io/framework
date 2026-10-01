@@ -13,8 +13,8 @@ export type { Interceptor } from "./decorators/interceptors.js";
 export { getClassInterceptors, getMethodInterceptors, UseInterceptors } from "./decorators/interceptors.js";
 export type { ParamSource } from "./decorators/params.js";
 export { Body, getParamSources, Headers, Param, Query, Req } from "./decorators/params.js";
-export type { RouteDefinition } from "./decorators/routes.js";
-export { Delete, Get, getHttpCode, getReturnsSchema, getRoutes, HttpCode, Patch, Post, Put, Returns } from "./decorators/routes.js";
+export type { ReturnsOptions, RouteDefinition } from "./decorators/routes.js";
+export { Delete, Get, getHttpCode, getReturnsSchema, getReturnsValidate, getRoutes, HttpCode, Patch, Post, Put, Returns } from "./decorators/routes.js";
 export {
   BadRequestException,
   ConflictException,

@@ -313,3 +313,23 @@ describe("serveOpenApi", () => {
     await app.close();
   });
 });
+
+describe("generateOpenApiDocument: validate: false", () => {
+  it("still documents the declared response schema", () => {
+    @Controller("fast")
+    class FastController {
+      @Get()
+      @Returns(z.object({ id: z.string() }), { validate: false })
+      list() {
+        return { id: "1" };
+      }
+    }
+
+    const fastDoc = generateOpenApiDocument({ controllers: [FastController] }, { title: "t", version: "1" });
+
+    expect(fastDoc.paths["/fast"]?.["get"]?.responses["200"]?.content?.["application/json"].schema).toMatchObject({
+      type: "object",
+      properties: { id: { type: "string" } },
+    });
+  });
+});

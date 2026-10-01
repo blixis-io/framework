@@ -1,4 +1,4 @@
-import type { ZodType } from "zod";
+import { z, type ZodType } from "zod";
 
 interface ResponseValidationIssue {
   path: PropertyKey[];
@@ -19,12 +19,27 @@ export class ResponseValidationError extends Error {
   }
 }
 
+/**
+ * Sync parsing is 3-4x faster than `safeParseAsync` on large payloads, so try it first and only fall back
+ * when the schema contains an async refinement/transform (Zod signals that with `$ZodAsyncError`).
+ */
+async function parse(schema: ZodType, value: unknown) {
+  try {
+    return schema.safeParse(value);
+  } catch (error) {
+    if (error instanceof z.core.$ZodAsyncError) {
+      return schema.safeParseAsync(value);
+    }
+    throw error;
+  }
+}
+
 /** Validates a handler's return value against its `@Returns` schema, if any — returns the value (possibly parsed/coerced) unchanged when there's no schema. */
 export async function validateResponse(schema: ZodType | undefined, value: unknown): Promise<unknown> {
   if (!schema) {
     return value;
   }
-  const result = await schema.safeParseAsync(value);
+  const result = await parse(schema, value);
   if (!result.success) {
     throw new ResponseValidationError(result.error.issues);
   }

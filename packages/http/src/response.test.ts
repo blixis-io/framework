@@ -38,4 +38,25 @@ describe("ResponseValidationError", () => {
     expect(error.name).toBe("ResponseValidationError");
     expect(error.message).toContain("id");
   });
+
+  it("strips keys the schema does not declare (the schema is an output allow-list)", async () => {
+    const schema = z.object({ id: z.string() });
+
+    await expect(validateResponse(schema, { id: "1", passwordHash: "secret" })).resolves.toEqual({ id: "1" });
+  });
+
+  it("falls back to async parsing for a schema with an async refinement", async () => {
+    const schema = z.object({ id: z.string().refine((value) => Promise.resolve(value.length > 0)) });
+
+    await expect(validateResponse(schema, { id: "1" })).resolves.toEqual({ id: "1" });
+    await expect(validateResponse(schema, { id: "" })).rejects.toThrow(ResponseValidationError);
+  });
+
+  it("rethrows a non-Zod error from a schema instead of swallowing it", async () => {
+    const schema = z.string().transform(() => {
+      throw new Error("boom");
+    });
+
+    await expect(validateResponse(schema, "x")).rejects.toThrow("boom");
+  });
 });

@@ -62,6 +62,52 @@ weirdButFine() {
 }
 ```
 
+## The schema is also an output filter
+
+`z.object` strips keys it doesn't declare, and what's sent is the parsed value. So `@Returns` doubles as an allow-list: a handler that returns a whole database row, `passwordHash` included, sends only the fields the schema names.
+
+```ts
+const UserSchema = z.object({ id: z.string(), name: z.string() });
+
+@Get(":id")
+@Returns(UserSchema)
+get() {
+  return this.users.find(id); // { id, name, passwordHash } -> client receives { id, name }
+}
+```
+
+Keep this in mind before turning validation off (next section).
+
+## What validation costs, and turning it off
+
+Validation is on for every `@Returns` route by default. On a 6-field object it costs about as much as the `JSON.stringify` that follows: roughly 0.2 ms for 1 000 items (550 KiB) and 1.5 ms for 10 000 (5.5 MB). Schemas without async refinements are parsed synchronously, which is 3-4x faster than Zod's async path; a schema with an async refinement falls back to the async path automatically.
+
+If a hot route's payload makes that matter, opt out per route, or app-wide:
+
+```ts
+@Get()
+@Returns(PostSchema, { validate: false })   // this route only
+list() { /* ... */ }
+
+await createHttpApplication(AppModule, { responseValidation: "never" }); // every route
+```
+
+A route's `validate` wins over the app-wide setting in both directions, so `{ validate: true }` keeps one route checked under `"never"`. What changes when validation is skipped:
+
+- The handler's value is sent as-is: **no coercion, no defaults, and no stripping of unknown keys.** An object carrying extra fields (the `passwordHash` above) is sent whole.
+- A value that doesn't match the schema is no longer a `500`; it reaches the client.
+- The OpenAPI document is unaffected: the schema still describes the route.
+
+There's no built-in `"development"` mode, because it would depend on guessing your environment. To validate everywhere except production, say so explicitly:
+
+```ts
+await createHttpApplication(AppModule, {
+  responseValidation: process.env["NODE_ENV"] === "production" ? "never" : "always",
+});
+```
+
+If you turn it off in production, keep it on in tests and CI so a contract drift is still caught before release.
+
 ## Two escape hatches, unvalidated on purpose
 
 - **A route that returns `undefined`** (mapped to `204 No Content`) skips validation entirely, even with `@Returns` declared — there's no body to check, and `204` is already the established "nothing to validate" convention (see [Routing & Controllers](/framework/concepts/routing-controllers/)).

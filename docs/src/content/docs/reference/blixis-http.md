@@ -45,6 +45,7 @@ function buildRouter(controllers: readonly Class[]): Router<RouteEntry>;
 interface HandlerOptions {
   bodyLimit?: number; // bytes, default 1 MiB
   requestTimeout?: number; // ms, default off — see below
+  responseValidation?: "always" | "never"; // default "always" — see Response Validation
 }
 ```
 
@@ -80,7 +81,11 @@ function getHttpCode(target: object, propertyKey: string | symbol): number | und
 ## Returns (response validation)
 
 ```ts
-function Returns(schema: ZodType): MethodDecorator;
+function Returns(schema: ZodType, options?: ReturnsOptions): MethodDecorator;
+interface ReturnsOptions {
+  validate?: boolean; // per-route override of responseValidation, in either direction
+}
+function getReturnsValidate(target: object, propertyKey: string | symbol): boolean | undefined;
 function getReturnsSchema(target: object, propertyKey: string | symbol): ZodType | undefined;
 
 class ResponseValidationError extends Error {
