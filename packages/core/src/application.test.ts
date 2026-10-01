@@ -1,7 +1,7 @@
 import { DuplicateProviderError, Inject, Injectable, InjectionToken, Optional } from "@blixis-io/di";
 import { describe, expect, it } from "vitest";
 import { createApplication } from "./application.js";
-import { DuplicateDynamicModuleError, NotAModuleError, ProviderNotVisibleError } from "./errors.js";
+import { NotAModuleError, ProviderNotVisibleError } from "./errors.js";
 import { Module } from "./module.js";
 
 describe("createApplication: flat module", () => {
@@ -81,7 +81,89 @@ describe("createApplication: dynamic modules", () => {
     expect(app.get(CONFIG)).toEqual({ name: "blixis" });
   });
 
-  it("throws at boot when one module class is registered by two different dynamic configurations", async () => {
+  it("lets one module class be registered several times, each registration keeping its own providers", async () => {
+    const PRIMARY = new InjectionToken<string>("primary-db");
+    const AUDIT = new InjectionToken<string>("audit-db");
+
+    @Module()
+    class DatabaseModule {
+      static forRoot(token: InjectionToken<string>, url: string) {
+        return { module: DatabaseModule, providers: [{ provide: token, useValue: url }], exports: [token] };
+      }
+    }
+
+    @Injectable()
+    class Repo {
+      constructor(
+        @Inject(PRIMARY) readonly primary: string,
+        @Inject(AUDIT) readonly audit: string,
+      ) {}
+    }
+
+    @Module({
+      imports: [DatabaseModule.forRoot(PRIMARY, "pg://primary"), DatabaseModule.forRoot(AUDIT, "pg://audit")],
+      providers: [Repo],
+    })
+    class AppModule {}
+
+    const app = await createApplication(AppModule);
+
+    expect(app.get(Repo)).toMatchObject({ primary: "pg://primary", audit: "pg://audit" });
+  });
+
+  it("registers the class's static providers once, however many times the module is registered", async () => {
+    const A = new InjectionToken<string>("a");
+    const B = new InjectionToken<string>("b");
+
+    @Injectable()
+    class Shared {}
+
+    @Module({ providers: [Shared], exports: [Shared] })
+    class PoolModule {
+      static forRoot(token: InjectionToken<string>) {
+        return { module: PoolModule, providers: [{ provide: token, useValue: "x" }] };
+      }
+    }
+
+    @Module({ imports: [PoolModule.forRoot(A), PoolModule.forRoot(B)] })
+    class AppModule {}
+
+    const app = await createApplication(AppModule);
+
+    expect(app.get(Shared)).toBeInstanceOf(Shared);
+    expect(app.get(A)).toBe("x");
+    expect(app.get(B)).toBe("x");
+  });
+
+  it("lets a registration's own providers depend on the class's static providers", async () => {
+    @Injectable()
+    class Pool {}
+
+    @Injectable()
+    class Client {
+      constructor(readonly pool: Pool) {}
+    }
+
+    const A = new InjectionToken<Client>("a");
+    const B = new InjectionToken<Client>("b");
+
+    @Module({ providers: [Pool] })
+    class DbModule {
+      static forRoot(token: InjectionToken<Client>) {
+        return { module: DbModule, providers: [{ provide: token, useClass: Client }] };
+      }
+    }
+
+    @Module({ imports: [DbModule.forRoot(A), DbModule.forRoot(B)] })
+    class AppModule {}
+
+    const app = await createApplication(AppModule);
+
+    expect(app.get(A)).toBeInstanceOf(Client);
+    expect(app.get(B)).toBeInstanceOf(Client);
+  });
+
+  it("throws DuplicateProviderError when two registrations provide the same token", async () => {
     const DB = new InjectionToken<string>("db");
 
     @Module()
@@ -94,7 +176,7 @@ describe("createApplication: dynamic modules", () => {
     @Module({ imports: [DatabaseModule.forRoot("primary"), DatabaseModule.forRoot("audit")] })
     class AppModule {}
 
-    await expect(createApplication(AppModule)).rejects.toThrow(DuplicateDynamicModuleError);
+    await expect(createApplication(AppModule)).rejects.toThrow(DuplicateProviderError);
   });
 
   it("dedupes the same dynamic registration reached through several imports", async () => {

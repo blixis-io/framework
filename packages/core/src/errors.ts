@@ -20,14 +20,3 @@ export class ProviderNotVisibleError extends CoreError {
     );
   }
 }
-
-export class DuplicateDynamicModuleError extends CoreError {
-  override readonly name = "DuplicateDynamicModuleError";
-
-  constructor(target: { name: string }) {
-    super(
-      `${target.name} is registered more than once with different dynamic configurations, and a module can only be instantiated once per application. ` +
-        `Import a single registration (reuse the same ${target.name}.forRoot(...) result), or split the configurations into separate module classes.`,
-    );
-  }
-}

@@ -76,6 +76,31 @@ export class ConfigModule {}
 
 Reach for `forRoot()` specifically when the *importer* needs to pass in configuration that varies per import site — a database module configured with different connection strings in different apps, say — not just "read some environment variables."
 
-## Known limitation
+## Registering one module more than once
 
-Deduplication of imports is by module **class**, not by the specific dynamic configuration passed. Importing `ConfigModule.forRoot(a)` from one module and `ConfigModule.forRoot(b)` from another registers only whichever is visited first — the second is silently skipped, not merged or conflict-checked. In practice this means `forRoot()` modules should be imported exactly once, typically from the root module.
+Each `forRoot()` call is its own registration, so the same module class can be imported several times with different configuration — two database connections, say. The one rule: **each registration must provide its own token**, because every provider token is unique across the application. Let the caller choose the token:
+
+```ts
+const PRIMARY_DB = new InjectionToken<Database>("primary-db");
+const AUDIT_DB = new InjectionToken<Database>("audit-db");
+
+@Module()
+class DatabaseModule {
+  static forRoot(token: InjectionToken<Database>, url: string): DynamicModule {
+    return {
+      module: DatabaseModule,
+      providers: [{ provide: token, useFactory: () => connect(url) }],
+      exports: [token],
+    };
+  }
+}
+
+@Module({
+  imports: [DatabaseModule.forRoot(PRIMARY_DB, primaryUrl), DatabaseModule.forRoot(AUDIT_DB, auditUrl)],
+})
+class AppModule {}
+```
+
+Consumers inject whichever token they want. Two registrations that provide the *same* token fail at boot with `DuplicateProviderError`.
+
+The class's own `@Module({ providers, controllers })` are registered once, by the first registration, and every registration can depend on them. Importing the same registration object (`const db = DatabaseModule.forRoot(...)`) from several places is fine — it is collected once. Importing the plain class alongside `forRoot()` registrations resolves to the first registration of that class.

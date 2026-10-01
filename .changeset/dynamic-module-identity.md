@@ -2,4 +2,4 @@
 "@blixis-io/core": minor
 ---
 
-Registering one module class through two different dynamic configurations (e.g. two `DatabaseModule.forRoot(...)` calls) now throws `DuplicateDynamicModuleError` at boot instead of silently keeping the first. Reusing the same registration object across several imports still dedupes. `ProviderNotVisibleError` is now exported.
+Each dynamic registration (`forRoot()` result) is now its own module instance, so one module class can be imported several times with different configuration (e.g. two database connections). Previously the second registration was silently dropped and the first configuration won. Registrations must provide distinct tokens; a clash fails at boot with `DuplicateProviderError`. The class's static `@Module()` providers and controllers are registered once. `ProviderNotVisibleError` is now exported.
