@@ -2,8 +2,12 @@
 // transitively, via decorators.ts/metadata.ts) — imported first and
 // explicitly here so consumers never have to remember it themselves.
 import "reflect-metadata";
+import { assertSingleInstance } from "./instance.js";
+
+assertSingleInstance("@blixis-io/di", import.meta.url);
 
 export { Container } from "./container.js";
+export { assertSingleInstance, DuplicatePackageError, packageVersion } from "./instance.js";
 export { getDependencyTokens, type DependencyDescriptor } from "./dependencies.js";
 export {
   getInjectableOptions,
