@@ -1,5 +1,6 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { Readable } from "node:stream";
+import { pipeline } from "node:stream/promises";
 
 /**
  * Builds a Web-standard `Request` from a Node `IncomingMessage`, including a body stream and abort signal.
@@ -62,11 +63,18 @@ export async function sendWebResponse(response: Response, res: ServerResponse): 
     return;
   }
 
-  const body = Readable.fromWeb(response.body);
-  await new Promise<void>((resolve, reject) => {
-    res.once("finish", resolve);
-    res.once("error", reject);
-    body.once("error", reject);
-    body.pipe(res);
-  });
+  // `pipeline` (not `pipe`) so the streams are torn down together: a client that disconnects
+  // mid-response destroys the body, which cancels the web stream's source instead of leaving
+  // its producer (a DB cursor, a file handle) running. An early disconnect isn't an error.
+  try {
+    await pipeline(Readable.fromWeb(response.body), res);
+  } catch (error) {
+    if (!isPrematureClose(error)) {
+      throw error;
+    }
+  }
+}
+
+function isPrematureClose(error: unknown): boolean {
+  return error instanceof Error && "code" in error && error.code === "ERR_STREAM_PREMATURE_CLOSE";
 }
