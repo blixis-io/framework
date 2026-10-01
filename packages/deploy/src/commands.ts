@@ -1,11 +1,12 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { basename, dirname, join } from "node:path";
+import { dirname, join } from "node:path";
 import { detectPackageManager, type CliResult, type CommandContext } from "@blixis-io/cli";
 import { CI_PROVIDER_IDS, ciProviderFor } from "./ci.js";
-import { DeployConfigError, parseDeployConfig, selectTarget, type DeployConfig } from "./config.js";
-import { DOCKERIGNORE, DockerfileError, renderDockerfile } from "./dockerfile.js";
+import { DeployConfigError, RESERVED_TARGET_NAMES, TargetSchema, parseDeployConfig, selectTarget, type DeployConfig } from "./config.js";
+import { renderConfigFile, renderTarget } from "./config-file.js";
+import { DockerfileError } from "./dockerfile.js";
 import { formatStep } from "./runner.js";
-import { adapterFor, type Phase } from "./targets.js";
+import { adapterFor, initPlanFor, isTargetType, TARGET_TYPES, type Phase } from "./targets.js";
 import type { Env, Runner, Step } from "./types.js";
 
 export interface DeployDeps {
@@ -17,8 +18,10 @@ export interface DeployDeps {
 
 export const USAGE = `blix deploy [target] [--dry-run]      build and ship a target (default target or the only one)
 blix deploy build [target]            build only: no login, push or post-push command
-blix deploy init [--target docker] [--ci github] [--image <name>] [--branch main] [--entry dist/main.js] [--force]
-                                      write blix.config.ts, a Dockerfile and a CI workflow
+blix deploy init [--target docker|vercel|netlify] [--name prod] [--ci github] [--force]
+                                      write blix.config.ts, the files the target needs, and a CI workflow
+                                      docker: [--image <name>] [--entry dist/main.js]
+                                      vercel/netlify: [--app-module dist/app.module.js] [--app-export AppModule]
 blix deploy ci <provider> [target] [--branch main] [--force]
                                       (re)generate the CI file. Providers: ${CI_PROVIDER_IDS.join(", ")}
 blix deploy doctor [target]           check config, tools and environment
@@ -31,7 +34,7 @@ interface ParsedArgs {
   flags: Map<string, string | true>;
 }
 
-const VALUE_FLAGS = new Set(["target", "ci", "image", "branch", "entry"]);
+const VALUE_FLAGS = new Set(["target", "name", "ci", "image", "branch", "entry", "app-module", "app-export"]);
 const BOOLEAN_FLAGS = new Set(["dry-run", "force", "help"]);
 
 function parseArgs(args: readonly string[]): ParsedArgs | string {
@@ -115,7 +118,7 @@ async function runPlan(
   const adapter = adapterFor(name, target);
 
   const tag = await adapter.resolveTag(deps.env, context.cwd, deps.runner);
-  const plan = adapter.plan(phase, { cwd: context.cwd, env: deps.env, tag });
+  const plan = adapter.plan(phase, { cwd: context.cwd, env: deps.env, tag, packageManager: detectPackageManager(context.cwd) });
 
   if (dryRun) {
     const lines = [`# ${phase} ${name} (${target.type}), tag ${tag}`, ...plan.steps.map((step) => `$ ${formatStep(step)}`)];
@@ -151,36 +154,6 @@ function writeFile(path: string, content: string, force: boolean): FileOutcome {
   return existed ? "overwrote" : "created";
 }
 
-/** `ghcr.io/owner/repo` from a GitHub remote URL, lower-cased (registries require it). */
-export function imageFromRemote(url: string): string | undefined {
-  const match = /github\.com[:/]([^/\s]+)\/([^/\s]+?)(?:\.git)?\s*$/.exec(url.trim());
-  return match ? `ghcr.io/${match[1]}/${match[2]}`.toLowerCase() : undefined;
-}
-
-/** The registry host of an image name: its first path segment if that looks like a host, else Docker Hub. */
-export function registryHostOf(image: string): string {
-  const first = image.split("/")[0] ?? "";
-  return image.includes("/") && /[.:]|^localhost$/.test(first) ? first : "docker.io";
-}
-
-function configTemplate(image: string, registryHost: string): string {
-  return `import { defineConfig } from "@blixis-io/cli";
-
-export default defineConfig({
-  deploy: {
-    targets: {
-      prod: {
-        type: "docker",
-        image: ${JSON.stringify(image)},
-        registry: { host: ${JSON.stringify(registryHost)} },
-        // after: 'fly deploy --image "$BLIX_IMAGE"',  // tell your host to pick up the new image
-      },
-    },
-  },
-});
-`;
-}
-
 /** True when package.json pins a package manager (`"packageManager": "pnpm@11.25.0"`), which corepack inside the image honours. */
 function pinsPackageManager(cwd: string): boolean {
   try {
@@ -195,8 +168,12 @@ const CONFIG_NAMES = ["blix.config.ts", "blix.config.mts", "blix.config.js", "bl
 
 async function runInit(context: CommandContext, parsed: ParsedArgs, deps: DeployDeps): Promise<CliResult> {
   const type = flag(parsed, "target") ?? "docker";
-  if (type !== "docker") {
-    return fail(`Unsupported target "${type}". Supported: docker. (Vercel, Netlify and Cloudflare are planned.)`);
+  if (!isTargetType(type)) {
+    return fail(`Unsupported target "${type}". Supported: ${TARGET_TYPES.join(", ")}.`);
+  }
+  const name = flag(parsed, "name") ?? "prod";
+  if ((RESERVED_TARGET_NAMES as readonly string[]).includes(name)) {
+    return fail(`"${name}" can't be a target name: it's a blix deploy command (${RESERVED_TARGET_NAMES.join(", ")}).`);
   }
   const ciId = flag(parsed, "ci");
   const ci = ciId ? ciProviderFor(ciId) : undefined;
@@ -206,56 +183,64 @@ async function runInit(context: CommandContext, parsed: ParsedArgs, deps: Deploy
 
   const force = parsed.flags.has("force");
   const cwd = context.cwd;
-  const pm = detectPackageManager(cwd);
-  const entry = flag(parsed, "entry") ?? "dist/main.js";
-  const lines: string[] = [];
+  const packageManager = detectPackageManager(cwd);
+  const plan = await initPlanFor(type, {
+    cwd,
+    packageManager,
+    runner: deps.runner,
+    options: {
+      image: flag(parsed, "image"),
+      entry: flag(parsed, "entry") ?? "dist/main.js",
+      appModule: flag(parsed, "app-module") ?? "dist/app.module.js",
+      appExport: flag(parsed, "app-export") ?? "AppModule",
+    },
+  });
+  const lines: string[] = plan.notes.map((note) => `note: ${note}`);
 
-  let image = flag(parsed, "image");
-  if (!image) {
-    const remote = await deps.runner.capture("git", ["remote", "get-url", "origin"], cwd);
-    image = (remote.code === 0 ? imageFromRemote(remote.stdout) : undefined) ?? `ghcr.io/OWNER/${basename(cwd).toLowerCase()}`;
-    if (image.includes("OWNER")) {
-      lines.push(`note: couldn't work out your registry namespace; edit "image" in blix.config.ts (now ${image}).`);
+  const existingConfig = CONFIG_NAMES.find((file) => existsSync(join(cwd, file)));
+  if (existingConfig) {
+    lines.push(
+      `kept ${existingConfig}. Add this under deploy.targets yourself:`,
+      "",
+      renderTarget(name, plan.target, plan.comments, 3),
+      "",
+    );
+  } else {
+    lines.push(`${writeFile(join(cwd, "blix.config.ts"), renderConfigFile(name, plan.target, plan.comments), force)} blix.config.ts`);
+  }
+
+  for (const file of plan.files) {
+    const path = join(cwd, file.path);
+    if (existsSync(path) && (!force || file.keep)) {
+      lines.push(`kept ${file.path}`);
+    } else {
+      lines.push(`${writeFile(path, file.content, true)} ${file.path}`);
     }
   }
-  const registryHost = registryHostOf(image);
-
-  const existingConfig = CONFIG_NAMES.find((name) => existsSync(join(cwd, name)));
-  if (existingConfig) {
-    lines.push(`kept ${existingConfig} (add the deploy section from \`blix deploy init\` yourself if it has none)`);
-  } else {
-    lines.push(`${writeFile(join(cwd, "blix.config.ts"), configTemplate(image, registryHost), force)} blix.config.ts`);
-  }
-
-  const dockerfile = join(cwd, "Dockerfile");
-  if (existsSync(dockerfile) && !force) {
-    lines.push("kept Dockerfile");
-  } else {
-    lines.push(`${writeFile(dockerfile, renderDockerfile({ packageManager: pm, entry }), force)} Dockerfile`);
-  }
-  lines.push(`${writeFile(join(cwd, ".dockerignore"), DOCKERIGNORE, false)} .dockerignore`);
 
   if (ci) {
+    const target = TargetSchema.parse(plan.target);
+    const requirements = adapterFor(name, target).ci();
     lines.push(
       `${writeFile(
         join(cwd, ci.filePath),
         ci.render({
-          target: "prod",
-          packageManager: pm,
+          target: name,
+          packageManager,
           nodeVersion: "24",
           branch: flag(parsed, "branch") ?? "main",
-          secrets: [],
-          registry: { host: registryHost, usernameEnv: "REGISTRY_USERNAME", passwordEnv: "REGISTRY_PASSWORD" },
+          secrets: requirements.secrets,
+          registry: requirements.registry,
         }),
         force,
       )} ${ci.filePath}`,
     );
   }
 
-  if (pm === "pnpm" && !pinsPackageManager(cwd)) {
+  if (packageManager === "pnpm" && !pinsPackageManager(cwd)) {
     lines.push(
       "",
-      'note: package.json has no "packageManager" field, so the image installs whichever pnpm corepack picks, which may not be yours.',
+      'note: package.json has no "packageManager" field, so the build installs whichever pnpm corepack picks, which may not be yours.',
       "      Pin it with: corepack use pnpm@latest  (or set it by hand, e.g. \"packageManager\": \"pnpm@11.25.0\")",
     );
   }
@@ -272,7 +257,7 @@ async function runCi(context: CommandContext, parsed: ParsedArgs): Promise<CliRe
 
   const config: DeployConfig = parseDeployConfig(context.config);
   const { name, target } = selectTarget(config, targetName);
-  const registry = target.registry;
+  const requirements = adapterFor(name, target).ci();
   const outcome = writeFile(
     join(context.cwd, provider.filePath),
     provider.render({
@@ -280,8 +265,8 @@ async function runCi(context: CommandContext, parsed: ParsedArgs): Promise<CliRe
       packageManager: detectPackageManager(context.cwd),
       nodeVersion: "24",
       branch: flag(parsed, "branch") ?? "main",
-      secrets: target.env,
-      registry,
+      secrets: requirements.secrets,
+      registry: requirements.registry,
     }),
     parsed.flags.has("force"),
   );
@@ -302,7 +287,7 @@ async function runDoctor(context: CommandContext, targetName: string | undefined
   const selected = targetName ? [selectTarget(config, targetName)] : Object.entries(config.targets).map(([name, target]) => ({ name, target }));
 
   const git = await deps.runner.capture("git", ["--version"], context.cwd);
-  lines.push(git.code === 0 ? "ok      git" : "warn    git not found (the image tag falls back to \"latest\")");
+  lines.push(git.code === 0 ? "ok      git" : "warn    git not found (the tag falls back to \"latest\")");
 
   if (selected.some(({ target }) => target.type === "docker")) {
     const docker = await deps.runner.capture("docker", ["version", "--format", "{{.Server.Version}}"], context.cwd);
@@ -314,9 +299,19 @@ async function runDoctor(context: CommandContext, targetName: string | undefined
     }
   }
 
+  if (selected.some(({ target }) => target.type !== "docker")) {
+    const npx = await deps.runner.capture("npx", ["--version"], context.cwd);
+    if (npx.code === 0) {
+      lines.push(`ok      npx ${npx.stdout.trim()} (runs the provider CLI)`);
+    } else {
+      failed = true;
+      lines.push("missing npx (it ships with npm and runs the provider's CLI)");
+    }
+  }
+
   for (const { name, target } of selected) {
-    const needed = [...target.env, ...(target.registry ? [target.registry.usernameEnv, target.registry.passwordEnv] : [])];
-    for (const variable of needed) {
+    const { secrets, registry } = adapterFor(name, target).ci();
+    for (const variable of [...secrets, ...(registry ? [registry.usernameEnv, registry.passwordEnv] : [])]) {
       lines.push(
         deps.env[variable]
           ? `ok      ${name}: ${variable} is set`

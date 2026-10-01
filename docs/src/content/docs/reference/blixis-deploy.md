@@ -12,7 +12,9 @@ The `blix deploy` command, loaded by `blix` from your project's `node_modules`. 
 ```
 blix deploy [target] [--dry-run]
 blix deploy build [target] [--dry-run]
-blix deploy init [--target docker] [--ci github] [--image <name>] [--branch main] [--entry dist/main.js] [--force]
+blix deploy init [--target docker|vercel|netlify] [--name prod] [--ci github] [--branch main] [--force]
+blix deploy init --target docker [--image <name>] [--entry dist/main.js]
+blix deploy init --target vercel|netlify [--app-module dist/app.module.js] [--app-export AppModule]
 blix deploy ci <provider> [target] [--branch main] [--force]
 blix deploy doctor [target]
 ```
@@ -21,7 +23,7 @@ blix deploy doctor [target]
 |---|---|
 | `blix deploy [target]` | Runs the full plan: log in, build, push, then the `after` command. Without a target: `deploy.default`, else the only target. |
 | `build` | Only builds. Needs no credentials. |
-| `init` | Writes `blix.config.ts`, `Dockerfile`, `.dockerignore`, and optionally a CI file. Never overwrites without `--force`. |
+| `init` | Writes `blix.config.ts`, the files the target needs, and optionally a CI file. Never overwrites without `--force`. If a config already exists it prints the target to add instead of editing it. `--name` names the target (default `prod`). |
 | `ci` | (Re)generates the CI file for a configured target. Providers: `github`. |
 | `doctor` | Checks config, git, Docker, and which required variables are set. Exits `1` only if Docker is missing or the config is invalid. |
 
@@ -55,6 +57,27 @@ interface DockerTarget {
 }
 ```
 
+```ts
+interface VercelTarget {
+  type: "vercel";
+  production?: boolean; // default true; false = preview
+  build?: string; // default: "<package manager> run build"
+  cliVersion?: string; // default "latest"
+  env?: string[];
+}
+
+interface NetlifyTarget {
+  type: "netlify";
+  production?: boolean;
+  build?: string;
+  cliVersion?: string;
+  env?: string[];
+  dir?: string; // publish directory, default "public"
+  functions?: string; // default "netlify/functions"
+  site?: string; // else NETLIFY_SITE_ID
+}
+```
+
 The config is validated with Zod; an invalid one fails with every problem and its path (`deploy.targets.prod.image: ...`). `defineDeployConfig(config)` is an identity helper for autocomplete.
 
 ## Programmatic API
@@ -71,5 +94,7 @@ const tag = await adapter.resolveTag(process.env, process.cwd(), runner);
 const { steps, missingEnv } = adapter.plan("deploy", { cwd: process.cwd(), env: process.env, tag });
 steps.map(formatStep); // ["docker build -t ...", ...]
 ```
+
+`initPlanFor(type, context)` returns what `init` would write (the target for the config, files, notes), so another tool can scaffold a target too.
 
 A plan is a list of `Step`s (`command`, `args`, optional `env`, `stdinFromEnv`, `shell`). A `Runner` executes them; `processRunner` is the real one, and tests inject a fake. Adding a target type means adding an adapter and a `case` in `adapterFor`; adding a CI system means adding a `CiProvider`.

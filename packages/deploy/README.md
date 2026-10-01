@@ -9,6 +9,6 @@ blix deploy --dry-run          # print every command, run none
 blix deploy                    # log in, build, push, then your `after` command
 ```
 
-Docker is the only target today; Vercel, Netlify and Cloudflare are planned. Needs `@blixis-io/cli` as a peer dependency.
+Targets: Docker, Vercel and Netlify (`--target docker|vercel|netlify`). Cloudflare Workers is planned. Needs `@blixis-io/cli` as a peer dependency.
 
 Part of [Blixis Framework](https://github.com/blixis-io/framework) — [Deploying guide](https://blixis-io.github.io/framework/guides/deploying/) · [Reference](https://blixis-io.github.io/framework/reference/blixis-deploy/).

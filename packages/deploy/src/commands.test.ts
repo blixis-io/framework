@@ -3,7 +3,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { LoadedConfig } from "@blixis-io/cli";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { imageFromRemote, registryHostOf, runDeploy, USAGE, type DeployDeps } from "./commands.js";
+import { runDeploy, USAGE, type DeployDeps } from "./commands.js";
+import { imageFromRemote, registryHostOf } from "./docker.js";
 import { fakeRunner, type FakeRunner } from "./test-helpers.js";
 
 let cwd: string;
@@ -231,8 +232,9 @@ describe("blix deploy init", () => {
     expect(readFileSync(join(cwd, "Dockerfile"), "utf8")).toContain("FROM node:24-alpine");
   });
 
-  it("rejects a target type that isn't supported yet, and an unknown CI provider", async () => {
-    expect((await run(["init", "--target", "vercel"], undefined, deps(fakeRunner()))).stderr).toContain('Unsupported target "vercel"');
+  it("rejects a target type that isn't supported, and an unknown CI provider", async () => {
+    const unsupported = await run(["init", "--target", "ftp"], undefined, deps(fakeRunner()));
+    expect(unsupported.stderr).toContain('Unsupported target "ftp". Supported: docker, vercel, netlify.');
     expect((await run(["init", "--ci", "travis"], undefined, deps(fakeRunner()))).stderr).toContain('Unknown CI provider "travis"');
   });
 
@@ -250,6 +252,127 @@ describe("blix deploy init", () => {
 
     expect(readFileSync(join(cwd, ".github/workflows/deploy.yml"), "utf8")).toContain("branches: [release]");
     expect(readFileSync(join(cwd, "Dockerfile"), "utf8")).toContain('"dist/server.js"');
+  });
+});
+
+describe("blix deploy init for Vercel and Netlify", () => {
+  it("vercel: writes config, entry, vercel.json and public/, and a workflow with the Vercel secrets", async () => {
+    const result = await run(["init", "--target", "vercel", "--ci", "github"], undefined, deps(fakeRunner()));
+
+    expect(result.exitCode).toBe(0);
+    const written = ["blix.config.ts", "api/index.mjs", "vercel.json", "public/.gitkeep", ".github/workflows/deploy.yml"].filter((file) =>
+      existsSync(join(cwd, file)),
+    );
+    expect(written).toEqual(["blix.config.ts", "api/index.mjs", "vercel.json", "public/.gitkeep", ".github/workflows/deploy.yml"]);
+    expect(existsSync(join(cwd, "Dockerfile"))).toBe(false);
+    expect(readFileSync(join(cwd, "blix.config.ts"), "utf8")).toContain('type: "vercel"');
+    expect(readFileSync(join(cwd, "api/index.mjs"), "utf8")).toContain('from "../dist/app.module.js"');
+    const workflow = readFileSync(join(cwd, ".github/workflows/deploy.yml"), "utf8");
+    expect(workflow).toContain("VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}");
+    expect(workflow).toContain("VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}");
+    expect(workflow).not.toContain("packages: write");
+    expect(result.stdout).toContain("note: the function entry uses createFetchHandler");
+  });
+
+  it("netlify: writes the function and netlify.toml, with the app module configurable", async () => {
+    await run(["init", "--target", "netlify", "--app-module", "build/root.js", "--app-export", "RootModule"], undefined, deps(fakeRunner()));
+
+    expect(readFileSync(join(cwd, "netlify/functions/api.mjs"), "utf8")).toContain('import { RootModule } from "../../build/root.js";');
+    expect(readFileSync(join(cwd, "netlify.toml"), "utf8")).toContain('functions = "netlify/functions"');
+  });
+
+  it("keeps an existing public/.gitkeep even with --force, and overwrites the entry", async () => {
+    mkdirSync(join(cwd, "public"), { recursive: true });
+    writeFileSync(join(cwd, "public/.gitkeep"), "MINE");
+    mkdirSync(join(cwd, "api"), { recursive: true });
+    writeFileSync(join(cwd, "api/index.mjs"), "OLD");
+
+    const result = await run(["init", "--target", "vercel", "--force"], undefined, deps(fakeRunner()));
+
+    expect(result.stdout).toContain("kept public/.gitkeep");
+    expect(result.stdout).toContain("overwrote api/index.mjs");
+    expect(readFileSync(join(cwd, "public/.gitkeep"), "utf8")).toBe("MINE");
+  });
+
+  it("--name picks the target name, and a reserved name is refused", async () => {
+    await run(["init", "--target", "vercel", "--name", "preview", "--ci", "github"], undefined, deps(fakeRunner()));
+
+    expect(readFileSync(join(cwd, "blix.config.ts"), "utf8")).toContain("preview: {");
+    expect(readFileSync(join(cwd, ".github/workflows/deploy.yml"), "utf8")).toContain("blix deploy preview");
+    expect((await run(["init", "--name", "build"], undefined, deps(fakeRunner()))).stderr).toContain(`"build" can't be a target name`);
+  });
+
+  it("with an existing config, prints the target to add instead of touching the file", async () => {
+    writeFileSync(join(cwd, "blix.config.ts"), "export default {};\n");
+
+    const result = await run(["init", "--target", "netlify", "--name", "docs"], undefined, deps(fakeRunner()));
+
+    expect(result.stdout).toContain("kept blix.config.ts. Add this under deploy.targets yourself:");
+    expect(result.stdout).toContain('      docs: {\n        type: "netlify",');
+    expect(readFileSync(join(cwd, "blix.config.ts"), "utf8")).toBe("export default {};\n");
+  });
+});
+
+describe("blix deploy for Vercel and Netlify (planning)", () => {
+  const providers = {
+    default: "v",
+    targets: { v: { type: "vercel" }, n: { type: "netlify", site: "site-1", production: false, env: ["API_KEY"] } },
+  };
+
+  it("--dry-run shows the build then the provider command", async () => {
+    writeFileSync(join(cwd, "pnpm-lock.yaml"), "");
+    const vercel = await run(["v", "--dry-run"], config(providers), deps(fakeRunner()));
+    const netlify = await run(["n", "--dry-run"], config(providers), deps(fakeRunner()));
+
+    expect(vercel.stdout).toBe("# deploy v (vercel), tag latest\n$ pnpm run build\n$ npx --yes vercel@latest deploy --yes --prod\n");
+    expect(netlify.stdout).toContain("$ npx --yes netlify-cli@latest deploy --dir public --functions netlify/functions --site site-1\n");
+    expect(netlify.stdout).toContain("# would need these environment variables: API_KEY");
+  });
+
+  it("a real deploy refuses to start without a variable the target lists", async () => {
+    const runner = fakeRunner();
+
+    const result = await run(["n"], config(providers), deps(runner, {}));
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain("Missing environment variables for n: API_KEY");
+    expect(runner.ran).toEqual([]);
+  });
+
+  it("runs the build then the deploy, in order", async () => {
+    const runner = fakeRunner();
+
+    const result = await run(["v"], config(providers), deps(runner));
+
+    expect(runner.ran.map((step) => step.name)).toEqual(["build the project", "deploy to Vercel"]);
+    expect(result.stdout).toBe("\nDeployed v (vercel), tag latest.\n");
+  });
+
+  it("ci generates the workflow with each provider's secrets", async () => {
+    await run(["ci", "github", "n"], config(providers), deps(fakeRunner()));
+
+    const yaml = readFileSync(join(cwd, ".github/workflows/deploy.yml"), "utf8");
+    expect(yaml).toContain("NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}");
+    expect(yaml).toContain("API_KEY: ${{ secrets.API_KEY }}");
+    expect(yaml).not.toContain("NETLIFY_SITE_ID");
+  });
+
+  it("doctor checks npx for provider targets and lists their credentials", async () => {
+    const runner = fakeRunner({ captures: { "npx --version": { code: 0, stdout: "11.0.0\n" } } });
+
+    const result = await run(["doctor", "v"], config(providers), deps(runner, { VERCEL_TOKEN: "t" }));
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("ok      npx 11.0.0");
+    expect(result.stdout).toContain("ok      v: VERCEL_TOKEN is set");
+    expect(result.stdout).toContain("warn    v: VERCEL_ORG_ID is not set here");
+  });
+
+  it("doctor fails when npx is missing", async () => {
+    const result = await run(["doctor", "v"], config(providers), deps(fakeRunner()));
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stdout).toContain("missing npx");
   });
 });
 
