@@ -1,5 +1,5 @@
 /** Every file of the generated app, keyed by path relative to the project root. */
-export function templateFiles(packageName: string): Record<string, string> {
+export function templateFiles(packageName: string, packageManagerPin?: string): Record<string, string> {
   return {
     "package.json": `${JSON.stringify(
       {
@@ -7,6 +7,9 @@ export function templateFiles(packageName: string): Record<string, string> {
         version: "0.0.0",
         private: true,
         type: "module",
+        // Pins the package manager (corepack honours it), so a Docker image or CI job installs with the same
+        // major version the project was created with instead of whatever is newest.
+        ...(packageManagerPin ? { packageManager: packageManagerPin } : {}),
         engines: { node: ">=24" },
         scripts: {
           // Decorators need tsc (esbuild/tsx drop the metadata), so dev is "compile once, then

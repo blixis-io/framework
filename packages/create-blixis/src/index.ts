@@ -37,6 +37,12 @@ export function detectPackageManager(userAgent: string | undefined): PackageMana
   return name === "pnpm" || name === "yarn" || name === "bun" ? name : "npm";
 }
 
+/** `"pnpm@11.25.0"` from an `npm_config_user_agent` like `pnpm/11.25.0 npm/? node/v24.0.0`, for the `packageManager` field. Bun isn't managed by corepack, so it gets none. */
+export function packageManagerPin(userAgent: string | undefined): string | undefined {
+  const match = /^(pnpm|npm|yarn)\/(\d+\.\d+\.\d+)/.exec(userAgent ?? "");
+  return match ? `${match[1]}@${match[2]}` : undefined;
+}
+
 function addArgs(pm: PackageManager, dev: boolean, packages: readonly string[]): string[] {
   const verb = pm === "npm" ? "install" : "add";
   const devFlag = pm === "bun" ? "-d" : "-D";
@@ -70,7 +76,7 @@ export async function runCreate(argv: readonly string[], options: CreateOptions)
 
   let result;
   try {
-    result = scaffold(options.cwd, target);
+    result = scaffold(options.cwd, target, packageManagerPin(options.userAgent));
   } catch (error) {
     if (error instanceof ScaffoldError) {
       return { exitCode: 1, stdout: "", stderr: `${error.message}\n` };
