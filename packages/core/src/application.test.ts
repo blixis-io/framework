@@ -1,7 +1,7 @@
 import { DuplicateProviderError, Inject, Injectable, InjectionToken, Optional } from "@blixis-io/di";
 import { describe, expect, it } from "vitest";
 import { createApplication } from "./application.js";
-import { NotAModuleError, ProviderNotVisibleError } from "./errors.js";
+import { DuplicateDynamicModuleError, NotAModuleError, ProviderNotVisibleError } from "./errors.js";
 import { Module } from "./module.js";
 
 describe("createApplication: flat module", () => {
@@ -79,6 +79,45 @@ describe("createApplication: dynamic modules", () => {
     const app = await createApplication(AppModule);
 
     expect(app.get(CONFIG)).toEqual({ name: "blixis" });
+  });
+
+  it("throws at boot when one module class is registered by two different dynamic configurations", async () => {
+    const DB = new InjectionToken<string>("db");
+
+    @Module()
+    class DatabaseModule {
+      static forRoot(url: string) {
+        return { module: DatabaseModule, providers: [{ provide: DB, useValue: url }] };
+      }
+    }
+
+    @Module({ imports: [DatabaseModule.forRoot("primary"), DatabaseModule.forRoot("audit")] })
+    class AppModule {}
+
+    await expect(createApplication(AppModule)).rejects.toThrow(DuplicateDynamicModuleError);
+  });
+
+  it("dedupes the same dynamic registration reached through several imports", async () => {
+    const CONFIG = new InjectionToken<string>("config");
+
+    @Module()
+    class ConfigModule {
+      static forRoot(value: string) {
+        return { module: ConfigModule, providers: [{ provide: CONFIG, useValue: value }] };
+      }
+    }
+
+    const config = ConfigModule.forRoot("shared");
+
+    @Module({ imports: [config] })
+    class AModule {}
+
+    @Module({ imports: [config, AModule] })
+    class AppModule {}
+
+    const app = await createApplication(AppModule);
+
+    expect(app.get(CONFIG)).toBe("shared");
   });
 });
 
