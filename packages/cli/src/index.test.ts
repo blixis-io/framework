@@ -1,5 +1,5 @@
-import { execFileSync } from "node:child_process";
-import { existsSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { execFileSync, spawnSync } from "node:child_process";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -98,14 +98,6 @@ describe("runCli: version, help and plugins", () => {
     expect(result.stdout).toContain("@blixis-io/deploy");
   });
 
-  it("tells you how to install a plugin that is missing", async () => {
-    const result = await runCli(["deploy"], cwd);
-
-    expect(result.exitCode).toBe(1);
-    expect(result.stderr).toContain("needs @blixis-io/deploy");
-    expect(result.stderr).toContain("blix add deploy");
-  });
-
   it("runs an installed plugin with its args, cwd and loaded config", async () => {
     installFakePlugin(cwd, "deploy");
     writeFileSync(join(cwd, "blix.config.ts"), 'export default { deploy: { target: "docker" } };\n');
@@ -177,7 +169,8 @@ describe("runCli: version, help and plugins", () => {
 
 describe("the real built CLI (spawned, not imported)", () => {
   const packageRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
-  const distEntry = join(packageRoot, "dist", "index.js");
+  const distEntry = join(packageRoot, "dist", "bin.js");
+  const libraryEntry = join(packageRoot, "dist", "index.js");
 
   beforeAll(() => {
     // Self-contained on purpose: turbo's `test` task doesn't depend on
@@ -205,6 +198,60 @@ describe("the real built CLI (spawned, not imported)", () => {
     const stdout = execFileSync("node", [distEntry, "deploy", "prod"], { cwd, encoding: "utf8" });
 
     expect(JSON.parse(stdout)).toMatchObject({ args: ["prod"], config: { deploy: { target: "vercel" } } });
+  });
+
+  it("tells you how to install a plugin that is missing (real Node resolution from the project)", () => {
+    // Vitest (and pnpm) put the repo's node_modules on NODE_PATH, which would let a temp dir "find" this repo's own workspace packages.
+    const result = spawnSync("node", [distEntry, "deploy"], { cwd, encoding: "utf8", env: { ...process.env, NODE_PATH: "" } });
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("needs @blixis-io/deploy");
+    expect(result.stderr).toContain("blix add deploy");
+  });
+
+  /** Makes `@blixis-io/cli` importable from the temp project, the way a real install would. */
+  function linkCliIntoProject(): void {
+    mkdirSync(join(cwd, "node_modules", "@blixis-io"), { recursive: true });
+    symlinkSync(packageRoot, join(cwd, "node_modules", "@blixis-io", "cli"));
+  }
+
+  it("the library entry has no shebang and can be imported without running the CLI", () => {
+    const stdout = execFileSync("node", ["-e", `import(${JSON.stringify(libraryEntry)}).then((m) => console.log(typeof m.runCli, typeof m.defineConfig))`], { cwd, encoding: "utf8" });
+
+    expect(stdout).toBe("function function\n");
+  });
+
+  it("regression: a blix.config.ts that imports defineConfig from @blixis-io/cli doesn't deadlock the binary", () => {
+    // The bin used to be the same file as the library entry, so importing the library from the
+    // config while the bin was mid-`await runCli()` waited on itself forever (exit 13, unsettled top-level await).
+    linkCliIntoProject();
+    installFakePlugin(cwd, "deploy");
+    writeFileSync(
+      join(cwd, "blix.config.ts"),
+      'import { defineConfig } from "@blixis-io/cli";\nexport default defineConfig({ deploy: { target: "docker" } });\n',
+    );
+
+    const result = spawnSync("node", [distEntry, "deploy", "prod"], { cwd, encoding: "utf8", timeout: 20_000 });
+
+    expect(result.stderr).toBe("");
+    expect(result.status).toBe(0);
+    expect(JSON.parse(result.stdout)).toMatchObject({ args: ["prod"], config: { deploy: { target: "docker" } } });
+  });
+
+  it("regression: a plugin that imports @blixis-io/cli at runtime doesn't deadlock the binary either", () => {
+    linkCliIntoProject();
+    installFakePlugin(
+      cwd,
+      "deploy",
+      `import { detectPackageManager } from "@blixis-io/cli";
+export const blixCommand = { name: "deploy", description: "x", run: ({ cwd }) => ({ exitCode: 0, stdout: detectPackageManager(cwd) + "\\n", stderr: "" }) };
+`,
+    );
+
+    const result = spawnSync("node", [distEntry, "deploy"], { cwd, encoding: "utf8", timeout: 20_000 });
+
+    expect(result.stderr).toBe("");
+    expect(result.stdout).toBe("npm\n");
   });
 
   it("prints its version", () => {

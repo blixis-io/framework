@@ -38,9 +38,9 @@ function isBlixCommand(value: unknown): value is BlixCommand {
   );
 }
 
-/** Finds the plugin in the *project's* node_modules (resolved from `cwd`, not from wherever this CLI is installed). */
-export async function loadPlugin(commandName: string, cwd: string): Promise<PluginLookup> {
-  const known = KNOWN_PLUGINS[commandName];
+/** Finds the plugin in the *project's* node_modules (resolved from `cwd`, not from wherever this CLI is installed). `registry` exists so tests can name a package that is guaranteed not to exist. */
+export async function loadPlugin(commandName: string, cwd: string, registry: typeof KNOWN_PLUGINS = KNOWN_PLUGINS): Promise<PluginLookup> {
+  const known = registry[commandName];
   if (!known) {
     return { kind: "invalid", packageName: commandName, reason: "not a known command" };
   }
