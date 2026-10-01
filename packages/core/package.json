@@ -1,6 +1,6 @@
 {
   "name": "@blixis-io/core",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "The module system built on @blixis-io/di — @Module, lifecycle hooks, application bootstrapping.",
   "license": "MIT",
   "author": "Michael Voeten <michael@voeten.online>",
