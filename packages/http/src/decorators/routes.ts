@@ -11,6 +11,7 @@ export interface RouteDefinition {
 const ROUTES = Symbol("blixis:routes");
 const HTTP_CODE = Symbol("blixis:http-code");
 const RETURNS = Symbol("blixis:returns");
+const RETURNS_VALIDATE = Symbol("blixis:returns-validate");
 
 function routeDecorator(method: HttpMethod, path: string): MethodDecorator {
   return (target, propertyKey) => {
@@ -48,10 +49,27 @@ export function getHttpCode(target: object, propertyKey: string | symbol): numbe
  * implementation drifted from its own declared contract), not a client
  * error, so it never reaches the client as anything but a generic 500.
  */
-export function Returns(schema: ZodType): MethodDecorator {
+export function Returns(schema: ZodType, options: ReturnsOptions = {}): MethodDecorator {
   return (target, propertyKey) => {
     defineMetadata(RETURNS, schema, target, propertyKey);
+    if (options.validate !== undefined) {
+      defineMetadata(RETURNS_VALIDATE, options.validate, target, propertyKey);
+    }
   };
+}
+
+export interface ReturnsOptions {
+  /**
+   * Overrides the app-wide `responseValidation` for this route, in either direction. `false` sends the
+   * handler's value as-is: no parsing, so none of the schema's coercion, defaults or stripping of unknown
+   * keys applies. The schema still describes the route in the OpenAPI document.
+   */
+  validate?: boolean;
+}
+
+/** The per-route `validate` override, or `undefined` when the route follows the app-wide setting. */
+export function getReturnsValidate(target: object, propertyKey: string | symbol): boolean | undefined {
+  return getMetadata(RETURNS_VALIDATE, target, propertyKey);
 }
 
 export function getReturnsSchema(target: object, propertyKey: string | symbol): ZodType | undefined {

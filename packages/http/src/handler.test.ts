@@ -308,6 +308,85 @@ describe("createHandler: validation", () => {
   });
 });
 
+describe("createHandler: responseValidation policy", () => {
+  const UserSchema = z.object({ id: z.string() });
+
+  @Controller("users")
+  class UsersController {
+    @Get("default")
+    @Returns(UserSchema)
+    byDefault() {
+      return { id: "1", passwordHash: "secret" };
+    }
+
+    @Get("skip")
+    @Returns(UserSchema, { validate: false })
+    skipped() {
+      return { id: "1", passwordHash: "secret" };
+    }
+
+    @Get("force")
+    @Returns(UserSchema, { validate: true })
+    forced() {
+      return { id: "1", passwordHash: "secret" };
+    }
+
+    @Get("broken")
+    @Returns(UserSchema, { validate: false })
+    broken() {
+      return { id: 1 };
+    }
+  }
+
+  async function usersHandler(responseValidation?: "always" | "never") {
+    @Module({ controllers: [UsersController] })
+    class AppModule {}
+    const app = await createApplication(AppModule);
+    return createHandler(app.controllers, app, responseValidation === undefined ? {} : { responseValidation });
+  }
+
+  it("validates and strips unknown keys by default", async () => {
+    const handle = await usersHandler();
+
+    const res = await handle(new Request("http://localhost/users/default"));
+
+    expect(await res.json()).toEqual({ id: "1" });
+  });
+
+  it('sends handler values as-is under responseValidation "never"', async () => {
+    const handle = await usersHandler("never");
+
+    const res = await handle(new Request("http://localhost/users/default"));
+
+    expect(await res.json()).toEqual({ id: "1", passwordHash: "secret" });
+  });
+
+  it("lets a route opt out with validate: false while the app validates", async () => {
+    const handle = await usersHandler("always");
+
+    const res = await handle(new Request("http://localhost/users/skip"));
+
+    expect(await res.json()).toEqual({ id: "1", passwordHash: "secret" });
+  });
+
+  it("does not turn a contract violation into a 500 when validation is skipped", async () => {
+    const handle = await usersHandler();
+
+    const res = await handle(new Request("http://localhost/users/broken"));
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ id: 1 });
+  });
+
+  it('lets a route force validation on with validate: true under "never"', async () => {
+    const handle = await usersHandler("never");
+
+    const res = await handle(new Request("http://localhost/users/force"));
+
+    expect(await res.json()).toEqual({ id: "1" });
+  });
+});
+
 describe("createHandler: requestTimeout", () => {
   @Controller("slow")
   class SlowController {

@@ -5,7 +5,7 @@ import { getControllerPrefix } from "./decorators/controller.js";
 import { getClassGuards, getMethodGuards, type CanActivate } from "./decorators/guards.js";
 import { getClassInterceptors, getMethodInterceptors, type Interceptor } from "./decorators/interceptors.js";
 import { getParamSources, type ParamSource } from "./decorators/params.js";
-import { getHttpCode, getReturnsSchema, getRoutes } from "./decorators/routes.js";
+import { getHttpCode, getReturnsSchema, getReturnsValidate, getRoutes } from "./decorators/routes.js";
 import {
   BadRequestException,
   ForbiddenException,
@@ -30,6 +30,12 @@ export interface HandlerOptions {
    * must pass that signal on to cancellable work (`fetch`, DB queries) to actually stop.
    */
   requestTimeout?: number;
+  /**
+   * `"always"` (default) validates every `@Returns` route and sends the parsed value, so the schema also
+   * strips unknown keys. `"never"` sends handler values as-is, which skips that stripping: an object with
+   * extra fields (say a `passwordHash`) is then sent whole. A route's `@Returns(..., { validate })` wins.
+   */
+  responseValidation?: "always" | "never";
 }
 
 export class NotAControllerError extends Error {
@@ -46,6 +52,8 @@ interface RouteEntry {
   paramSources: ReadonlyMap<number, ParamSource>;
   httpCode?: number | undefined;
   responseSchema?: ZodType | undefined;
+  /** Per-route `@Returns(..., { validate })` override; `undefined` follows the app-wide `responseValidation`. */
+  validateResponse?: boolean | undefined;
   guards: Class<CanActivate>[];
   interceptors: Class<Interceptor>[];
 }
@@ -76,6 +84,7 @@ export function buildRouter(controllers: readonly Class[]): Router<RouteEntry> {
         paramSources: getParamSources(prototype, route.propertyKey),
         httpCode: getHttpCode(prototype, route.propertyKey),
         responseSchema: getReturnsSchema(prototype, route.propertyKey),
+        validateResponse: getReturnsValidate(prototype, route.propertyKey),
         guards: [...classGuards, ...getMethodGuards(prototype, route.propertyKey)],
         interceptors: [...classInterceptors, ...getMethodInterceptors(prototype, route.propertyKey)],
       });
@@ -170,14 +179,19 @@ function exceptionToResponse(error: unknown): Response {
  * entirely — both are deliberate escape hatches from the normal JSON path,
  * not a value the schema was ever meant to describe.
  */
-async function toResponse(value: unknown, httpCode: number | undefined, responseSchema: ZodType | undefined): Promise<Response> {
+async function toResponse(
+  value: unknown,
+  httpCode: number | undefined,
+  responseSchema: ZodType | undefined,
+  validate: boolean,
+): Promise<Response> {
   if (value instanceof Response) {
     return value;
   }
   if (value === undefined) {
     return new Response(null, { status: httpCode ?? 204 });
   }
-  const validated = await validateResponse(responseSchema, value);
+  const validated = validate ? await validateResponse(responseSchema, value) : value;
   return new Response(JSON.stringify(validated), {
     status: httpCode ?? 200,
     headers: { "content-type": "application/json" },
@@ -218,6 +232,7 @@ export function createHandler(
   const bodyLimit = options.bodyLimit ?? DEFAULT_BODY_LIMIT;
 
   const requestTimeout = options.requestTimeout;
+  const validateByDefault = options.responseValidation !== "never";
 
   return async function handle(incoming: Request): Promise<Response> {
     const request = requestTimeout === undefined ? incoming : withTimeout(incoming, requestTimeout);
@@ -261,7 +276,7 @@ export function createHandler(
           const instance = application.get(route.controller) as Record<PropertyKey, (...args: unknown[]) => unknown>;
           const result: unknown = await instance[route.propertyKey]?.(...args);
 
-          return toResponse(result, route.httpCode, route.responseSchema);
+          return toResponse(result, route.httpCode, route.responseSchema, route.validateResponse ?? validateByDefault);
         };
 
         // Class-level interceptors wrap outermost, method-level innermost —
