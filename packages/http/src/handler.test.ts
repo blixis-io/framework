@@ -273,6 +273,39 @@ describe("createHandler: validation", () => {
 
     expect(res.status).toBe(413);
   });
+
+  it("stops reading a chunked body (no content-length) as soon as the limit is crossed", async () => {
+    @Module({ providers: [PostService], controllers: [PostController] })
+    class AppModule {}
+    const app = await createApplication(AppModule);
+    const handle = createHandler(app.controllers, app, { bodyLimit: 10 });
+
+    let pulled = 0;
+    let cancelled = false;
+    const encoder = new TextEncoder();
+    const body = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        pulled += 1;
+        controller.enqueue(encoder.encode("x".repeat(8)));
+      },
+      cancel() {
+        cancelled = true;
+      },
+    });
+
+    const res = await handle(
+      new Request("http://localhost/posts", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body,
+        duplex: "half",
+      }),
+    );
+
+    expect(res.status).toBe(413);
+    expect(cancelled).toBe(true);
+    expect(pulled).toBeLessThan(5);
+  });
 });
 
 describe("createHandler: buildRouter", () => {
