@@ -35,14 +35,14 @@ Each row says how the claim is backed. **CI** means a workflow job runs it on ev
 
 ## Deployment targets
 
-`blix deploy` ([Deploying](/framework/guides/deploying/)) supports Docker. The other rows record what was tried by hand on 2026-10-01 so the planned targets start from facts, not guesses. None of them is a supported `blix deploy` target yet.
+`blix deploy` ([Deploying](/framework/guides/deploying/)) supports Docker, Vercel and Netlify. Cloudflare Workers is not a `blix deploy` target yet; its row records what was tried by hand on 2026-10-01 so it starts from facts, not guesses.
 
 | | Status | Evidence |
 |---|---|---|
 | Docker (`blix deploy`) | Supported | Checked: scaffold, `blix deploy init`, a real image built from the generated Dockerfile (173 MB), run, called, and stopped gracefully (exit 0). Registry push and the generated GitHub Actions workflow were not run against a real registry or GitHub; they are covered by unit tests, a dry run, and the workflow parsing as valid YAML. |
-| Cloudflare Workers | Works locally | Checked: a Rolldown bundle (with `export default createFetchHandler(AppModule)`) ran in `workerd` (`wrangler dev --local`, `nodejs_compat`): routing, 404/405, a POST body with Zod validation, async handlers. Not tried: a real Cloudflare deploy, `pg` from a Worker, bundle size limits. |
-| Netlify Functions | Works locally | Checked: the same app as a v2 function under `netlify dev --offline`. Not tried: a real Netlify deploy. |
-| Vercel Functions | Partly verified | Checked: `vercel build` produces a `nodejs24.x` function, and the exported `fetch` works when called directly. Not checked: Vercel's own launcher, which needs an account. |
+| Cloudflare Workers (not a `blix deploy` target yet) | Works locally | Checked: a Rolldown bundle (with `export default createFetchHandler(AppModule)`) ran in `workerd` (`wrangler dev --local`, `nodejs_compat`): routing, 404/405, a POST body with Zod validation, async handlers. Not tried: a real Cloudflare deploy, `pg` from a Worker, bundle size limits. |
+| Netlify (`blix deploy`) | Verified up to the deploy call | Checked 2026-10-01, from files `blix deploy init` generated: `netlify dev` served the function, and `netlify functions:build` produced a zip that answered correctly when extracted and run. Not tried: a real `netlify deploy` (needs an account). |
+| Vercel (`blix deploy`) | Verified up to the deploy call | Checked 2026-10-01, from files `blix deploy init` generated: `vercel build` produced a `nodejs24.x` function that answered correctly. Not checked: Vercel's own launcher and a real `vercel deploy` (need an account). |
 
 All four need the app built to plain JavaScript first (Rolldown or `tsc`), because the providers' own bundlers compile TypeScript with esbuild and drop decorator metadata.
 

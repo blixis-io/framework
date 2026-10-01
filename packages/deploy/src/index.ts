@@ -11,11 +11,33 @@ export {
   type DeployConfig,
   type DeployConfigInput,
   type DockerTarget,
+  type NetlifyTarget,
   type Target,
+  type VercelTarget,
 } from "./config.js";
 export { renderDockerfile, DockerfileError } from "./dockerfile.js";
 export { formatStep, processRunner } from "./runner.js";
-export { adapterFor, dockerAdapter, type BoundAdapter, type Phase, type PlanContext, type TargetAdapter, type TargetPlan } from "./targets.js";
+export {
+  adapterFor,
+  dockerAdapter,
+  initPlanFor,
+  isTargetType,
+  netlifyAdapter,
+  TARGET_TYPES,
+  vercelAdapter,
+  type BoundAdapter,
+  type CiRequirements,
+  type InitContext,
+  type InitFile,
+  type InitOptions,
+  type InitPlan,
+  type Phase,
+  type PlanContext,
+  type TargetAdapter,
+  type TargetPlan,
+  type TargetType,
+} from "./targets.js";
+export { imageFromRemote, registryHostOf } from "./docker.js";
 export type { CaptureResult, Env, Runner, Step } from "./types.js";
 export { runDeploy, type DeployDeps } from "./commands.js";
 

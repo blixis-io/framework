@@ -30,7 +30,30 @@ const DockerTargetSchema = z.object({
   env: z.array(z.string().min(1)).default([]),
 });
 
-export const TargetSchema = z.discriminatedUnion("type", [DockerTargetSchema]);
+const ProviderBase = {
+  /** Deploy to production (the default) rather than a preview. */
+  production: z.boolean().default(true),
+  /** Your build command. Defaults to the package manager's `run build`. */
+  build: z.string().min(1).optional(),
+  /** Version of the provider's CLI that `npx` runs. Pin it for reproducible deploys. */
+  cliVersion: z.string().min(1).default("latest"),
+  /** Environment variable names this target needs; `doctor` checks them and generated CI files pass them through as secrets. */
+  env: z.array(z.string().min(1)).default([]),
+};
+
+const VercelTargetSchema = z.object({ type: z.literal("vercel"), ...ProviderBase });
+
+const NetlifyTargetSchema = z.object({
+  type: z.literal("netlify"),
+  ...ProviderBase,
+  /** Static publish directory. Netlify wants one even for a functions-only site. */
+  dir: z.string().min(1).default("public"),
+  functions: z.string().min(1).default("netlify/functions"),
+  /** Site id. Otherwise `NETLIFY_SITE_ID`, or the linked site. */
+  site: z.string().min(1).optional(),
+});
+
+export const TargetSchema = z.discriminatedUnion("type", [DockerTargetSchema, VercelTargetSchema, NetlifyTargetSchema]);
 
 const DeploySchema = z.object({
   targets: z.record(z.string().min(1), TargetSchema),
@@ -40,6 +63,8 @@ const DeploySchema = z.object({
 
 export type RegistryConfig = z.output<typeof RegistrySchema>;
 export type DockerTarget = z.output<typeof DockerTargetSchema>;
+export type VercelTarget = z.output<typeof VercelTargetSchema>;
+export type NetlifyTarget = z.output<typeof NetlifyTargetSchema>;
 export type Target = z.output<typeof TargetSchema>;
 export type DeployConfig = z.output<typeof DeploySchema>;
 /** What a user writes: defaults are optional. */

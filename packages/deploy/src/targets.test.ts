@@ -12,7 +12,7 @@ function target(extra: Record<string, unknown> = {}): DockerTarget {
   return parsed;
 }
 
-const ctx = { cwd: "/app", env: {}, tag: "abc123" };
+const ctx = { cwd: "/app", env: {}, tag: "abc123", packageManager: "pnpm" as const };
 
 describe("dockerAdapter.resolveTag", () => {
   it("prefers the configured tag", async () => {
@@ -94,6 +94,15 @@ describe("dockerAdapter.plan", () => {
 });
 
 describe("adapterFor", () => {
+  it("describes what a CI file must provide: required variables and the registry", () => {
+    const bound = adapterFor("prod", target({ registry: { host: "ghcr.io" }, env: ["FLY_API_TOKEN"] }));
+
+    expect(bound.ci()).toEqual({
+      secrets: ["FLY_API_TOKEN"],
+      registry: { host: "ghcr.io", usernameEnv: "REGISTRY_USERNAME", passwordEnv: "REGISTRY_PASSWORD" },
+    });
+  });
+
   it("binds the docker adapter to a docker target", () => {
     expect(adapterFor("prod", target()).plan("build", ctx).steps[0]?.command).toBe("docker");
   });
