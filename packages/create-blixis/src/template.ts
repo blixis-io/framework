@@ -9,6 +9,9 @@ export function templateFiles(packageName: string): Record<string, string> {
         type: "module",
         engines: { node: ">=24" },
         scripts: {
+          // Decorators need tsc (esbuild/tsx drop the metadata), so dev is "compile once, then
+          // recompile on change while node restarts on the new output".
+          dev: 'tsc -p tsconfig.json && concurrently -k -n tsc,app "tsc -p tsconfig.json --watch --preserveWatchOutput" "node --watch dist/main.js"',
           build: "tsc -p tsconfig.json",
           start: "node dist/main.js",
           typecheck: "tsc --noEmit -p tsconfig.json",
@@ -48,7 +51,8 @@ export function templateFiles(packageName: string): Record<string, string> {
 A [Blixis](https://blixis-io.github.io/framework/) app.
 
 \`\`\`bash
-npm run build && npm start
+npm run dev      # rebuilds and restarts on every change
+# or: npm run build && npm start
 curl http://localhost:3000/hello/world
 \`\`\`
 
@@ -108,4 +112,4 @@ process.on("SIGTERM", () => {
 }
 
 export const RUNTIME_DEPENDENCIES = ["@blixis-io/core", "@blixis-io/di", "@blixis-io/http"] as const;
-export const DEV_DEPENDENCIES = ["typescript", "@types/node"] as const;
+export const DEV_DEPENDENCIES = ["typescript", "@types/node", "concurrently"] as const;
