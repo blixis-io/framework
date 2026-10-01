@@ -197,3 +197,21 @@ export function generateOpenApiDocument(app: ControllerSource, options: OpenApiD
     components: { schemas: { Problem: PROBLEM_SCHEMA } },
   };
 }
+
+/** What `serveOpenApi` needs on top of `ControllerSource` — a real `HttpApplication` satisfies it structurally. */
+export interface MountableApp extends ControllerSource {
+  mount(method: "GET", path: string, handler: () => Response): void;
+}
+
+/**
+ * Serves the generated document at `path` (GET), built once on first request — the controller list
+ * is fixed after boot. The route is public (mounted routes bypass guards); generation itself works
+ * without it via `generateOpenApiDocument`.
+ */
+export function serveOpenApi(app: MountableApp, path: string, options: OpenApiDocumentOptions): void {
+  let body: string | undefined;
+  app.mount("GET", path, () => {
+    body ??= JSON.stringify(generateOpenApiDocument(app, options));
+    return new Response(body, { headers: { "content-type": "application/json" } });
+  });
+}

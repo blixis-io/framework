@@ -5,71 +5,26 @@ sidebar:
   order: 9
 ---
 
-`@blixis-io/openapi`'s `generateOpenApiDocument` returns a plain object — there's no auto-mounted route and no bundled Swagger UI. You mount it yourself with the same `@Controller`/`@Get` primitives as any other route. See [API Documentation](/framework/concepts/api-documentation/) for what actually goes into the generated document.
+`@blixis-io/openapi` generates an OpenAPI 3.1 document from your real controllers. There's no bundled Swagger UI. See [API Documentation](/framework/concepts/api-documentation/) for what goes into the generated document.
 
-## 1. A place to hold the app reference
+## Serving the document
 
-The document needs `app.controllers`, but `app` doesn't exist until *after* the module graph — including whatever controller will serve the document — is already built. Solve it with a small DI-registered provider, set once right after boot:
-
-```ts title="src/docs/app-ref.ts"
-import type { HttpApplication } from "@blixis-io/http";
-import { Injectable } from "@blixis-io/di";
-
-@Injectable()
-export class AppRef {
-  current: HttpApplication | undefined;
-}
-```
-
-## 2. The controller
-
-```ts title="src/docs/docs.controller.ts"
-import { Controller, Get } from "@blixis-io/http";
-import { generateOpenApiDocument } from "@blixis-io/openapi";
-import { AppRef } from "./app-ref.js";
-
-@Controller()
-export class DocsController {
-  constructor(private readonly appRef: AppRef) {}
-
-  @Get("openapi.json")
-  spec() {
-    if (!this.appRef.current) {
-      throw new Error("AppRef.current not set — main.ts must set it right after createHttpApplication() resolves");
-    }
-    return generateOpenApiDocument(this.appRef.current, {
-      title: "my-api",
-      version: "1.0.0",
-    });
-  }
-}
-```
-
-`AppRef.current` is only ever read here, at request time — by which point `main.ts` (below) has always already set it, since a request can't arrive before `app.listen()` runs.
-
-## 3. The module
-
-```ts title="src/docs/docs.module.ts"
-import { Module } from "@blixis-io/core";
-import { AppRef } from "./app-ref.js";
-import { DocsController } from "./docs.controller.js";
-
-@Module({ providers: [AppRef], controllers: [DocsController] })
-export class DocsModule {}
-```
-
-Import `DocsModule` into your `AppModule` like any other feature module.
-
-## 4. Set the reference in `main.ts`
+One call after boot:
 
 ```ts title="src/main.ts" ins={4}
+import { serveOpenApi } from "@blixis-io/openapi";
+
 const app = await createHttpApplication(AppModule);
-app.get(AppRef).current = app;
+serveOpenApi(app, "/openapi.json", { title: "my-api", version: "1.0.0" });
 
 await app.listen(3000);
 ```
 
-That's it — `GET /openapi.json` now returns a live document built from whatever controllers are actually registered.
+`GET /openapi.json` now returns a live document built from whatever controllers are registered. It's generated on the first request and cached, since the controller list is fixed after boot.
+
+The route is **public**: `serveOpenApi` uses `app.mount()`, which serves an exact path ahead of the router and bypasses guards and interceptors. If the document must be protected, don't use `serveOpenApi` — build it yourself with `generateOpenApiDocument(app, options)` inside a normal guarded controller. That needs a reference to the finished app, which a controller can't get at construction time; the usual workaround is a small DI-registered holder set right after `createHttpApplication()` resolves (see the [hello-api walkthrough](/framework/examples/hello-api-walkthrough/)).
+
+Generating the document never requires mounting it: `generateOpenApiDocument(app, options)` is a plain function returning a plain object, usable in a build script or test.
 
 ## Pointing a UI at it
 

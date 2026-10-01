@@ -5,7 +5,7 @@ sidebar:
   order: 16
 ---
 
-`@blixis-io/openapi` builds an OpenAPI 3.1 document from your app's real controllers — the same `@Controller`/`@Get`/`@Body`/`@Query`/`@Param`/`@Returns` metadata the router itself already reads, plus two optional decorators for human-facing detail. It's a plain function returning a plain object; there's no auto-mounted route and no bundled Swagger UI — you wire it in with the same primitives every other route uses.
+`@blixis-io/openapi` builds an OpenAPI 3.1 document from your app's real controllers — the same `@Controller`/`@Get`/`@Body`/`@Query`/`@Param`/`@Returns` metadata the router itself already reads, plus two optional decorators for human-facing detail. `generateOpenApiDocument` is a plain function returning a plain object; `serveOpenApi(app, "/openapi.json", options)` mounts it in one call (see [Generating API Docs](/framework/guides/generating-api-docs/)). There's no bundled Swagger UI.
 
 ## Why OpenAPI 3.1, not 3.0
 

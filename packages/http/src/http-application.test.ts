@@ -366,3 +366,37 @@ describe("HttpApplication.close(): graceful shutdown", () => {
     await expect(app.close()).resolves.toBeUndefined();
   });
 });
+
+describe("HttpApplication.mount()", () => {
+  it("serves a mounted exact path ahead of the router and leaves other routes alone", async () => {
+    const app = await createHttpApplication(GreetingModule);
+    app.mount("GET", "/status", () => new Response("up"));
+
+    const mounted = await app.handle(new Request("http://localhost/status"));
+    const routed = await app.handle(new Request("http://localhost/greet/blixis"));
+
+    expect(await mounted.text()).toBe("up");
+    expect(await routed.json()).toEqual({ message: "hello, blixis" });
+    await app.close();
+  });
+
+  it("only matches the mounted method", async () => {
+    const app = await createHttpApplication(GreetingModule);
+    app.mount("GET", "/status", () => new Response("up"));
+
+    const res = await app.handle(new Request("http://localhost/status", { method: "POST" }));
+
+    expect(res.status).toBe(404);
+    await app.close();
+  });
+
+  it("throws when the same method and path are mounted twice", async () => {
+    const app = await createHttpApplication(GreetingModule);
+    app.mount("GET", "/status", () => new Response("up"));
+
+    expect(() => {
+      app.mount("GET", "/status", () => new Response("again"));
+    }).toThrow("GET /status is already mounted");
+    await app.close();
+  });
+});
