@@ -33,4 +33,4 @@ Only to routes with a `@Body()` parameter — a route that never reads the body 
 
 ## Why it's checked twice
 
-A declared `Content-Length` header is checked first, cheaply, before the body is even read — a client that's honest about a too-large body gets rejected immediately. The actual decoded byte length is checked afterward regardless, since `Content-Length` is just a claim the client makes, not a guarantee.
+A declared `Content-Length` header is checked first, cheaply, before the body is even read — a client that's honest about a too-large body gets rejected immediately. The body is then read as a stream and cancelled the moment it crosses the limit, since `Content-Length` is just a claim the client makes, not a guarantee. A chunked body with no `Content-Length` is never buffered whole before being rejected.

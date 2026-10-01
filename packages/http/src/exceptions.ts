@@ -58,3 +58,10 @@ export class UnsupportedMediaTypeException extends HttpException {
     this.name = "UnsupportedMediaTypeException";
   }
 }
+
+export class GatewayTimeoutException extends HttpException {
+  constructor(detail = "Gateway Timeout") {
+    super(504, detail);
+    this.name = "GatewayTimeoutException";
+  }
+}

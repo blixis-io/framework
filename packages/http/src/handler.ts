@@ -9,6 +9,7 @@ import { getHttpCode, getReturnsSchema, getRoutes } from "./decorators/routes.js
 import {
   BadRequestException,
   ForbiddenException,
+  GatewayTimeoutException,
   HttpException,
   PayloadTooLargeException,
   UnsupportedMediaTypeException,
@@ -23,6 +24,12 @@ const DEFAULT_BODY_LIMIT = 1024 * 1024; // 1 MiB
 
 export interface HandlerOptions {
   bodyLimit?: number;
+  /**
+   * Milliseconds a request may take before the client gets a 504. Off by default. The handler (and
+   * anything it awaits) is not killed — it sees the timeout through `request.signal` (`@Req()`), and
+   * must pass that signal on to cancellable work (`fetch`, DB queries) to actually stop.
+   */
+  requestTimeout?: number;
 }
 
 export class NotAControllerError extends Error {
@@ -135,6 +142,7 @@ const STATUS_TITLES: Record<number, string> = {
   413: "Payload Too Large",
   415: "Unsupported Media Type",
   500: "Internal Server Error",
+  504: "Gateway Timeout",
 };
 
 function problemResponse(status: number, detail: string, extra?: Record<string, unknown>): Response {
@@ -176,6 +184,30 @@ async function toResponse(value: unknown, httpCode: number | undefined, response
   });
 }
 
+/** Same request, but its `signal` also fires after `ms` — so handlers see the timeout via `request.signal`. */
+function withTimeout(request: Request, ms: number): Request {
+  const signal = AbortSignal.any([request.signal, AbortSignal.timeout(ms)]);
+  return new Request(request, { signal });
+}
+
+/** Settles with `work`, unless `signal` aborts first: a client disconnect becomes a 499, a timeout a 504. `work` keeps running; its late result/rejection is ignored. */
+function raceAbort(work: Promise<Response>, signal: AbortSignal, clientSignal: AbortSignal): Promise<Response> {
+  const abortResponse = (): Response =>
+    clientSignal.aborted ? new Response(null, { status: 499 }) : exceptionToResponse(new GatewayTimeoutException());
+  if (signal.aborted) {
+    return Promise.resolve(abortResponse());
+  }
+  return new Promise<Response>((resolve, reject) => {
+    const onAbort = (): void => {
+      resolve(abortResponse());
+    };
+    signal.addEventListener("abort", onAbort, { once: true });
+    work.then(resolve, reject).finally(() => {
+      signal.removeEventListener("abort", onAbort);
+    });
+  });
+}
+
 /** Builds a single `(Request) => Promise<Response>` function serving every controller's routes. */
 export function createHandler(
   controllers: readonly Class[],
@@ -185,7 +217,10 @@ export function createHandler(
   const router = buildRouter(controllers);
   const bodyLimit = options.bodyLimit ?? DEFAULT_BODY_LIMIT;
 
-  return async function handle(request: Request): Promise<Response> {
+  const requestTimeout = options.requestTimeout;
+
+  return async function handle(incoming: Request): Promise<Response> {
+    const request = requestTimeout === undefined ? incoming : withTimeout(incoming, requestTimeout);
     const url = new URL(request.url);
     const match = router.match(request.method as HttpMethod, url.pathname);
 
@@ -236,7 +271,7 @@ export function createHandler(
           return async () => interceptor.intercept({ request, params: match.params }, next);
         }, invoke);
 
-        return await pipeline();
+        return await (requestTimeout === undefined ? pipeline() : raceAbort(pipeline(), request.signal, incoming.signal));
       } catch (error) {
         return exceptionToResponse(error);
       }

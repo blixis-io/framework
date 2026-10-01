@@ -1,8 +1,12 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { Readable } from "node:stream";
 
-/** Builds a Web-standard `Request` from a Node `IncomingMessage`, including a body stream and abort signal. */
-export function toWebRequest(req: IncomingMessage, baseUrl: string): Request {
+/**
+ * Builds a Web-standard `Request` from a Node `IncomingMessage`, including a body stream and abort signal.
+ * Pass the matching `ServerResponse` so the signal also fires when the client disconnects before the
+ * response finished — `req`'s own "aborted" event is deprecated and misses some disconnects.
+ */
+export function toWebRequest(req: IncomingMessage, baseUrl: string, res?: ServerResponse): Request {
   const method = req.method ?? "GET";
   const url = new URL(req.url ?? "/", baseUrl);
 
@@ -19,6 +23,11 @@ export function toWebRequest(req: IncomingMessage, baseUrl: string): Request {
   const controller = new AbortController();
   req.once("aborted", () => {
     controller.abort();
+  });
+  res?.once("close", () => {
+    if (!res.writableFinished) {
+      controller.abort();
+    }
   });
 
   // GET/HEAD can never carry a body (Fetch spec forbids it on the Request

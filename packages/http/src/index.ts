@@ -19,6 +19,7 @@ export {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  GatewayTimeoutException,
   HttpException,
   NotFoundException,
   PayloadTooLargeException,

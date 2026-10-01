@@ -55,7 +55,7 @@ export class HttpApplication {
   listen(port: number, hostname = "0.0.0.0"): Promise<ListenHandle> {
     return new Promise((resolve, reject) => {
       const server = createServer((req, res) => {
-        const request = toWebRequest(req, `http://${hostname}:${port}`);
+        const request = toWebRequest(req, `http://${hostname}:${port}`, res);
         this.#handle(request)
           .then((response) => sendWebResponse(response, res))
           /* v8 ignore start -- @preserve: safety net for a write failure

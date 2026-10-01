@@ -3,6 +3,7 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  GatewayTimeoutException,
   HttpException,
   NotFoundException,
   PayloadTooLargeException,
@@ -31,6 +32,7 @@ describe("named HTTP exceptions", () => {
     [ConflictException, 409, "Conflict"],
     [PayloadTooLargeException, 413, "Payload Too Large"],
     [UnsupportedMediaTypeException, 415, "Unsupported Media Type"],
+    [GatewayTimeoutException, 504, "Gateway Timeout"],
   ] as const)("%s defaults to status %i and detail %j", (Ctor, status, detail) => {
     const error = new Ctor();
 
