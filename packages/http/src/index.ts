@@ -35,6 +35,7 @@ export {
   type MountedHandler,
   type ShutdownOptions,
 } from "./http-application.js";
+export { createFetchHandler, type FetchHandler } from "./fetch-handler.js";
 export { sendWebResponse, toWebRequest } from "./node-adapter.js";
 export type { ParamResolutionContext } from "./params.js";
 export { resolveHandlerArgs } from "./params.js";

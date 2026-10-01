@@ -40,7 +40,7 @@ Each row says how the claim is backed. **CI** means a workflow job runs it on ev
 | | Status | Evidence |
 |---|---|---|
 | Docker (`blix deploy`) | Supported | Checked: scaffold, `blix deploy init`, a real image built from the generated Dockerfile (173 MB), run, called, and stopped gracefully (exit 0). Registry push and the generated GitHub Actions workflow were not run against a real registry or GitHub; they are covered by unit tests, a dry run, and the workflow parsing as valid YAML. |
-| Cloudflare Workers | Works locally | Checked: a Rolldown bundle ran in `workerd` (`wrangler dev --local`, `nodejs_compat`): routing, 404/405, a POST body with Zod validation, async handlers. Not tried: a real Cloudflare deploy, `pg` from a Worker, bundle size limits. |
+| Cloudflare Workers | Works locally | Checked: a Rolldown bundle (with `export default createFetchHandler(AppModule)`) ran in `workerd` (`wrangler dev --local`, `nodejs_compat`): routing, 404/405, a POST body with Zod validation, async handlers. Not tried: a real Cloudflare deploy, `pg` from a Worker, bundle size limits. |
 | Netlify Functions | Works locally | Checked: the same app as a v2 function under `netlify dev --offline`. Not tried: a real Netlify deploy. |
 | Vercel Functions | Partly verified | Checked: `vercel build` produces a `nodejs24.x` function, and the exported `fetch` works when called directly. Not checked: Vercel's own launcher, which needs an account. |
 
