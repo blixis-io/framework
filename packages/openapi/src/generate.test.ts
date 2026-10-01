@@ -1,7 +1,8 @@
-import { ApiOperation, ApiTags, Body, Controller, Delete, Get, Headers, HttpCode, Param, Post, Query, Returns } from "@blixis-io/http";
+import { Module } from "@blixis-io/core";
+import { ApiOperation, ApiTags, Body, Controller, createHttpApplication, Delete, Get, Headers, HttpCode, Param, Post, Query, Returns } from "@blixis-io/http";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
-import { generateOpenApiDocument } from "./generate.js";
+import { generateOpenApiDocument, serveOpenApi } from "./generate.js";
 
 const PostSchema = z.object({ id: z.string(), title: z.string() });
 const CreatePostSchema = z.object({ title: z.string() });
@@ -276,5 +277,39 @@ describe("generateOpenApiDocument", () => {
       const bareDoc = generateOpenApiDocument({ controllers: [bareController] }, { title: "x", version: "1.0.0" });
       expect(bareDoc.paths["/bare"]?.get?.tags).toBeUndefined();
     });
+  });
+});
+
+describe("serveOpenApi", () => {
+  @Controller("ping")
+  class PingController {
+    @Get()
+    ping() {
+      return { ok: true };
+    }
+  }
+
+  @Module({ controllers: [PingController] })
+  class PingModule {}
+
+  it("serves the generated document at the given path of a real HttpApplication", async () => {
+    const app = await createHttpApplication(PingModule);
+    serveOpenApi(app, "/openapi.json", { title: "ping-api", version: "1.0.0" });
+
+    const res = await app.handle(new Request("http://localhost/openapi.json"));
+
+    expect(res.headers.get("content-type")).toBe("application/json");
+    expect(await res.json()).toMatchObject({ info: { title: "ping-api" }, paths: { "/ping": {} } });
+    await app.close();
+  });
+
+  it("keeps routing the app's own routes", async () => {
+    const app = await createHttpApplication(PingModule);
+    serveOpenApi(app, "/openapi.json", { title: "ping-api", version: "1.0.0" });
+
+    const res = await app.handle(new Request("http://localhost/ping"));
+
+    expect(await res.json()).toEqual({ ok: true });
+    await app.close();
   });
 });

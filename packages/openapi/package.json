@@ -30,6 +30,9 @@
     "typecheck": "tsc -p tsconfig.json",
     "build": "rolldown -c"
   },
+  "devDependencies": {
+    "@blixis-io/core": "workspace:*"
+  },
   "dependencies": {
     "@blixis-io/di": "workspace:*",
     "@blixis-io/http": "workspace:*",

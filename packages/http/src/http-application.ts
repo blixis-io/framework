@@ -25,6 +25,8 @@ class RequestContextModule {}
 @Module()
 class HttpRootModule {}
 
+export type MountedHandler = (request: Request) => Response | Promise<Response>;
+
 export interface ListenHandle {
   port: number;
 }
@@ -34,6 +36,7 @@ export class HttpApplication {
   readonly #app: Application;
   readonly #handle: (request: Request) => Promise<Response>;
   readonly #shutdownTimeout: number;
+  readonly #mounted = new Map<string, MountedHandler>();
   #server: Server | undefined;
 
   private constructor(app: Application, handle: (request: Request) => Promise<Response>, shutdownTimeout: number) {
@@ -59,8 +62,28 @@ export class HttpApplication {
     return this.#app.controllers;
   }
 
+  /**
+   * Serves an exact path with a plain Web-standard handler, ahead of the controller router — for
+   * framework-level endpoints (such as an OpenAPI document) that need the finished app, which a
+   * controller can't get at construction time. Mounted routes bypass guards and interceptors, so
+   * they are public; mounting the same method and path twice throws.
+   */
+  mount(method: "GET" | "POST", path: string, handler: MountedHandler): void {
+    const key = `${method} ${path}`;
+    if (this.#mounted.has(key)) {
+      throw new Error(`${key} is already mounted`);
+    }
+    this.#mounted.set(key, handler);
+  }
+
   /** Runs a request through the handler in-process, without a socket. */
-  handle(request: Request): Promise<Response> {
+  async handle(request: Request): Promise<Response> {
+    if (this.#mounted.size > 0) {
+      const mounted = this.#mounted.get(`${request.method} ${new URL(request.url).pathname}`);
+      if (mounted) {
+        return mounted(request);
+      }
+    }
     return this.#handle(request);
   }
 
@@ -68,7 +91,7 @@ export class HttpApplication {
     return new Promise((resolve, reject) => {
       const server = createServer((req, res) => {
         const request = toWebRequest(req, `http://${hostname}:${port}`, res);
-        this.#handle(request)
+        this.handle(request)
           .then((response) => sendWebResponse(response, res))
           /* v8 ignore start -- @preserve: safety net for a write failure
           (e.g. the client disconnects mid-stream); createHandler's own

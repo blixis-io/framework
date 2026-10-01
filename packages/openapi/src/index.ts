@@ -1,5 +1,7 @@
 export {
   generateOpenApiDocument,
+  serveOpenApi,
+  type MountableApp,
   type ControllerSource,
   type JsonSchema,
   type OpenApiDocument,

@@ -29,6 +29,14 @@ A plain function returning a plain object — no serving mechanism, no bundled U
 const doc = generateOpenApiDocument(app, { title: "hello-api", version: "1.0.0" });
 ```
 
+## `serveOpenApi`
+
+```ts
+function serveOpenApi(app: MountableApp, path: string, options: OpenApiDocumentOptions): void;
+```
+
+Mounts `GET path` on an `HttpApplication` (via `app.mount()`), serving the generated document as JSON — built on first request, then cached. The route is public: mounted routes bypass guards and interceptors.
+
 ## `OpenApiDocument` shape
 
 ```ts

@@ -24,6 +24,7 @@ class HttpApplication {
   get<T>(token: Token<T>): T;
   get controllers(): readonly Class[];
   handle(request: Request): Promise<Response>;
+  mount(method: "GET" | "POST", path: string, handler: (request: Request) => Response | Promise<Response>): void;
   listen(port: number, hostname?: string): Promise<ListenHandle>; // hostname defaults to "0.0.0.0"
   close(signal?: string): Promise<void>;
 }
@@ -33,7 +34,7 @@ interface ListenHandle {
 }
 ```
 
-Wraps `@blixis-io/core`'s `createApplication`, builds the router from `app.controllers`, and adds the HTTP-specific surface. `handle()` runs a request in-process, no socket — what `@blixis-io/testing` is built on. `listen()` binds a real `node:http` server. `close()` tears down both the socket (if listening) and the underlying `Application` (running `OnApplicationShutdown` hooks); **idempotent**, safe to call more than once. See [Running in Production](/framework/guides/running-in-production/). `controllers` exposes every controller class in the app's module graph — what [`@blixis-io/openapi`](/framework/reference/blixis-openapi/) walks to build a document that stays in sync with the real running app, without a separately-maintained route list.
+Wraps `@blixis-io/core`'s `createApplication`, builds the router from `app.controllers`, and adds the HTTP-specific surface. `handle()` runs a request in-process, no socket — what `@blixis-io/testing` is built on. `listen()` binds a real `node:http` server. `mount()` serves an exact path with a plain handler ahead of the router — public (bypasses guards and interceptors), throws on a duplicate method+path; it's what `serveOpenApi` uses. `close()` tears down both the socket (if listening) and the underlying `Application` (running `OnApplicationShutdown` hooks); **idempotent**, safe to call more than once. See [Running in Production](/framework/guides/running-in-production/). `controllers` exposes every controller class in the app's module graph — what [`@blixis-io/openapi`](/framework/reference/blixis-openapi/) walks to build a document that stays in sync with the real running app, without a separately-maintained route list.
 
 ### `createHandler` / `buildRouter`
 
