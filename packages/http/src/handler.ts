@@ -78,6 +78,26 @@ export function buildRouter(controllers: readonly Class[]): Router<RouteEntry> {
   return router;
 }
 
+/** Reads the stream chunk by chunk and cancels it the moment `limit` bytes are exceeded, so a chunked body without a `Content-Length` can't be buffered whole before being rejected. */
+async function readBodyText(body: ReadableStream<Uint8Array>, limit: number): Promise<string> {
+  const reader = body.getReader();
+  const decoder = new TextDecoder();
+  let received = 0;
+  let text = "";
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) {
+      return text + decoder.decode();
+    }
+    received += value.byteLength;
+    if (received > limit) {
+      await reader.cancel();
+      throw new PayloadTooLargeException();
+    }
+    text += decoder.decode(value, { stream: true });
+  }
+}
+
 async function readJsonBody(request: Request, bodyLimit: number): Promise<unknown> {
   if (request.body === null) {
     return undefined;
@@ -93,10 +113,7 @@ async function readJsonBody(request: Request, bodyLimit: number): Promise<unknow
     throw new PayloadTooLargeException();
   }
 
-  const text = await request.text();
-  if (new TextEncoder().encode(text).length > bodyLimit) {
-    throw new PayloadTooLargeException();
-  }
+  const text = await readBodyText(request.body, bodyLimit);
   if (text.length === 0) {
     return undefined;
   }
