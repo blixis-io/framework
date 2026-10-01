@@ -29,33 +29,14 @@ const doc = generateOpenApiDocument(app, {
 
 ## Mounting it
 
-There's a real chicken-and-egg wrinkle here: the document needs `app.controllers`, but `app` doesn't exist until *after* the whole module graph — including whatever controller serves the document — has already been built. The [hello-api walkthrough](/framework/examples/hello-api-walkthrough/) shows the fix: a small DI-registered `AppRef` provider, set once right after `createHttpApplication()` resolves, read lazily at request time (by which point the app is always fully booted):
-
 ```ts
-@Injectable()
-class AppRef {
-  current: HttpApplication | undefined;
-}
+import { serveOpenApi } from "@blixis-io/openapi";
 
-@Controller()
-class DocsController {
-  constructor(private readonly appRef: AppRef) {}
-
-  @Get("openapi.json")
-  spec() {
-    if (!this.appRef.current) throw new Error("app not booted yet");
-    return generateOpenApiDocument(this.appRef.current, { title: "my-api", version: "1.0.0" });
-  }
-}
-```
-
-```ts
-// main.ts
 const app = await createHttpApplication(AppModule);
-app.get(AppRef).current = app;
+serveOpenApi(app, "/openapi.json", { title: "my-api", version: "1.0.0" });
 ```
 
-This is the one place in this framework's own conventions where a mutable provider is the right tool — everywhere else, prefer `RequestContext` or a constructor-injected value. See the full worked example and the [guide on mounting it](/framework/guides/generating-api-docs/).
+`serveOpenApi` mounts a public `GET` route ahead of the router (via `app.mount()`) and builds the document on first request. The route bypasses guards and interceptors. To protect the document, generate it inside a normal guarded controller instead; that needs a reference to the finished app, which a controller can't get at construction time, so hold it in a small provider set right after `createHttpApplication()` resolves. See the [guide on mounting it](/framework/guides/generating-api-docs/).
 
 ## Enriching a route with `@ApiOperation` and `@ApiTags`
 

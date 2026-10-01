@@ -15,10 +15,6 @@ examples/hello-api/src/
   db/
     schema.ts
     index.ts
-  docs/
-    app-ref.ts
-    docs.controller.ts
-    docs.module.ts
   health/
     health.controller.ts
   posts/
@@ -152,36 +148,6 @@ export class PostsModule {}
 
 `DrizzleModule.forRoot()` is imported directly here rather than made `global` — only `PostsModule` needs `DATABASE`, so there's no reason to make it visible app-wide. `ApiKeyGuard` and `TimingInterceptor` are both listed in `providers` even though no controller method injects either directly — they're resolved by the HTTP layer at request time because `@UseGuards`/`@UseInterceptors` named the classes, not because anything constructor-injects them. Leaving either out of `providers` is the single most common mistake when adding a guard or interceptor — see [Guards & Authorization](/framework/concepts/guards-and-authorization/#guard-classes-must-be-registered-providers).
 
-## `docs/app-ref.ts`, `docs/docs.controller.ts`, and `docs/docs.module.ts`
-
-```ts title="docs/app-ref.ts"
-@Injectable()
-export class AppRef {
-  current: HttpApplication | undefined;
-}
-```
-
-```ts title="docs/docs.controller.ts"
-@Controller()
-export class DocsController {
-  constructor(private readonly appRef: AppRef) {}
-
-  @Get("openapi.json")
-  spec() {
-    if (!this.appRef.current) {
-      throw new Error("AppRef.current not set — main.ts must set it right after createHttpApplication() resolves");
-    }
-    return generateOpenApiDocument(this.appRef.current, {
-      title: "hello-api",
-      version: "1.0.0",
-      description: "The framework's own reference example — a Postgres-backed posts CRUD API.",
-    });
-  }
-}
-```
-
-`AppRef` exists purely to work around a real bootstrapping wrinkle: `generateOpenApiDocument` needs `app.controllers`, but `app` doesn't exist until *after* `DocsController` itself has already been constructed as part of the same module graph. `AppRef.current` is only ever read at request time (inside `spec()`), by which point `main.ts` has always already set it. See [API Documentation](/framework/concepts/api-documentation/#mounting-it) for why this is the one place in this framework's own conventions where a mutable provider is the right tool.
-
 ## `health/health.controller.ts`
 
 ```ts
@@ -196,7 +162,7 @@ export class HealthController {
 }
 ```
 
-Generated with `blix generate controller health` (`@blixis-io/cli`), then hand-edited — the generator produces a valid starting point (originally a `list()` method returning `[]`), not a finished route; the real handler and its name are still yours to write. See [Code Generation](/framework/concepts/code-generation/). No dedicated module for this one, unlike `posts/` or `docs/` — a single provider-less route isn't worth its own module, so it's listed directly in `AppModule`'s own `controllers` array below.
+Generated with `blix generate controller health` (`@blixis-io/cli`), then hand-edited — the generator produces a valid starting point (originally a `list()` method returning `[]`), not a finished route; the real handler and its name are still yours to write. See [Code Generation](/framework/concepts/code-generation/). No dedicated module for this one, unlike `posts/` — a single provider-less route isn't worth its own module, so it's listed directly in `AppModule`'s own `controllers` array below.
 
 ## `config.ts`, `app.module.ts`, and `main.ts`
 
@@ -215,7 +181,6 @@ export const { CONFIG, ConfigModule } = defineConfigModule(AppConfigSchema);
     ConfigModule.forRoot(),
     LoggerModule.forRoot({ transports: [consoleTransport()] }),
     PostsModule,
-    DocsModule,
   ],
   controllers: [HealthController],
 })
@@ -226,7 +191,11 @@ export class AppModule {}
 
 ```ts title="main.ts"
 const app = await createHttpApplication(AppModule);
-app.get(AppRef).current = app;
+serveOpenApi(app, "/openapi.json", {
+  title: "hello-api",
+  version: "1.0.0",
+  description: "The framework's own reference example — a Postgres-backed posts CRUD API.",
+});
 
 const { PORT } = app.get(CONFIG);
 await app.listen(PORT);
@@ -239,6 +208,8 @@ process.on("SIGTERM", () => {
   void app.close("SIGTERM").then(() => process.exit(0));
 });
 ```
+
+`serveOpenApi` publishes the generated OpenAPI document at `GET /openapi.json` in one call, built on first request. The route is public (it bypasses guards); see [Generating API Docs](/framework/guides/generating-api-docs/) for the guarded alternative.
 
 The `SIGTERM` handler is the whole graceful-shutdown story — see [Running in Production](/framework/guides/running-in-production/) for what `close()` actually does (closes the socket, runs every `OnApplicationShutdown` hook — including `DrizzleModule`'s pool `.end()` — and is safe to call more than once).
 
