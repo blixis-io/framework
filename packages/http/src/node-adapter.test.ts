@@ -1,4 +1,5 @@
-import type { IncomingMessage } from "node:http";
+import { EventEmitter } from "node:events";
+import type { IncomingMessage, ServerResponse } from "node:http";
 import { describe, expect, it } from "vitest";
 import { toWebRequest } from "./node-adapter.js";
 
@@ -11,6 +12,30 @@ function mockIncomingMessage(overrides: Partial<IncomingMessage> = {}): Incoming
     ...overrides,
   } as IncomingMessage;
 }
+
+function mockResponse(writableFinished: boolean): ServerResponse {
+  return Object.assign(new EventEmitter(), { writableFinished }) as unknown as ServerResponse;
+}
+
+describe("toWebRequest: client disconnect", () => {
+  it("aborts the signal when the response closes before it finished", () => {
+    const res = mockResponse(false);
+    const request = toWebRequest(mockIncomingMessage(), "http://localhost", res);
+
+    res.emit("close");
+
+    expect(request.signal.aborted).toBe(true);
+  });
+
+  it("leaves the signal alone when the response closes after finishing normally", () => {
+    const res = mockResponse(true);
+    const request = toWebRequest(mockIncomingMessage(), "http://localhost", res);
+
+    res.emit("close");
+
+    expect(request.signal.aborted).toBe(false);
+  });
+});
 
 describe("toWebRequest", () => {
   it("builds a Request from the method, url, and headers", () => {

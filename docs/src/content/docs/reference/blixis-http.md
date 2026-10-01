@@ -14,7 +14,7 @@ Routing, controller/param/guard decorators, Zod-backed validation, RFC 9457 erro
 ```ts
 function createHttpApplication(rootModule: ModuleRef, options?: HttpApplicationOptions): Promise<HttpApplication>;
 
-type HttpApplicationOptions = HandlerOptions & CreateApplicationOptions; // bodyLimit + overrides
+type HttpApplicationOptions = HandlerOptions & CreateApplicationOptions; // bodyLimit + requestTimeout + overrides
 
 class HttpApplication {
   get<T>(token: Token<T>): T;
@@ -39,8 +39,11 @@ function buildRouter(controllers: readonly Class[]): Router<RouteEntry>;
 
 interface HandlerOptions {
   bodyLimit?: number; // bytes, default 1 MiB
+  requestTimeout?: number; // ms, default off — see below
 }
 ```
+
+`requestTimeout` answers `504 Gateway Timeout` (problem+json) once a request has run that long. It does **not** kill the handler: `request.signal` (via `@Req()`) aborts at the deadline, and the handler must pass it to cancellable work (`fetch`, DB queries) to actually stop. The same `request.signal` also aborts when the client disconnects; with `requestTimeout` set, that case answers `499`. `GatewayTimeoutException` is exported for custom use.
 
 The lower-level pieces `createHttpApplication` composes — `createHandler` builds the actual request-handling function from a resolved application's controllers; `buildRouter` alone builds just the route table (used internally, exposed for introspection). Throws `NotAControllerError` (naming the class) if a listed controller has no `@Controller()`, or `DuplicateRouteError` if two routes register the same method+path — a route table is built once at startup, so this fails fast at boot rather than silently letting the second registration replace the first.
 

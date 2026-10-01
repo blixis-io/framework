@@ -3,7 +3,7 @@ import { Injectable, type Class, type Provider } from "@blixis-io/di";
 import { z } from "zod";
 import { beforeEach, describe, expect, it } from "vitest";
 import { Controller } from "./decorators/controller.js";
-import { Body, Param, Query } from "./decorators/params.js";
+import { Body, Param, Query, Req } from "./decorators/params.js";
 import { Delete, Get, HttpCode, Post, Returns } from "./decorators/routes.js";
 import type { CanActivate, ExecutionContext } from "./decorators/guards.js";
 import { UseGuards } from "./decorators/guards.js";
@@ -305,6 +305,89 @@ describe("createHandler: validation", () => {
     expect(res.status).toBe(413);
     expect(cancelled).toBe(true);
     expect(pulled).toBeLessThan(5);
+  });
+});
+
+describe("createHandler: requestTimeout", () => {
+  @Controller("slow")
+  class SlowController {
+    @Get("wait")
+    async wait(@Req() request: Request): Promise<{ aborted: boolean }> {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      return { aborted: request.signal.aborted };
+    }
+
+    @Get("fast")
+    fast(): { ok: true } {
+      return { ok: true };
+    }
+  }
+
+  async function slowHandler(requestTimeout?: number) {
+    @Module({ controllers: [SlowController] })
+    class AppModule {}
+    const app = await createApplication(AppModule);
+    return createHandler(app.controllers, app, requestTimeout === undefined ? {} : { requestTimeout });
+  }
+
+  it("returns 504 problem+json when the handler outlives the timeout", async () => {
+    const handle = await slowHandler(10);
+
+    const res = await handle(new Request("http://localhost/slow/wait"));
+
+    expect(res.status).toBe(504);
+    expect(res.headers.get("content-type")).toBe("application/problem+json");
+  });
+
+  it("lets a request that finishes in time through untouched", async () => {
+    const handle = await slowHandler(1000);
+
+    const res = await handle(new Request("http://localhost/slow/fast"));
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true });
+  });
+
+  it("exposes the timeout to the handler through request.signal", async () => {
+    const seen: boolean[] = [];
+
+    @Controller("probe")
+    class ProbeController {
+      @Get()
+      async probe(@Req() request: Request): Promise<{ ok: true }> {
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        seen.push(request.signal.aborted);
+        return { ok: true };
+      }
+    }
+
+    @Module({ controllers: [ProbeController] })
+    class AppModule {}
+    const app = await createApplication(AppModule);
+    const handle = createHandler(app.controllers, app, { requestTimeout: 10 });
+
+    await handle(new Request("http://localhost/probe"));
+    await new Promise((resolve) => setTimeout(resolve, 80));
+
+    expect(seen).toEqual([true]);
+  });
+
+  it("answers 499 when the client aborts before the timeout", async () => {
+    const handle = await slowHandler(1000);
+    const controller = new AbortController();
+
+    const pending = handle(new Request("http://localhost/slow/wait", { signal: controller.signal }));
+    controller.abort();
+
+    expect((await pending).status).toBe(499);
+  });
+
+  it("never times out when requestTimeout is unset", async () => {
+    const handle = await slowHandler();
+
+    const res = await handle(new Request("http://localhost/slow/wait"));
+
+    expect(res.status).toBe(200);
   });
 });
 
