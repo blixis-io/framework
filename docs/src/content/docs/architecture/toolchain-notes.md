@@ -47,3 +47,19 @@ Covered in depth in [Decorators & Metadata](/framework/concepts/decorators-and-m
 ## Circular class references and `design:paramtypes`'s eager evaluation
 
 `design:paramtypes` is computed **eagerly**, at class-decoration time — the compiler emits something like `__metadata("design:paramtypes", [Dep])` immediately after the class body, evaluating `Dep` as a value right then. If `Dep` is a class declared *later* in the same module and directly used as a constructor parameter's *type*, this throws a `ReferenceError` (temporal dead zone) before your code — or `@blixis-io/di`'s `forwardRef` — ever gets involved. `forwardRef` fixes the *injection* side (deferring which token to resolve), but it can't fix an eager metadata-emission crash that happens before any of your runtime code executes. The workaround, and the reason [Dependency Injection](/framework/concepts/dependency-injection/#forwardref-for-circular-references) insists on it: type the parameter `unknown`, not the forward-referenced class, and let `@Inject(forwardRef(() => Dep))` carry the actual token.
+
+## Two copies of `@blixis-io/core` or `@blixis-io/di`
+
+Each copy of these packages keeps its own private metadata keys. If two copies end up in one process, a class decorated by one is invisible to the other, and the failure surfaces far from its cause, typically as `NotAModuleError: AppModule is not a module — did you forget @Module()?` on a module that plainly has `@Module()`.
+
+The usual cause is upgrading one `@blixis-io/*` package without the others, so the new `@blixis-io/http` brings its own, newer `@blixis-io/core` next to the one your app depends on. A duplicated install in a workspace does the same.
+
+From the release that introduced it, both packages check on import and fail immediately with a `DuplicatePackageError` that names both copies (version and location) and what to do:
+
+```
+DuplicatePackageError: Two copies of @blixis-io/di are loaded in this process:
+  0.1.0  file:///app/node_modules/.pnpm/@blixis-io+di@0.1.0/node_modules/@blixis-io/di/dist/index.js
+  0.2.0  file:///app/node_modules/.pnpm/@blixis-io+di@0.2.0/node_modules/@blixis-io/di/dist/index.js
+```
+
+The fix is to keep all `@blixis-io/*` packages on matching versions and reinstall (`pnpm why @blixis-io/core` shows who pulls which). The check only works when **both** copies include it: a copy from before that release stays silent, so if you see the `NotAModuleError` above on older versions, suspect this first.
