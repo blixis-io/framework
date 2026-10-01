@@ -1,6 +1,6 @@
 {
   "name": "@blixis-io/db",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Drizzle-backed Postgres persistence, built on @blixis-io/core. Connects and disconnects via the same lifecycle hooks as everything else.",
   "license": "MIT",
   "author": "Michael Voeten <michael@voeten.online>",
