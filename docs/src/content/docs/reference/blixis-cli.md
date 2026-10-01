@@ -27,6 +27,62 @@ blix g <type> <name> [--flat] [--force] [--dry-run]
 
 Exits `0` on success, `1` on any error (missing arguments, an unknown type, or an existing file without `--force`) — safe to use in a script.
 
+## `blix add <plugin>`
+
+```
+blix add deploy
+```
+
+Installs a plugin package as a dev dependency, using the package manager that owns the project (judged by the nearest lockfile at or above the current directory: `pnpm-lock.yaml`, `yarn.lock`, `bun.lock`/`bun.lockb`, `package-lock.json`; npm if there is none). Exits `1` for an unknown plugin or a failed install.
+
+## Plugin commands
+
+Some commands live in their own package so the CLI itself stays dependency-free. `blix deploy` is provided by `@blixis-io/deploy`. The CLI finds it in **your project's** `node_modules` (resolved from the current directory, so a workspace package finds the root's install). If it isn't installed, `blix deploy` exits `1` and says to run `blix add deploy`. `blix --help` lists the known plugin commands.
+
+A plugin package exports a `blixCommand`:
+
+```ts
+import type { BlixCommand } from "@blixis-io/cli";
+
+export const blixCommand: BlixCommand = {
+  name: "deploy",
+  description: "build and deploy",
+  run({ args, cwd, config }) {
+    return { exitCode: 0, stdout: "deployed\n", stderr: "" };
+  },
+};
+```
+
+`run` receives everything after the command name (`args`), the working directory, and the loaded `blix.config.*` (or `undefined`). It returns `{ exitCode, stdout, stderr }`; a thrown error becomes `blix <command> failed: <message>` with exit `1`.
+
+## `blix.config.ts`
+
+Plugins read their settings from a `blix.config.*` file in the project root: `blix.config.ts`, `.mts`, `.js`, `.mjs` or `.json`, first match wins. TypeScript works with no extra tooling because Node 24 strips types natively.
+
+```ts title="blix.config.ts"
+import { defineConfig } from "@blixis-io/cli";
+
+export default defineConfig({
+  deploy: { /* owned and validated by @blixis-io/deploy */ },
+});
+```
+
+The file must default-export an object; each plugin owns one top-level section. A config that exists but can't be loaded exits `1` with `Could not load blix.config.ts: ...` for plugin commands. Built-in commands such as `generate` never read it, so a broken config can't block them.
+
+## `blix --version`
+
+Prints the installed version (`-v` works too).
+
+## Programmatic use
+
+```ts
+import { runCli } from "@blixis-io/cli";
+
+const { exitCode, stdout, stderr } = await runCli(["generate", "controller", "posts"], process.cwd());
+```
+
+`runCli` is **async** since 0.2.0 (plugin commands need it), and takes an optional third argument `{ install }` to replace the package-manager runner, which is how the tests avoid touching the network. `defineConfig`, `loadConfig`, `detectPackageManager` and the `BlixCommand`/`CommandContext`/`BlixConfig` types are exported too.
+
 ## Templates, one example each
 
 ```bash
