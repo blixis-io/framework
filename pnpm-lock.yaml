@@ -136,6 +136,8 @@ importers:
         specifier: workspace:*
         version: link:../di
 
+  packages/create-blixis: {}
+
   packages/db:
     dependencies:
       '@blixis-io/core':
