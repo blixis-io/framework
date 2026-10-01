@@ -5,7 +5,17 @@ import { createHandler, type HandlerOptions } from "./handler.js";
 import { sendWebResponse, toWebRequest } from "./node-adapter.js";
 import { RequestContext } from "./request-context.js";
 
-export type HttpApplicationOptions = HandlerOptions & CreateApplicationOptions;
+const DEFAULT_SHUTDOWN_TIMEOUT = 10_000;
+
+export interface ShutdownOptions {
+  /**
+   * Milliseconds `close()` lets in-flight requests finish before their sockets are destroyed (their
+   * `request.signal` aborts). Default 10 000; `Infinity` waits indefinitely.
+   */
+  shutdownTimeout?: number;
+}
+
+export type HttpApplicationOptions = HandlerOptions & CreateApplicationOptions & ShutdownOptions;
 
 /** Provides `RequestContext` app-wide, without the user needing to import anything — every `createHttpApplication` root gets wrapped with this. */
 @Module({ providers: [RequestContext], exports: [RequestContext], global: true })
@@ -23,18 +33,20 @@ export interface ListenHandle {
 export class HttpApplication {
   readonly #app: Application;
   readonly #handle: (request: Request) => Promise<Response>;
+  readonly #shutdownTimeout: number;
   #server: Server | undefined;
 
-  private constructor(app: Application, handle: (request: Request) => Promise<Response>) {
+  private constructor(app: Application, handle: (request: Request) => Promise<Response>, shutdownTimeout: number) {
     this.#app = app;
     this.#handle = handle;
+    this.#shutdownTimeout = shutdownTimeout;
   }
 
   static async create(rootModule: ModuleRef, options: HttpApplicationOptions = {}): Promise<HttpApplication> {
     const wrappedRoot = { module: HttpRootModule, imports: [rootModule, RequestContextModule] };
     const app = await createApplication(wrappedRoot, { overrides: options.overrides });
     const handle = createHandler(app.controllers, app, options);
-    return new HttpApplication(app, handle);
+    return new HttpApplication(app, handle, options.shutdownTimeout ?? DEFAULT_SHUTDOWN_TIMEOUT);
   }
 
   /** Fetches an already-resolved provider directly, bypassing HTTP entirely. */
@@ -95,7 +107,16 @@ export class HttpApplication {
       // the close below is still in flight.
       this.#server = undefined;
       await new Promise<void>((resolve, reject) => {
+        // Stops accepting new connections and waits for in-flight requests;
+        // idle keep-alive sockets are dropped now so they can't hold close()
+        // open. Anything still running at the deadline is cut off.
+        const deadline = Number.isFinite(this.#shutdownTimeout)
+          ? setTimeout(() => {
+              server.closeAllConnections();
+            }, this.#shutdownTimeout)
+          : undefined;
         server.close((error) => {
+          clearTimeout(deadline);
           // #server is only ever set right after a successful listen() and
           // cleared right before this close(), so ERR_SERVER_NOT_RUNNING
           // (the one realistic cause) can't occur here.
@@ -106,6 +127,7 @@ export class HttpApplication {
           }
           resolve();
         });
+        server.closeIdleConnections();
       });
     }
     await this.#app.close(signal);
