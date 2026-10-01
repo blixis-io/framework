@@ -1,27 +1,24 @@
 {
-  "name": "@blixis-io/cli",
+  "name": "@blixis-io/deploy",
   "version": "0.1.0",
-  "description": "The blix binary. blix generate <type> <name> scaffolds one controller/service/module/guard/interceptor file from a template. No @blixis-io/* runtime dependency.",
+  "description": "blix deploy: build and ship a Blixis app from your machine or a CI pipeline. Docker today; Vercel, Netlify and Cloudflare targets are planned.",
   "license": "MIT",
   "author": "Michael Voeten <michael@voeten.online>",
   "homepage": "https://blixis-io.github.io/framework/",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/blixis-io/framework.git",
-    "directory": "packages/cli"
+    "directory": "packages/deploy"
   },
   "type": "module",
   "engines": {
     "node": ">=24"
   },
-  "keywords": ["cli", "code-generation", "scaffolding"],
+  "keywords": ["deploy", "docker", "ci", "github-actions", "blix"],
   "publishConfig": {
     "access": "public"
   },
   "files": ["dist"],
-  "bin": {
-    "blix": "./dist/bin.js"
-  },
   "exports": {
     ".": {
       "@blixis-io/source": "./src/index.ts",
@@ -32,5 +29,14 @@
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
     "build": "rolldown -c"
+  },
+  "peerDependencies": {
+    "@blixis-io/cli": "workspace:^"
+  },
+  "devDependencies": {
+    "@blixis-io/cli": "workspace:*"
+  },
+  "dependencies": {
+    "zod": "^4.6.5"
   }
 }

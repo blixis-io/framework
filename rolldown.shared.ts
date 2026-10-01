@@ -8,13 +8,15 @@ import { dts } from "rolldown-plugin-dts";
 // instance, would create a second, disconnected DI container instance.
 const EXTERNAL = [/^node:/, /^@blixis-io\//, "reflect-metadata", "zod", "drizzle-orm", /^drizzle-orm\//, "pg", "jose"];
 
-export function createBuildConfig(): RolldownOptions {
+/** `input` is one entry, or a name -> path map when a package ships more than one (a library entry plus a bin). */
+export function createBuildConfig(input: string | Record<string, string> = "src/index.ts"): RolldownOptions {
   return defineConfig({
-    input: "src/index.ts",
+    input,
     output: {
       dir: "dist",
       format: "esm",
       sourcemap: true,
+      entryFileNames: "[name].js",
     },
     external: EXTERNAL,
     plugins: [

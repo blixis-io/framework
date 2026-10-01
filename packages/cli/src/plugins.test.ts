@@ -17,7 +17,10 @@ afterEach(() => {
 
 describe("loadPlugin", () => {
   it("says not-installed, naming the package, when the project lacks it", async () => {
-    await expect(loadPlugin("deploy", cwd)).resolves.toEqual({ kind: "not-installed", packageName: "@blixis-io/deploy" });
+    // A package name that exists nowhere: inside Vitest, Vite's resolver would otherwise find this repo's own workspace packages from a temp dir.
+    const registry = { deploy: { package: "@blixis-io/no-such-plugin-xyz", description: "x" } };
+
+    await expect(loadPlugin("deploy", cwd, registry)).resolves.toEqual({ kind: "not-installed", packageName: "@blixis-io/no-such-plugin-xyz" });
   });
 
   it("loads the plugin from the project's own node_modules", async () => {

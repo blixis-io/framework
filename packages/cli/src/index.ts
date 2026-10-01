@@ -1,8 +1,5 @@
-#!/usr/bin/env node
-import { realpathSync } from "node:fs";
 import { createRequire } from "node:module";
 import { relative } from "node:path";
-import { pathToFileURL } from "node:url";
 import { runAdd, spawnInstall, type InstallRunner } from "./add.js";
 import { ConfigError, loadConfig } from "./config.js";
 import { generateFile, type GenerateOptions } from "./generate.js";
@@ -136,26 +133,3 @@ export async function runCli(argv: readonly string[], cwd: string, options: RunC
   }
   return { exitCode: 1, stdout: "", stderr: `Unknown command "${command}"\n\n${usage()}` };
 }
-
-// Only run for real when executed directly (not when imported by tests).
-// pathToFileURL, not a manual `file://${...}` template — argv[1] is a raw
-// filesystem path, not URL-encoded, so a path containing a space or other
-// reserved character (this repo's own directory name, for instance) would
-// never match import.meta.url's properly-encoded form otherwise. realpathSync
-// matters too, separately: a package manager's bin shim (pnpm's own
-// node_modules/.bin/blix, for one) invokes this file through a symlink;
-// import.meta.url reflects the resolved real path, argv[1] doesn't unless
-// resolved the same way first — Node's own docs recommend exactly this for
-// "is this module the entry point" checks.
-/* v8 ignore start -- @preserve: process wiring, exercised by index.test.ts spawning the real built CLI, not by importing this module */
-if (process.argv[1] && import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href) {
-  const result = await runCli(process.argv.slice(2), process.cwd());
-  if (result.stdout) {
-    process.stdout.write(result.stdout);
-  }
-  if (result.stderr) {
-    process.stderr.write(result.stderr);
-  }
-  process.exitCode = result.exitCode;
-}
-/* v8 ignore stop */

@@ -37,7 +37,7 @@ Installs a plugin package as a dev dependency, using the package manager that ow
 
 ## Plugin commands
 
-Some commands live in their own package so the CLI itself stays dependency-free. `blix deploy` is provided by `@blixis-io/deploy`. The CLI finds it in **your project's** `node_modules` (resolved from the current directory, so a workspace package finds the root's install). If it isn't installed, `blix deploy` exits `1` and says to run `blix add deploy`. `blix --help` lists the known plugin commands.
+Some commands live in their own package so the CLI itself stays dependency-free. `blix deploy` is provided by `@blixis-io/deploy` (see [Deploying](/framework/guides/deploying/)). The CLI finds it in **your project's** `node_modules` (resolved from the current directory, so a workspace package finds the root's install). If it isn't installed, `blix deploy` exits `1` and says to run `blix add deploy`. `blix --help` lists the known plugin commands.
 
 A plugin package exports a `blixCommand`:
 
