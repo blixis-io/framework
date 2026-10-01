@@ -13,35 +13,55 @@ import {
   type Provider,
   type Token,
 } from "@blixis-io/di";
-import { DuplicateDynamicModuleError, NotAModuleError, ProviderNotVisibleError } from "./errors.js";
+import { NotAModuleError, ProviderNotVisibleError } from "./errors.js";
 import { hasOnApplicationShutdown, hasOnModuleInit } from "./lifecycle.js";
-import { getModuleMetadata, isDynamicModule, moduleClassOf, type DynamicModule, type ModuleRef } from "./module.js";
+import { getModuleMetadata, isDynamicModule, moduleClassOf, type ModuleRef } from "./module.js";
 
 interface CollectedModule {
   readonly moduleClass: Class;
+  /** What this registration itself registers: its dynamic providers, plus the class's static ones if it is the first registration of the class. */
   readonly providers: readonly Provider[];
   readonly controllers: readonly Class[];
+  /** Tokens this registration may depend on without importing anything: its own plus the class's static providers. */
+  readonly ownTokens: ReadonlySet<Token>;
   readonly exports: ReadonlySet<Token>;
   readonly global: boolean;
-  /** The dynamic registration this entry came from, if any — compared by reference to spot a second, different registration of the same class. */
-  readonly dynamicRef: DynamicModule | undefined;
-  readonly importedClasses: readonly Class[];
+  readonly imports: readonly ModuleRef[];
 }
 
-/** Walks the import graph once, deduping by module class (diamond imports visited only once). A module class registered by two *different* dynamic registrations throws `DuplicateDynamicModuleError` — silently keeping the first would hand consumers the wrong configuration. Doesn't touch the container — just gathers what each module declares. */
-function collectModules(root: ModuleRef): ReadonlyMap<Class, CollectedModule> {
-  const modules = new Map<Class, CollectedModule>();
-  visit(root, modules);
-  return modules;
+interface ModuleGraph {
+  readonly modules: ReadonlyMap<ModuleRef, CollectedModule>;
+  /** The entry an import resolves to: a dynamic registration is its own entry; a plain class is the first registration of that class. */
+  readonly resolve: (ref: ModuleRef) => CollectedModule | undefined;
 }
 
-function visit(ref: ModuleRef, modules: Map<Class, CollectedModule>): void {
+/**
+ * Walks the import graph once. Each *dynamic registration* is its own entry (keyed by the object
+ * `forRoot()` returned), so `DatabaseModule.forRoot(a)` and `DatabaseModule.forRoot(b)` coexist —
+ * their provider tokens must differ, or the container reports `DuplicateProviderError`. A plain
+ * class is one entry. The class's static `@Module()` providers and controllers are registered once,
+ * by the first registration of that class; every registration still sees them as its own.
+ * Doesn't touch the container — just gathers what each module declares.
+ */
+function collectModules(root: ModuleRef): ModuleGraph {
+  const modules = new Map<ModuleRef, CollectedModule>();
+  const firstRegistration = new Map<Class, ModuleRef>();
+  visit(root, modules, firstRegistration);
+
+  return {
+    modules,
+    resolve(ref) {
+      return modules.get(isDynamicModule(ref) ? ref : (firstRegistration.get(ref) ?? ref));
+    },
+  };
+}
+
+function visit(ref: ModuleRef, modules: Map<ModuleRef, CollectedModule>, firstRegistration: Map<Class, ModuleRef>): void {
   const moduleClass = moduleClassOf(ref);
-  const existing = modules.get(moduleClass);
-  if (existing) {
-    if (isDynamicModule(ref) && existing.dynamicRef && existing.dynamicRef !== ref) {
-      throw new DuplicateDynamicModuleError(moduleClass);
-    }
+  const claimed = firstRegistration.has(moduleClass);
+
+  // A plain class already registered (by itself or by a dynamic registration) adds nothing new.
+  if (modules.has(ref) || (claimed && !isDynamicModule(ref))) {
     return;
   }
 
@@ -51,22 +71,28 @@ function visit(ref: ModuleRef, modules: Map<Class, CollectedModule>): void {
   }
 
   const dynamicMetadata = isDynamicModule(ref) ? ref : undefined;
+  const dynamicProviders = dynamicMetadata?.providers ?? [];
+  const staticProviders = staticMetadata.providers ?? [];
   const imports = [...(staticMetadata.imports ?? []), ...(dynamicMetadata?.imports ?? [])];
+
+  if (!claimed) {
+    firstRegistration.set(moduleClass, ref);
+  }
 
   // Set before recursing so a module reached twice (diamond, or a cycle) is
   // only ever collected once.
-  modules.set(moduleClass, {
+  modules.set(ref, {
     moduleClass,
-    providers: [...(staticMetadata.providers ?? []), ...(dynamicMetadata?.providers ?? [])],
-    controllers: [...(staticMetadata.controllers ?? []), ...(dynamicMetadata?.controllers ?? [])],
+    providers: claimed ? dynamicProviders : [...staticProviders, ...dynamicProviders],
+    controllers: claimed ? (dynamicMetadata?.controllers ?? []) : [...(staticMetadata.controllers ?? []), ...(dynamicMetadata?.controllers ?? [])],
+    ownTokens: new Set([...staticProviders, ...dynamicProviders].map(providerToken)),
     exports: new Set([...(staticMetadata.exports ?? []), ...(dynamicMetadata?.exports ?? [])]),
     global: staticMetadata.global === true || dynamicMetadata?.global === true,
-    dynamicRef: dynamicMetadata,
-    importedClasses: imports.map(moduleClassOf),
+    imports,
   });
 
   for (const importRef of imports) {
-    visit(importRef, modules);
+    visit(importRef, modules, firstRegistration);
   }
 }
 
@@ -97,21 +123,15 @@ function providerDisplayName(provider: Provider): string {
   return tokenName(providerToken(provider));
 }
 
-function isVisible(
-  token: Token,
-  ownTokens: ReadonlySet<Token>,
-  importedClasses: readonly Class[],
-  modules: ReadonlyMap<Class, CollectedModule>,
-  globalExports: ReadonlySet<Token>,
-): boolean {
-  if (ownTokens.has(token) || globalExports.has(token)) {
+function isVisible(token: Token, module: CollectedModule, graph: ModuleGraph, globalExports: ReadonlySet<Token>): boolean {
+  if (module.ownTokens.has(token) || globalExports.has(token)) {
     return true;
   }
-  return importedClasses.some((importedClass) => {
-    // `collectModules` visits every import, so `importedClass` is always
-    // present — the `?? false` is unreachable, not a real "unknown import".
+  return module.imports.some((importRef) => {
+    // `collectModules` visits every import, so it always resolves — the
+    // `?? false` is unreachable, not a real "unknown import".
     /* v8 ignore next -- @preserve */
-    return modules.get(importedClass)?.exports.has(token) ?? false;
+    return graph.resolve(importRef)?.exports.has(token) ?? false;
   });
 }
 
@@ -124,23 +144,17 @@ function isVisible(
  * resolution time, not an encapsulation concern.
  */
 function buildApplicationGraph(
-  modules: ReadonlyMap<Class, CollectedModule>,
+  graph: ModuleGraph,
   container: Container,
   overridesByToken: ReadonlyMap<Token, Provider>,
 ): Class[] {
   const tokenOwner = new Map<Token, Class>();
-  const ownTokensByModule = new Map<Class, Set<Token>>();
   const globalExports = new Set<Token>();
 
-  for (const module of modules.values()) {
-    const ownTokens = new Set<Token>();
+  for (const module of graph.modules.values()) {
     for (const provider of module.providers) {
-      const token = providerToken(provider);
-      tokenOwner.set(token, module.moduleClass);
-      ownTokens.add(token);
+      tokenOwner.set(providerToken(provider), module.moduleClass);
     }
-    ownTokensByModule.set(module.moduleClass, ownTokens);
-
     if (module.global) {
       for (const token of module.exports) {
         globalExports.add(token);
@@ -149,14 +163,9 @@ function buildApplicationGraph(
   }
 
   function assertVisible(consumerName: string, module: CollectedModule, required: readonly DependencyDescriptor[]): void {
-    // Every module in `modules` got an entry above, and assertVisible is
-    // only ever called with a module from that same collection — the
-    // fallback is unreachable.
-    /* v8 ignore next -- @preserve */
-    const ownTokens = ownTokensByModule.get(module.moduleClass) ?? new Set<Token>();
     for (const { token } of required) {
       const owner = tokenOwner.get(token);
-      if (owner && !isVisible(token, ownTokens, module.importedClasses, modules, globalExports)) {
+      if (owner && !isVisible(token, module, graph, globalExports)) {
         throw new ProviderNotVisibleError(consumerName, tokenName(token), owner.name);
       }
     }
@@ -164,7 +173,7 @@ function buildApplicationGraph(
 
   const controllers: Class[] = [];
 
-  for (const module of modules.values()) {
+  for (const module of graph.modules.values()) {
     for (const provider of module.providers) {
       const effective = overridesByToken.get(providerToken(provider)) ?? provider;
       assertVisible(providerDisplayName(effective), module, requiredTokensOf(effective));
@@ -197,13 +206,13 @@ export class Application {
   }
 
   static async create(rootModule: ModuleRef, options: CreateApplicationOptions = {}): Promise<Application> {
-    const modules = collectModules(rootModule);
+    const graph = collectModules(rootModule);
     const overridesByToken = new Map<Token, Provider>(
       (options.overrides ?? []).map((override) => [providerToken(override), override]),
     );
 
     const container = new Container();
-    const controllers = buildApplicationGraph(modules, container, overridesByToken);
+    const controllers = buildApplicationGraph(graph, container, overridesByToken);
 
     await container.resolveAll();
 
