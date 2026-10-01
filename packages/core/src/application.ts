@@ -13,9 +13,9 @@ import {
   type Provider,
   type Token,
 } from "@blixis-io/di";
-import { NotAModuleError, ProviderNotVisibleError } from "./errors.js";
+import { DuplicateDynamicModuleError, NotAModuleError, ProviderNotVisibleError } from "./errors.js";
 import { hasOnApplicationShutdown, hasOnModuleInit } from "./lifecycle.js";
-import { getModuleMetadata, isDynamicModule, moduleClassOf, type ModuleRef } from "./module.js";
+import { getModuleMetadata, isDynamicModule, moduleClassOf, type DynamicModule, type ModuleRef } from "./module.js";
 
 interface CollectedModule {
   readonly moduleClass: Class;
@@ -23,10 +23,12 @@ interface CollectedModule {
   readonly controllers: readonly Class[];
   readonly exports: ReadonlySet<Token>;
   readonly global: boolean;
+  /** The dynamic registration this entry came from, if any — compared by reference to spot a second, different registration of the same class. */
+  readonly dynamicRef: DynamicModule | undefined;
   readonly importedClasses: readonly Class[];
 }
 
-/** Walks the import graph once, deduping by module class (diamond imports visited only once). Doesn't touch the container — just gathers what each module declares. */
+/** Walks the import graph once, deduping by module class (diamond imports visited only once). A module class registered by two *different* dynamic registrations throws `DuplicateDynamicModuleError` — silently keeping the first would hand consumers the wrong configuration. Doesn't touch the container — just gathers what each module declares. */
 function collectModules(root: ModuleRef): ReadonlyMap<Class, CollectedModule> {
   const modules = new Map<Class, CollectedModule>();
   visit(root, modules);
@@ -35,7 +37,11 @@ function collectModules(root: ModuleRef): ReadonlyMap<Class, CollectedModule> {
 
 function visit(ref: ModuleRef, modules: Map<Class, CollectedModule>): void {
   const moduleClass = moduleClassOf(ref);
-  if (modules.has(moduleClass)) {
+  const existing = modules.get(moduleClass);
+  if (existing) {
+    if (isDynamicModule(ref) && existing.dynamicRef && existing.dynamicRef !== ref) {
+      throw new DuplicateDynamicModuleError(moduleClass);
+    }
     return;
   }
 
@@ -55,6 +61,7 @@ function visit(ref: ModuleRef, modules: Map<Class, CollectedModule>): void {
     controllers: [...(staticMetadata.controllers ?? []), ...(dynamicMetadata?.controllers ?? [])],
     exports: new Set([...(staticMetadata.exports ?? []), ...(dynamicMetadata?.exports ?? [])]),
     global: staticMetadata.global === true || dynamicMetadata?.global === true,
+    dynamicRef: dynamicMetadata,
     importedClasses: imports.map(moduleClassOf),
   });
 

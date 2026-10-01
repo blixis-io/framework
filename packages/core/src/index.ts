@@ -1,5 +1,5 @@
 export { Application, createApplication, type CreateApplicationOptions } from "./application.js";
-export { CoreError, NotAModuleError } from "./errors.js";
+export { CoreError, DuplicateDynamicModuleError, NotAModuleError, ProviderNotVisibleError } from "./errors.js";
 export {
   hasOnApplicationShutdown,
   hasOnModuleInit,
