@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { hasOnApplicationShutdown, hasOnModuleInit } from "./lifecycle.js";
+import { hasOnApplicationBootstrap, hasOnApplicationShutdown, hasOnModuleInit } from "./lifecycle.js";
 
 describe("hasOnModuleInit", () => {
   it("is true for an instance with an onModuleInit method", () => {
@@ -32,5 +32,23 @@ describe("hasOnApplicationShutdown", () => {
     class WithoutHook {}
 
     expect(hasOnApplicationShutdown(new WithoutHook())).toBe(false);
+  });
+});
+
+describe("hasOnApplicationBootstrap", () => {
+  it("is true for an instance with an onApplicationBootstrap method", () => {
+    class WithHook {
+      onApplicationBootstrap(): void {}
+    }
+
+    expect(hasOnApplicationBootstrap(new WithHook())).toBe(true);
+  });
+
+  it("is false for an instance without the hook, and for non-objects", () => {
+    class WithoutHook {}
+
+    expect(hasOnApplicationBootstrap(new WithoutHook())).toBe(false);
+    expect(hasOnApplicationBootstrap(null)).toBe(false);
+    expect(hasOnApplicationBootstrap("x")).toBe(false);
   });
 });

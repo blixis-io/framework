@@ -1,6 +1,6 @@
 ---
 title: Lifecycle Hooks
-description: OnModuleInit and OnApplicationShutdown, and why their ordering is guaranteed.
+description: OnModuleInit, OnApplicationBootstrap and OnApplicationShutdown, and why their ordering is guaranteed.
 sidebar:
   order: 4
 ---
@@ -22,6 +22,25 @@ class DatabaseConnection implements OnModuleInit {
 ```
 
 `createApplication` calls `onModuleInit()` on every provider that has it, **after all providers are constructed**, in **dependency order** — a provider's own dependencies always finish their `onModuleInit()` before it runs its own. This is why the hook exists separately from the constructor: the constructor can only assume its *own* dependencies exist, not that they've finished any async setup they need.
+
+## `OnApplicationBootstrap`
+
+Runs **once, after every provider has been created and every `onModuleInit` has finished**. Use it for *discovery*: scanning the application for providers that carry a decorator and wiring them up. `@OnEvent` handlers and `@Command` classes are found this way.
+
+```ts
+import type { BootstrapContext, OnApplicationBootstrap } from "@blixis-io/core";
+
+@Injectable()
+class HandlerRegistry implements OnApplicationBootstrap {
+  onApplicationBootstrap(app: BootstrapContext): void {
+    for (const [token, instance] of app.resolved()) {
+      // look for your decorator's metadata on `instance`
+    }
+  }
+}
+```
+
+`app.resolved()` lists every singleton provider instance with its token, in dependency order. Transient providers are never cached, so they don't appear. `app.get(token)` reaches any provider. The hook may be `async`, and a throw fails the boot, the same as `onModuleInit`. Because it runs after *all* `onModuleInit` hooks, unlike `onModuleInit` itself it can rely on every other provider being ready.
 
 ## `OnApplicationShutdown`
 

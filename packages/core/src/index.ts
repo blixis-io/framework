@@ -5,8 +5,11 @@ assertSingleInstance("@blixis-io/core", import.meta.url);
 export { Application, createApplication, type CreateApplicationOptions } from "./application.js";
 export { CoreError, NotAModuleError, ProviderNotVisibleError } from "./errors.js";
 export {
+  hasOnApplicationBootstrap,
   hasOnApplicationShutdown,
   hasOnModuleInit,
+  type BootstrapContext,
+  type OnApplicationBootstrap,
   type OnApplicationShutdown,
   type OnModuleInit,
 } from "./lifecycle.js";

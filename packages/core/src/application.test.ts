@@ -1,6 +1,7 @@
 import { DuplicateProviderError, Inject, Injectable, InjectionToken, Optional } from "@blixis-io/di";
 import { describe, expect, it } from "vitest";
 import { createApplication } from "./application.js";
+import type { BootstrapContext } from "./lifecycle.js";
 import { NotAModuleError, ProviderNotVisibleError } from "./errors.js";
 import { Module } from "./module.js";
 
@@ -275,6 +276,138 @@ describe("createApplication: lifecycle hooks", () => {
     await app.close();
 
     expect(calls).toEqual(["Service"]);
+  });
+});
+
+function constructorName(instance: unknown): string {
+  return typeof instance === "object" && instance !== null ? instance.constructor.name : String(instance);
+}
+
+describe("createApplication: onApplicationBootstrap and resolved()", () => {
+  it("runs after EVERY onModuleInit has finished, not interleaved with them", async () => {
+    const calls: string[] = [];
+
+    @Injectable()
+    class Database {
+      onModuleInit(): void {
+        calls.push("init:Database");
+      }
+    }
+
+    @Injectable()
+    class Discoverer {
+      constructor(@Inject(Database) readonly db: Database) {}
+      onModuleInit(): void {
+        calls.push("init:Discoverer");
+      }
+      onApplicationBootstrap(): void {
+        calls.push("bootstrap:Discoverer");
+      }
+    }
+
+    @Injectable()
+    class Late {
+      onModuleInit(): void {
+        calls.push("init:Late");
+      }
+    }
+
+    @Module({ providers: [Database, Discoverer, Late] })
+    class AppModule {}
+
+    await createApplication(AppModule);
+
+    expect(calls.at(-1)).toBe("bootstrap:Discoverer");
+    expect(calls.indexOf("bootstrap:Discoverer")).toBeGreaterThan(calls.indexOf("init:Late"));
+  });
+
+  it("hands the hook an application whose resolved() lists every provider instance", async () => {
+    @Injectable()
+    class Alpha {}
+
+    @Injectable()
+    class Beta {}
+
+    let seen: string[] = [];
+
+    @Injectable()
+    class Scanner {
+      onApplicationBootstrap(app: BootstrapContext): void {
+        seen = app.resolved().map(([, instance]) => constructorName(instance));
+      }
+    }
+
+    @Module({ providers: [Alpha, Beta, Scanner] })
+    class AppModule {}
+
+    await createApplication(AppModule);
+
+    expect(seen).toEqual(expect.arrayContaining(["Alpha", "Beta", "Scanner"]));
+  });
+
+  it("lets the hook use get() to reach other providers", async () => {
+    const TOKEN = new InjectionToken<string>("greeting");
+    let greeting = "";
+
+    @Injectable()
+    class Reader {
+      onApplicationBootstrap(app: BootstrapContext): void {
+        greeting = app.get(TOKEN);
+      }
+    }
+
+    @Module({ providers: [{ provide: TOKEN, useValue: "hello" }, Reader] })
+    class AppModule {}
+
+    await createApplication(AppModule);
+
+    expect(greeting).toBe("hello");
+  });
+
+  it("awaits an async hook, and fails boot if it throws", async () => {
+    @Injectable()
+    class Slow {
+      static done = false;
+      async onApplicationBootstrap(): Promise<void> {
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        Slow.done = true;
+      }
+    }
+
+    @Module({ providers: [Slow] })
+    class SlowModule {}
+
+    await createApplication(SlowModule);
+    expect(Slow.done).toBe(true);
+
+    @Injectable()
+    class Broken {
+      onApplicationBootstrap(): void {
+        throw new Error("bootstrap failed");
+      }
+    }
+
+    @Module({ providers: [Broken] })
+    class BrokenModule {}
+
+    await expect(createApplication(BrokenModule)).rejects.toThrow("bootstrap failed");
+  });
+
+  it("Application.resolved() is available after boot, and has no transient providers", async () => {
+    @Injectable()
+    class Single {}
+
+    @Injectable({ scope: "transient" })
+    class Fresh {}
+
+    @Module({ providers: [Single, Fresh] })
+    class AppModule {}
+
+    const app = await createApplication(AppModule);
+    const names = app.resolved().map(([, instance]) => constructorName(instance));
+
+    expect(names).toContain("Single");
+    expect(names).not.toContain("Fresh");
   });
 });
 
