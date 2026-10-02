@@ -1,5 +1,11 @@
 # @blixis-io/deploy
 
+## 0.3.0
+
+### Minor Changes
+
+- [#53](https://github.com/blixis-io/framework/pull/53) [`96055bf`](https://github.com/blixis-io/framework/commit/96055bfbd11ce5253b4ef53ca2475117f1ceae2c) Thanks [@EmVeeNL](https://github.com/EmVeeNL)! - GitLab CI and Bitbucket Pipelines generators: `blix deploy init --ci gitlab|bitbucket` and `blix deploy ci gitlab|bitbucket` write `.gitlab-ci.yml` or `bitbucket-pipelines.yml`. One job in a plain `node` image: install with your package manager (`corepack enable` first for pnpm and yarn), then `blix deploy <target>`. Docker targets get a Docker daemon (GitLab's `docker:27-dind` service plus the client; Bitbucket's `docker` service, with the client installed only if missing); Vercel and Netlify jobs get none. A comment at the top of each file lists the CI/CD variables to set, and on `registry.gitlab.com` the credentials come from GitLab's own variables. Adapters now report whether the deploy runs Docker (`ci().docker`).
+
 ## 0.2.1
 
 ### Patch Changes

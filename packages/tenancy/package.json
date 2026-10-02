@@ -1,6 +1,6 @@
 {
   "name": "@blixis-io/tenancy",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Request-scoped multi-tenant access control (TenantScopedGuard, a fail-closed tenantScope() query helper). Mechanism only — no Organization/Space/Membership data model — reusable by any multi-tenant app.",
   "license": "MIT",
   "author": "Michael Voeten <michael@voeten.online>",

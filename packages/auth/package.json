@@ -1,6 +1,6 @@
 {
   "name": "@blixis-io/auth",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "JWT verification and role checks, plus optional password sign-in and refresh-token rotation. Built on @blixis-io/http's guard primitive; app-layer, not a framework dependency.",
   "license": "MIT",
   "author": "Michael Voeten <michael@voeten.online>",
