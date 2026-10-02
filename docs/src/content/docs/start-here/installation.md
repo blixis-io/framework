@@ -19,6 +19,29 @@ pnpm create blixis my-app
 
 This writes a runnable app (service, controller, module, `main.ts`, and a `tsconfig.json` with the settings below), installs `@blixis-io/core`, `@blixis-io/di`, `@blixis-io/http`, `typescript`, `@types/node` and `concurrently`, and tells you how to run it. `pnpm dev` compiles with `tsc` and then recompiles on every change while Node restarts on the new output (no `tsx`: it can't emit decorator metadata). It detects pnpm, npm, yarn or bun from how you invoked it (`npm create blixis@latest my-app` works too); pass `--no-install` to only write the files. The [Quickstart](/framework/start-here/quickstart/) builds the same app by hand.
 
+## pnpm 11 skips versions younger than 24 hours
+
+pnpm 11 ignores any package version published in the last 24 hours (its `minimumReleaseAge` default is a supply-chain safeguard), and fails if a lockfile pins one. You will notice it in the first day after a Blixis release:
+
+- `pnpm create blixis` and `pnpm add @blixis-io/...` quietly pick the **previous** versions.
+- `pnpm install --frozen-lockfile` (in CI, in a Docker build, or inside Vercel's build) fails with:
+
+```
+[ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION] 7 lockfile entries failed verification:
+  @blixis-io/core@0.2.1 was published at ..., within the minimumReleaseAge cutoff (...)
+```
+
+It clears by itself after 24 hours. To skip the wait for Blixis packages only, and leave the safeguard on for everything else, exclude our scope in `pnpm-workspace.yaml`:
+
+```yaml title="pnpm-workspace.yaml"
+minimumReleaseAgeExclude:
+  - "@blixis-io/*"
+```
+
+This was checked with pnpm 11.25.0: with the line present, the lockfile passes the default policy and a `vercel build` that runs its own `pnpm install` succeeds. For a single command, `pnpm --config.minimumReleaseAge=0 add ...` turns the gate off for that run. npm, yarn and bun have no such default.
+
+Mixed versions are the real hazard when this bites: if `@blixis-io/http` updates but `@blixis-io/core` stays behind, you can end up with two copies of core. Current releases fail loudly in that case. See [Two copies of core or di](/framework/architecture/toolchain-notes/#two-copies-of-blixis-iocore-or-blixis-iodi).
+
 ## The one non-negotiable compiler setting
 
 Blixis uses **legacy decorators**, not the newer TC39 decorators — see [Why Legacy Decorators](/framework/architecture/why-legacy-decorators/) for why. Your `tsconfig.json` must have:

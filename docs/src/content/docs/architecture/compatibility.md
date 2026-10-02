@@ -30,7 +30,7 @@ Each row says how the claim is backed. **CI** means a workflow job runs it on ev
 
 | | Status | Evidence |
 |---|---|---|
-| pnpm 11 | Supported | CI uses `pnpm@11.25.0`. `pnpm create blixis` scaffold → install → build → run was checked end to end against the published packages (2026-10-01). |
+| pnpm 11 | Supported | CI uses `pnpm@11.25.0`. `pnpm create blixis` scaffold → install → build → run was checked end to end against the published packages (2026-10-01). Note pnpm 11 skips versions published in the last 24 hours by default; see [Installation](/framework/start-here/installation/#pnpm-11-skips-versions-younger-than-24-hours). Checked 2026-10-02 against a fresh release: the exclusion makes the default policy pass. |
 | npm, yarn, bun | Not tested | `create-blixis` detects them and unit tests cover the commands it runs, but a real install with each was not run. |
 
 ## Deployment targets

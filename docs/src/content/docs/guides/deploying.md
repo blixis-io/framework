@@ -146,6 +146,10 @@ $ npx --yes netlify-cli@latest deploy --dir public --functions netlify/functions
 
 **On a function platform**, `listen()`, `shutdownTimeout` and `SIGTERM` handling don't apply. See [Running in Production](/framework/guides/running-in-production/#on-a-platform-that-calls-fetch-vercel-netlify-cloudflare-workers).
 
+## If a build fails with `ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION`
+
+A pnpm 11 project that has just upgraded to a fresh `@blixis-io/*` release can fail its Docker build, its CI install, or Vercel's build, because pnpm refuses versions younger than 24 hours. It fixes itself after a day, or immediately with `minimumReleaseAgeExclude: ["@blixis-io/*"]` in `pnpm-workspace.yaml`. The generated Dockerfile copies `pnpm-workspace.yaml`, so the setting applies inside the image too. Details and the reasoning: [Installation](/framework/start-here/installation/#pnpm-11-skips-versions-younger-than-24-hours).
+
 ## CI
 
 The generated workflow is deliberately thin: check out, install, run `blix deploy <target>`. For `ghcr.io` it uses GitHub's own `GITHUB_TOKEN` and the `packages: write` permission, so no secrets need setting up. For any other registry it reads the credentials from repository secrets named after the target's `usernameEnv` and `passwordEnv` (default `REGISTRY_USERNAME` and `REGISTRY_PASSWORD`).
