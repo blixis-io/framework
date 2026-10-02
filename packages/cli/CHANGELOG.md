@@ -1,5 +1,11 @@
 # @blixis-io/cli
 
+## 0.3.0
+
+### Minor Changes
+
+- [#47](https://github.com/blixis-io/framework/pull/47) [`8c10f50`](https://github.com/blixis-io/framework/commit/8c10f5040b0dad21f1f564158073b1532c596028) Thanks [@EmVeeNL](https://github.com/EmVeeNL)! - `blix run` is now a known plugin command, provided by `@blixis-io/commands`: `blix run` lists your app's `@Command` classes and `blix run <command>` runs one. `blix add run` installs the package.
+
 ## 0.2.0
 
 ### Minor Changes

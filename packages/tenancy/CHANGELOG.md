@@ -1,5 +1,13 @@
 # @blixis-io/tenancy
 
+## 0.1.3
+
+### Patch Changes
+
+- Updated dependencies [[`4c34195`](https://github.com/blixis-io/framework/commit/4c34195a621dabc5d2f31e7a4eeed54a2dbc6d45)]:
+  - @blixis-io/core@0.3.0
+  - @blixis-io/http@0.3.1
+
 ## 0.1.2
 
 ### Patch Changes

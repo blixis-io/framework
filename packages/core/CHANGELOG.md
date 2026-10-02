@@ -1,5 +1,11 @@
 # @blixis-io/core
 
+## 0.3.0
+
+### Minor Changes
+
+- [#46](https://github.com/blixis-io/framework/pull/46) [`4c34195`](https://github.com/blixis-io/framework/commit/4c34195a621dabc5d2f31e7a4eeed54a2dbc6d45) Thanks [@EmVeeNL](https://github.com/EmVeeNL)! - New `OnApplicationBootstrap` lifecycle hook and `Application.resolved()`. `onApplicationBootstrap(app)` runs once, after every provider has been created and every `onModuleInit` has finished, and receives an application whose `resolved()` lists every singleton provider instance with its token (and `get()` reaches any provider). It is the hook for discovery: scanning providers for a decorator and wiring them up, which is how `@Command` and `@OnEvent` will work. Exports `hasOnApplicationBootstrap`, `OnApplicationBootstrap` and `BootstrapContext`.
+
 ## 0.2.1
 
 ### Patch Changes
