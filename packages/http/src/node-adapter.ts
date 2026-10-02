@@ -52,6 +52,13 @@ export function toWebRequest(req: IncomingMessage, baseUrl: string, res?: Server
 
 /** Writes a Web-standard `Response` back onto a Node `ServerResponse`. */
 export async function sendWebResponse(response: Response, res: ServerResponse): Promise<void> {
+  // The client already disconnected (say, halfway through uploading its body): nobody is left to answer,
+  // and piping into the destroyed socket would throw. Cancel the body so its producer stops as well.
+  if (res.destroyed) {
+    await response.body?.cancel();
+    return;
+  }
+
   const headers: Record<string, string[]> = {};
   for (const [name, value] of response.headers) {
     (headers[name] ??= []).push(value);

@@ -75,6 +75,7 @@ A request body is only read when a route actually has a `@Body()` parameter. Whe
 - **Size is checked twice** — first cheaply, against a declared `Content-Length` header, then against the actual decoded byte length — either one over the configured limit (1 MiB by default) gives `413 Payload Too Large`.
 - **No body sent, or an empty body** — `undefined`, not an error (so a schema requiring the field will correctly reject it with a normal `400`, rather than the framework guessing).
 - **Malformed JSON** — `400 Bad Request`, distinct from a schema validation failure.
+- **Body cut off** — if the client disconnects or closes its side before the whole body has arrived, reading it fails with `400 Bad Request` (`"Request body was not fully received"`), not an internal `500`, so it isn't logged as a server error.
 
 The body limit is configurable — see [Configuring Body Size Limits](/framework/guides/configuring-body-size-limits/).
 

@@ -1,7 +1,8 @@
 import { EventEmitter } from "node:events";
-import type { IncomingMessage, ServerResponse } from "node:http";
+import { IncomingMessage, ServerResponse } from "node:http";
+import { Socket } from "node:net";
 import { describe, expect, it } from "vitest";
-import { toWebRequest } from "./node-adapter.js";
+import { sendWebResponse, toWebRequest } from "./node-adapter.js";
 
 function mockIncomingMessage(overrides: Partial<IncomingMessage> = {}): IncomingMessage {
   return {
@@ -96,5 +97,22 @@ describe("toWebRequest", () => {
     const request = toWebRequest(req, "http://localhost");
 
     expect(request.body).toBeNull();
+  });
+});
+
+describe("sendWebResponse", () => {
+  it("cancels the body and returns quietly when the client is already gone", async () => {
+    const res = new ServerResponse(new IncomingMessage(new Socket()));
+    res.destroy();
+    let cancelled = false;
+    const body = new ReadableStream<Uint8Array>({
+      cancel() {
+        cancelled = true;
+      },
+    });
+
+    await expect(sendWebResponse(new Response(body), res)).resolves.toBeUndefined();
+
+    expect(cancelled).toBe(true);
   });
 });

@@ -1,7 +1,7 @@
 import { createApplication, Module } from "@blixis-io/core";
 import { Injectable, type Class, type Provider } from "@blixis-io/di";
 import { z } from "zod";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Controller } from "./decorators/controller.js";
 import { Body, Param, Query, Req } from "./decorators/params.js";
 import { Delete, Get, HttpCode, Post, Returns } from "./decorators/routes.js";
@@ -305,6 +305,31 @@ describe("createHandler: validation", () => {
     expect(res.status).toBe(413);
     expect(cancelled).toBe(true);
     expect(pulled).toBeLessThan(5);
+  });
+
+  it("returns 400, not a logged 500, when the body stream errors mid-read (the client went away)", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const handle = await buildHandler();
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode('{"title":'));
+        controller.error(new Error("aborted"));
+      },
+    });
+
+    const res = await handle(
+      new Request("http://localhost/posts", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body,
+        duplex: "half",
+      }),
+    );
+
+    expect(res.status).toBe(400);
+    expect((await res.json() as { detail: string }).detail).toBe("Request body was not fully received");
+    expect(error).not.toHaveBeenCalled();
+    error.mockRestore();
   });
 });
 
