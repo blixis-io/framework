@@ -1,6 +1,14 @@
 import { Module, type DynamicModule, type ModuleRef } from "@blixis-io/core";
 import { Inject, Injectable, InjectionToken, type Class, type Provider, type Token } from "@blixis-io/di";
-import { RequestContext, UnauthorizedException, type CanActivate, type ExecutionContext } from "@blixis-io/http";
+import {
+  getRouteMetadata,
+  GlobalGuard,
+  RequestContext,
+  SetRouteMetadata,
+  UnauthorizedException,
+  type CanActivate,
+  type ExecutionContext,
+} from "@blixis-io/http";
 import { jwtVerify } from "jose";
 import type { ZodType, z } from "zod";
 import {
@@ -39,8 +47,42 @@ export interface AuthModuleOptions<Claims = unknown> {
   algorithm?: "HS256" | "HS384" | "HS512";
   /** Makes `JwtAuthGuard` (and `AUTH_SERVICE`, if `issuing` is set) visible to every module without each one importing this one directly. Defaults to `false`. */
   global?: boolean;
+  /**
+   * Require authentication on **every** route unless it is marked `@Public()`, and enforce `@Roles(...)`
+   * wherever it is used. Defaults to `false`: nothing changes until you opt in, and then protection is on by
+   * default. Without it, add `@UseGuards(AuthGuard)` to the controllers or routes you want protected.
+   */
+  protectAllRoutes?: boolean;
   /** Omit for a verify-only app (the original scope). Set to enable `AUTH_SERVICE` — password sign-in, refresh rotation, sign-out. */
   issuing?: IssuingOptions<Claims> | undefined;
+}
+
+// `Symbol.for`, so metadata set with one copy of this package is read by another.
+const ROLES_METADATA = Symbol.for("blixis:auth:roles");
+const PUBLIC_METADATA = Symbol.for("blixis:auth:public");
+
+/**
+ * Requires the authenticated user to hold at least one of `roles` (read from the token's `roles` claim).
+ * On a controller it covers every route in it; on a route it replaces the controller's. Only takes effect
+ * where `AuthGuard` runs: everywhere with `protectAllRoutes: true`, otherwise on routes that carry
+ * `@UseGuards(AuthGuard)`. An unauthenticated request is a 401, a missing role a 403.
+ */
+export function Roles(...roles: readonly string[]): ClassDecorator & MethodDecorator {
+  return SetRouteMetadata(ROLES_METADATA, [...roles]);
+}
+
+/** Skips authentication for a route (or every route in a controller): the right place for a login or health endpoint when `protectAllRoutes` is on. */
+export function Public(): ClassDecorator & MethodDecorator {
+  return SetRouteMetadata(PUBLIC_METADATA, true);
+}
+
+/** The `roles` claim of a verified user, whatever shape the claims schema gave it. */
+function rolesOf(user: unknown): unknown {
+  return typeof user === "object" && user !== null ? Reflect.get(user, "roles") : undefined;
+}
+
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((item) => typeof item === "string");
 }
 
 export interface NormalizedAuthOptions {
@@ -64,6 +106,8 @@ export function defineAuthModule<Schema extends ZodType>(
 ): {
   AuthModule: { forRoot(options: AuthModuleOptions<z.infer<Schema>>): DynamicModule };
   JwtAuthGuard: Class<CanActivate>;
+  /** Authenticates the request unless the route is `@Public()`, then enforces `@Roles(...)`. Use it with `@UseGuards(AuthGuard)`, or let `protectAllRoutes` apply it everywhere. */
+  AuthGuard: Class<CanActivate>;
   createRolesGuard: (...roles: readonly string[]) => Class<CanActivate>;
   getCurrentUser: (ctx: RequestContext) => z.infer<Schema> | undefined;
   /** Resolvable only when `forRoot({ issuing })` was set — otherwise `MissingProviderError` at boot. */
@@ -82,6 +126,30 @@ export function defineAuthModule<Schema extends ZodType>(
     return ctx.get<Claims>(CURRENT_USER_KEY);
   }
 
+  /** Verifies the bearer token, validates its claims, and stores them as the current user. Throws `UnauthorizedException`. */
+  async function authenticate(request: Request, options: NormalizedAuthOptions, ctx: RequestContext): Promise<Claims> {
+    const header = request.headers.get("authorization") ?? "";
+    const token = header.startsWith("Bearer ") ? header.slice("Bearer ".length) : undefined;
+    if (!token) {
+      throw new UnauthorizedException("Missing or malformed Authorization header");
+    }
+
+    let payload: unknown;
+    try {
+      payload = (await jwtVerify(token, options.key, { algorithms: [options.algorithm] })).payload;
+    } catch {
+      throw new UnauthorizedException("Invalid or expired token");
+    }
+
+    const parsed = await claimsSchema.safeParseAsync(payload);
+    if (!parsed.success) {
+      throw new UnauthorizedException("Token payload failed validation");
+    }
+
+    ctx.set(CURRENT_USER_KEY, parsed.data);
+    return parsed.data;
+  }
+
   @Injectable()
   class JwtAuthGuard implements CanActivate {
     constructor(
@@ -90,28 +158,41 @@ export function defineAuthModule<Schema extends ZodType>(
     ) {}
 
     async canActivate({ request }: ExecutionContext): Promise<boolean> {
-      const header = request.headers.get("authorization") ?? "";
-      const token = header.startsWith("Bearer ") ? header.slice("Bearer ".length) : undefined;
-      if (!token) {
-        throw new UnauthorizedException("Missing or malformed Authorization header");
-      }
-
-      let payload: unknown;
-      try {
-        payload = (await jwtVerify(token, this.options.key, { algorithms: [this.options.algorithm] })).payload;
-      } catch {
-        throw new UnauthorizedException("Invalid or expired token");
-      }
-
-      const parsed = await claimsSchema.safeParseAsync(payload);
-      if (!parsed.success) {
-        throw new UnauthorizedException("Token payload failed validation");
-      }
-
-      this.ctx.set(CURRENT_USER_KEY, parsed.data);
+      await authenticate(request, this.options, this.ctx);
       return true;
     }
   }
+
+  /** A fresh guard class per call: the global one has to be a different class from the one used with `@UseGuards`, since only it is marked `@GlobalGuard()`. */
+  function createAuthGuard(): Class<CanActivate> {
+    @Injectable()
+    class AuthGuardImpl implements CanActivate {
+      constructor(
+        @Inject(AUTH_OPTIONS) private readonly options: NormalizedAuthOptions,
+        private readonly ctx: RequestContext,
+      ) {}
+
+      async canActivate(context: ExecutionContext): Promise<boolean> {
+        if (getRouteMetadata(PUBLIC_METADATA, context) === true) {
+          return true;
+        }
+
+        const user = await authenticate(context.request, this.options, this.ctx);
+
+        const required = getRouteMetadata(ROLES_METADATA, context);
+        if (isStringArray(required) && required.length > 0) {
+          const held = rolesOf(user);
+          return isStringArray(held) && required.some((role) => held.includes(role));
+        }
+        return true;
+      }
+    }
+    return AuthGuardImpl;
+  }
+
+  const AuthGuard = createAuthGuard();
+  const GlobalAuthGuard = createAuthGuard();
+  GlobalGuard()(GlobalAuthGuard);
 
   /**
    * Builds a guard requiring at least one of `roles` on the current user —
@@ -147,8 +228,12 @@ export function defineAuthModule<Schema extends ZodType>(
         algorithm: options.algorithm ?? "HS256",
       };
       const imports: ModuleRef[] = [];
-      const providers: Provider[] = [{ provide: AUTH_OPTIONS, useValue: normalized }, JwtAuthGuard];
-      const exports: Token[] = [AUTH_OPTIONS, JwtAuthGuard];
+      const providers: Provider[] = [{ provide: AUTH_OPTIONS, useValue: normalized }, JwtAuthGuard, AuthGuard];
+      const exports: Token[] = [AUTH_OPTIONS, JwtAuthGuard, AuthGuard];
+
+      if (options.protectAllRoutes) {
+        providers.push(GlobalAuthGuard);
+      }
 
       if (options.issuing) {
         const issuingNormalized: NormalizedIssuingOptions = {
@@ -177,5 +262,5 @@ export function defineAuthModule<Schema extends ZodType>(
     }
   }
 
-  return { AuthModule, JwtAuthGuard, createRolesGuard, getCurrentUser, AUTH_SERVICE };
+  return { AuthModule, JwtAuthGuard, AuthGuard, createRolesGuard, getCurrentUser, AUTH_SERVICE };
 }

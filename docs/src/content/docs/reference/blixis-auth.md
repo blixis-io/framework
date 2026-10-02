@@ -15,6 +15,7 @@ function defineAuthModule<Schema extends ZodType>(
 ): {
   AuthModule: { forRoot(options: AuthModuleOptions<z.infer<Schema>>): DynamicModule };
   JwtAuthGuard: Class<CanActivate>;
+  AuthGuard: Class<CanActivate>; // authenticates unless @Public(), then enforces @Roles
   createRolesGuard: (...roles: readonly string[]) => Class<CanActivate>;
   getCurrentUser: (ctx: RequestContext) => z.infer<Schema> | undefined;
   /** Resolvable only when `forRoot({ issuing })` was set — otherwise `MissingProviderError` at boot. */
@@ -34,13 +35,23 @@ const ClaimsSchema = z.object({ sub: z.string(), roles: z.array(z.string()) });
 export const { AuthModule, JwtAuthGuard, createRolesGuard, getCurrentUser } = defineAuthModule(ClaimsSchema);
 ```
 
+## `Roles`, `Public` and `AuthGuard`
+
+```ts
+function Roles(...roles: readonly string[]): ClassDecorator & MethodDecorator; // at least one of roles
+function Public(): ClassDecorator & MethodDecorator; // skips authentication
+```
+
+`AuthGuard` authenticates the request (`401` on a missing, malformed, expired or invalid token, or claims that fail your schema) unless the route is `@Public()`, then, if the route or its controller has `@Roles(...)`, requires one of them in the token's `roles` claim (`403` otherwise). A route's `@Roles`/`@Public` wins over its controller's. Apply it per controller or route with `@UseGuards(AuthGuard)`, or everywhere with `protectAllRoutes` below. `Roles` and `Public` are plain route metadata (`SetRouteMetadata` from `@blixis-io/http`) and do nothing unless `AuthGuard` runs.
+
 ## `AuthModuleOptions`
 
 ```ts
 interface AuthModuleOptions<Claims = unknown> {
   secret: string;
   algorithm?: "HS256" | "HS384" | "HS512"; // default "HS256"
-  global?: boolean; // default false
+  global?: boolean;
+  protectAllRoutes?: boolean; // default false: every route needs a token unless @Public() // default false
   issuing?: IssuingOptions<Claims>; // omit for verify-only
 }
 ```
