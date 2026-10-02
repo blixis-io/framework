@@ -51,6 +51,38 @@ class PostsModule {}
 
 The same internal provider implements `OnApplicationShutdown`, calling `pool.end()`. Since it's registered — just not exported — it's still eagerly resolved and still gets its shutdown hook run by `Application.close()`, exactly like every other provider. Nothing about closing the database is wired manually in `main.ts`; it falls out of the same lifecycle mechanism every other package uses.
 
+## Transactions: `@Transactional()`
+
+Put `@Transactional()` on an `async` method and everything it does through the injected `DATABASE` runs in one transaction: it commits when the method resolves and rolls back when it throws.
+
+```ts
+@Injectable()
+class TransfersService {
+  constructor(@Inject(DATABASE) private readonly db: Database) {}
+
+  @Transactional()
+  async transfer(from: string, to: string, cents: number): Promise<void> {
+    await this.db.update(accounts).set({ balance: sql`balance - ${cents}` }).where(eq(accounts.id, from));
+    await this.chargeFee(from); // a throw here undoes the update above
+    await this.db.update(accounts).set({ balance: sql`balance + ${cents}` }).where(eq(accounts.id, to));
+  }
+}
+```
+
+Nothing else changes in how you write queries: no `tx` parameter to thread through. The `DATABASE` you inject is a thin wrapper over Drizzle's database that sends each query to the current transaction when there is one and to the pool otherwise. "Current" follows the call chain (it uses `AsyncLocalStorage`), so it holds across `await`s and inside `Promise.all`.
+
+- **Nesting joins.** A `@Transactional` method called from another one, in the same class or a different service sharing the same database, joins the outer transaction instead of starting a second one. A failure anywhere rolls the whole thing back.
+- **Options** go to Drizzle: `@Transactional({ isolationLevel: "serializable" })`, `accessMode`, `deferrable`.
+- **The method must be `async`.** The compiler rejects one that doesn't return a promise.
+- **How it finds the database.** The decorator looks for the injected `DATABASE` on the instance (`this`). If the class holds none, or holds two, you get a `TransactionalError` naming the method instead of a guess. When the database sits behind another object, say so: `@Transactional({ database: (self) => self.repo.db })`.
+- **Separate connections stay separate.** Each application, and each `defineDrizzleModule()`, has its own wrapper, so a transaction in one is invisible to the other.
+- **Writes are invisible outside until commit.** Other connections, and code running outside the transactional call chain, see the old data until the method resolves.
+
+Two things to be careful with:
+
+- **Events.** A handler triggered by `emit()` from inside a transactional method runs in the same call chain, so it joins the transaction and has already run if the transaction later rolls back. Emit after the method returns when listeners must only see committed data.
+- **Explicit `db.transaction()` still works**, but it starts its own transaction on the pool connection it checks out; use one style or the other for a given piece of work.
+
 ## `global` is off by default
 
 ```ts
