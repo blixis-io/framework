@@ -6,3 +6,8 @@ export class DbConnectionError extends Error {
     this.name = "DbConnectionError";
   }
 }
+
+/** `@Transactional` was used on a class it can't find a database on, or that holds several. */
+export class TransactionalError extends Error {
+  override readonly name = "TransactionalError";
+}

@@ -3,6 +3,7 @@ import { Injectable, InjectionToken } from "@blixis-io/di";
 import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
 import { Pool, type PoolConfig } from "pg";
 import { DbConnectionError } from "../errors.js";
+import { transactionAware } from "./transactional.js";
 
 export interface DrizzleModuleOptions {
   /** Passed straight to `pg.Pool` — either a connection string or a full `PoolConfig`. */
@@ -33,7 +34,7 @@ export function defineDrizzleModule<Schema extends Record<string, unknown>>(sche
         readonly pool = new Pool(
           typeof options.connection === "string" ? { connectionString: options.connection } : options.connection,
         );
-        readonly db = drizzle(this.pool, { schema });
+        readonly db = transactionAware(drizzle(this.pool, { schema }));
 
         async onModuleInit(): Promise<void> {
           try {

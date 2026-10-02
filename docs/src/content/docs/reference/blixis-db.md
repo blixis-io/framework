@@ -7,13 +7,28 @@ sidebar:
 
 Drizzle-backed Postgres persistence, wired up the same `forRoot()` way as every other `DynamicModule` in this framework. See [Database](/framework/concepts/database/) for the concepts.
 
+## `Transactional`
+
+```ts
+function Transactional(options?: TransactionalOptions): MethodDecorator /* async methods only */;
+
+interface TransactionalOptions extends PgTransactionConfig {
+  // Drizzle's own: isolationLevel, accessMode, deferrable
+  database?: (instance) => unknown; // where the DATABASE is, when it isn't a direct property of the class
+}
+
+class TransactionalError extends Error {} // no DATABASE on the class, several of them, or `database` returned something else
+```
+
+Runs the method in a transaction: commit on resolve, rollback on throw. Nested `@Transactional` calls sharing a database join the outer one. The method has to return a promise (checked by the compiler). Always rejects rather than throwing synchronously. See [Database](/framework/concepts/database/#transactions-transactional).
+
 ## `defineDrizzleModule`
 
 ```ts
 function defineDrizzleModule<Schema extends Record<string, unknown>>(
   schema: Schema,
 ): {
-  DATABASE: InjectionToken<NodePgDatabase<Schema>>;
+  DATABASE: InjectionToken<NodePgDatabase<Schema>>; // transaction-aware: queries go to the current @Transactional transaction, else the pool
   DrizzleModule: {
     forRoot(options: DrizzleModuleOptions): DynamicModule;
   };
