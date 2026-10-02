@@ -14,7 +14,8 @@ Each row says how the claim is backed. **CI** means a workflow job runs it on ev
 | Node 24 | Supported | CI: the required `ci` job and the `compat (node 24)` job. `engines` is `>=24`. |
 | Node latest | Tracked | CI: the `compat (node latest)` job. Not a required check, so a newer Node breaking it shows up there first. |
 | Node 22 and older | Not supported | `engines` rejects it. The framework relies on Node 24's built-in `fetch`/`Request`/`Response`. |
-| Bun, Deno, Cloudflare Workers | Not tested | The core and request handler (`createHandler`) are built on Web-standard `Request`/`Response`, but `@blixis-io/http` imports `node:async_hooks` and `node:http`, and nothing runs on another runtime. Treat as unsupported. |
+| Cloudflare Workers | Works locally | With the `nodejs_compat` flag (the framework imports `node:async_hooks`, `node:http` and `node:stream`). Checked 2026-10-02 in `workerd` via `wrangler dev --local`: routing, a POST, and an `@OnEvent` handler. Not run: a real Cloudflare deploy, and Postgres from a Worker. See [Deployment targets](#deployment-targets). |
+| Bun, Deno | Not tested | The core and request handler (`createHandler`) are built on Web-standard `Request`/`Response`, but `@blixis-io/http` imports `node:async_hooks` and `node:http`, and nothing runs on another runtime. Treat as unsupported. |
 
 ## Toolchain
 
@@ -35,18 +36,18 @@ Each row says how the claim is backed. **CI** means a workflow job runs it on ev
 
 ## Deployment targets
 
-`blix deploy` ([Deploying](/framework/guides/deploying/)) supports Docker, Vercel and Netlify. Cloudflare Workers is not a `blix deploy` target yet; its row records what was tried by hand on 2026-10-01 so it starts from facts, not guesses.
+`blix deploy` ([Deploying](/framework/guides/deploying/)) supports Docker, Vercel, Netlify and Cloudflare Workers. Each row says exactly what was run and what was not.
 
 | | Status | Evidence |
 |---|---|---|
 | Docker (`blix deploy`) | Supported | Checked: scaffold, `blix deploy init`, a real image built from the generated Dockerfile (173 MB), run, called, and stopped gracefully (exit 0). Registry push and the generated GitHub Actions workflow were not run against a real registry or GitHub; they are covered by unit tests, a dry run, and the workflow parsing as valid YAML. |
-| Cloudflare Workers (not a `blix deploy` target yet) | Works locally | Checked: a Rolldown bundle (with `export default createFetchHandler(AppModule)`) ran in `workerd` (`wrangler dev --local`, `nodejs_compat`): routing, 404/405, a POST body with Zod validation, async handlers. Not tried: a real Cloudflare deploy, `pg` from a Worker, bundle size limits. |
+| Cloudflare Workers (`blix deploy`) | Verified up to the deploy call | Checked 2026-10-02, from files `blix deploy init` generated: Wrangler's own bundler built the Worker (`wrangler deploy --dry-run`: 861 KiB, 138 KiB gzipped) and `wrangler dev --local` ran it in `workerd`, answering 200 and 404. No bundler of ours is involved: the entry is plain JavaScript importing your `tsc` output. Not run: a real `wrangler deploy` (needs an account), Postgres from a Worker, and Cloudflare's size limits for your plan. |
 | Netlify (`blix deploy`) | Verified up to the deploy call | Checked 2026-10-01, from files `blix deploy init` generated: `netlify dev` served the function, and `netlify functions:build` produced a zip that answered correctly when extracted and run. Not tried: a real `netlify deploy` (needs an account). |
 | Vercel (`blix deploy`) | Verified up to the deploy call | Checked 2026-10-01, from files `blix deploy init` generated: `vercel build` produced a `nodejs24.x` function that answered correctly. Not checked: Vercel's own launcher and a real `vercel deploy` (need an account). |
 
 | GitLab CI and Bitbucket Pipelines (`blix deploy ci`) | Commands verified, pipelines not run | Checked 2026-10-02: the generated files parse as YAML; the job's commands (`corepack enable`, `pnpm install --frozen-lockfile` / `npm ci`, `blix deploy --dry-run`) ran in a clean `node:24` container; the Docker client install ran on `linux/amd64`. Not run: the pipelines on GitLab or Bitbucket (no accounts), so GitLab's `docker:27-dind` service and Bitbucket's `docker` service are unverified. |
 
-All four need the app built to plain JavaScript first (Rolldown or `tsc`), because the providers' own bundlers compile TypeScript with esbuild and drop decorator metadata.
+All of them need the app built to plain JavaScript first (Rolldown or `tsc`), because the providers' own bundlers compile TypeScript with esbuild and drop decorator metadata.
 
 ## Database
 

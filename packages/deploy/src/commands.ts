@@ -18,10 +18,10 @@ export interface DeployDeps {
 
 export const USAGE = `blix deploy [target] [--dry-run]      build and ship a target (default target or the only one)
 blix deploy build [target]            build only: no login, push or post-push command
-blix deploy init [--target docker|vercel|netlify] [--name prod] [--ci github] [--force]
+blix deploy init [--target docker|vercel|netlify|cloudflare] [--name prod] [--ci github] [--force]
                                       write blix.config.ts, the files the target needs, and a CI workflow
                                       docker: [--image <name>] [--entry dist/main.js]
-                                      vercel/netlify: [--app-module dist/app.module.js] [--app-export AppModule]
+                                      vercel/netlify/cloudflare: [--app-module dist/app.module.js] [--app-export AppModule]
 blix deploy ci <provider> [target] [--branch main] [--force]
                                       (re)generate the CI file. Providers: ${CI_PROVIDER_IDS.join(", ")}
 blix deploy doctor [target]           check config, tools and environment

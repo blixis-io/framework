@@ -50,6 +50,8 @@ export interface InitContext {
   packageManager: PackageManager;
   runner: Runner;
   options: InitOptions;
+  /** "Today", for files that carry a date (a Worker's `compatibility_date`). Injected so tests are deterministic. */
+  now?: Date | undefined;
 }
 
 export interface InitFile {
