@@ -1,5 +1,11 @@
 # @blixis-io/cli
 
+## 0.4.0
+
+### Minor Changes
+
+- [#64](https://github.com/blixis-io/framework/pull/64) [`ef36b88`](https://github.com/blixis-io/framework/commit/ef36b8860d1c3ece123e17282d31cb77b1333d80) Thanks [@EmVeeNL](https://github.com/EmVeeNL)! - Add `blix doctor`: checks decorator flags in `tsconfig.json`, duplicate copies of `@blixis-io/core`/`di`, the Node version, the `packageManager` pin, and tooling that drops decorator metadata (`tsx`, `esbuild`, Vitest without Oxc settings). Exits `1` on failures.
+
 ## 0.3.0
 
 ### Minor Changes
