@@ -22,10 +22,22 @@ function registry(): Map<string, Loaded> {
   return created;
 }
 
-/** `version` from the package.json next to a built `dist/` or `src/` module. */
-export function packageVersion(moduleUrl: string): string {
-  const manifest: unknown = createRequire(moduleUrl)("../package.json");
-  return typeof manifest === "object" && manifest !== null && "version" in manifest && typeof manifest.version === "string" ? manifest.version : "unknown";
+/**
+ * `version` from the package.json next to a built `dist/` or `src/` module, or `"unknown"` when it can't be
+ * read. It often can't be: once an app is bundled into one file there is no package.json beside the code,
+ * and some runtimes (Cloudflare Workers) give modules no URL at all. Looking the version up is a courtesy for
+ * the error message, so it must never throw.
+ */
+export function packageVersion(moduleUrl: string | undefined): string {
+  if (!moduleUrl) {
+    return "unknown";
+  }
+  try {
+    const manifest: unknown = createRequire(moduleUrl)("../package.json");
+    return typeof manifest === "object" && manifest !== null && "version" in manifest && typeof manifest.version === "string" ? manifest.version : "unknown";
+  } catch {
+    return "unknown";
+  }
 }
 
 /**
@@ -36,8 +48,15 @@ export function packageVersion(moduleUrl: string): string {
  * turns it into an error at import time that names both copies. The usual cause is `@blixis-io/http`
  * (or another package) being upgraded without `@blixis-io/core`, or two apps in one workspace pinning
  * different versions.
+ *
+ * Does nothing when there is no module URL (some runtimes, such as Cloudflare Workers, don't provide one for
+ * bundled code): copies can't be told apart there, and a single-file bundle contains one copy anyway. A safety
+ * check must never be able to stop the program it protects from starting.
  */
-export function assertSingleInstance(name: string, moduleUrl: string): void {
+export function assertSingleInstance(name: string, moduleUrl: string | undefined): void {
+  if (!moduleUrl) {
+    return;
+  }
   const loaded = registry();
   const current: Loaded = { version: packageVersion(moduleUrl), location: moduleUrl };
   const existing = loaded.get(name);

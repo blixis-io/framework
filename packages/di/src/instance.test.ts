@@ -35,6 +35,39 @@ describe("packageVersion", () => {
   it('says "unknown" when there is no version', () => {
     expect(packageVersion(copy(undefined))).toBe("unknown");
   });
+
+  it('says "unknown" instead of throwing when there is no URL or no package.json (bundled code)', () => {
+    expect(packageVersion(undefined)).toBe("unknown");
+    // A module whose directory has no package.json beside it, as in a single-file bundle.
+    const bundled = pathToFileURL(join(root, "bundle", "dist", "bundle.js")).href;
+    mkdirSync(join(root, "bundle", "dist"), { recursive: true });
+    writeFileSync(join(root, "bundle", "dist", "bundle.js"), "");
+    expect(packageVersion(bundled)).toBe("unknown");
+  });
+});
+
+describe("assertSingleInstance never stops a bundled app from starting", () => {
+  it("does nothing when the runtime gives modules no URL (Cloudflare Workers)", () => {
+    const name = uniqueName();
+
+    expect(() => {
+      assertSingleInstance(name, undefined);
+      assertSingleInstance(name, undefined);
+    }).not.toThrow();
+  });
+
+  it("does not throw when package.json can't be read, and still detects a duplicate by location", () => {
+    const name = uniqueName();
+    const first = pathToFileURL(join(root, "bundle-a", "dist", "x.js")).href;
+    const second = pathToFileURL(join(root, "bundle-b", "dist", "x.js")).href;
+
+    expect(() => {
+      assertSingleInstance(name, first);
+    }).not.toThrow();
+    expect(() => {
+      assertSingleInstance(name, second);
+    }).toThrow("unknown");
+  });
 });
 
 describe("assertSingleInstance", () => {
