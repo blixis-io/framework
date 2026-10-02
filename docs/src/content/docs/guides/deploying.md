@@ -11,6 +11,8 @@ Targets: **Docker**, **Vercel**, **Netlify** and **Cloudflare Workers**. See [Co
 
 ## 1. Install it
 
+Starting a new project? `pnpm create blixis my-app --deploy docker --ci github` does steps 1 and 2 for you (any target, any CI provider; see [Installation](/framework/start-here/installation/)). For an existing project:
+
 ```bash
 pnpm add -D @blixis-io/cli @blixis-io/deploy
 # or, from a project that already has the CLI:

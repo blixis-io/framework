@@ -4,14 +4,18 @@ import { realpathSync } from "node:fs";
 import { relative } from "node:path";
 import { pathToFileURL } from "node:url";
 import { ScaffoldError, scaffold } from "./scaffold.js";
-import { DEV_DEPENDENCIES, RUNTIME_DEPENDENCIES } from "./template.js";
+import { DEPLOY_DEPENDENCIES, DEV_DEPENDENCIES, RUNTIME_DEPENDENCIES } from "./template.js";
 
-const USAGE = `create-blixis <directory> [--no-install]
+const USAGE = `create-blixis <directory> [--deploy <target>] [--ci <provider>] [--no-install]
 
   pnpm create blixis my-app
   npm create blixis@latest my-app
+  pnpm create blixis my-app --deploy docker --ci github
 
-  --no-install   write the files only; print the install commands instead
+  --deploy <target>   also set up deployment (docker, vercel, netlify or cloudflare): installs
+                      @blixis-io/cli and @blixis-io/deploy and runs \`blix deploy init\`
+  --ci <provider>     with --deploy: also write the CI pipeline (github, gitlab or bitbucket)
+  --no-install        write the files only; print the install commands instead
 `;
 
 export type PackageManager = "pnpm" | "npm" | "yarn" | "bun";
@@ -49,6 +53,73 @@ function addArgs(pm: PackageManager, dev: boolean, packages: readonly string[]):
   return [verb, ...(dev ? [devFlag] : []), ...packages];
 }
 
+/** The command that runs a locally installed binary (`blix`), per package manager. */
+function execBlix(pm: PackageManager, args: readonly string[]): { command: string; args: string[] } {
+  switch (pm) {
+    case "pnpm":
+      return { command: "pnpm", args: ["exec", "blix", ...args] };
+    case "npm":
+      return { command: "npx", args: ["blix", ...args] };
+    case "yarn":
+      return { command: "yarn", args: ["blix", ...args] };
+    case "bun":
+      return { command: "bunx", args: ["blix", ...args] };
+    /* v8 ignore start -- @preserve: exhaustiveness guard, unreachable while every package manager has a case */
+    default: {
+      const unreachable: never = pm;
+      throw new Error(`Unknown package manager ${String(unreachable)}`);
+    }
+    /* v8 ignore stop */
+  }
+}
+
+interface ParsedArgs {
+  positionals: string[];
+  noInstall: boolean;
+  help: boolean;
+  deploy?: string | undefined;
+  ci?: string | undefined;
+  error?: string | undefined;
+}
+
+const VALUE_FLAGS = new Set(["deploy", "ci"]);
+
+function parseArgs(argv: readonly string[]): ParsedArgs {
+  const parsed: ParsedArgs = { positionals: [], noInstall: false, help: false };
+  for (let index = 0; index < argv.length; index++) {
+    const arg = argv[index];
+    if (arg === undefined) {
+      continue;
+    }
+    if (arg === "--help" || arg === "-h") {
+      parsed.help = true;
+    } else if (arg === "--no-install") {
+      parsed.noInstall = true;
+    } else if (arg.startsWith("--")) {
+      const [name = "", inline] = arg.slice(2).split(/=(.*)/s);
+      if (!VALUE_FLAGS.has(name)) {
+        parsed.error ??= `Unknown option "${arg}"`;
+        continue;
+      }
+      const value = inline ?? argv[++index];
+      if (value === undefined || value.startsWith("-")) {
+        parsed.error ??= `--${name} needs a value`;
+        continue;
+      }
+      if (name === "deploy") {
+        parsed.deploy = value;
+      } else {
+        parsed.ci = value;
+      }
+    } else if (arg.startsWith("-")) {
+      parsed.error ??= `Unknown option "${arg}"`;
+    } else {
+      parsed.positionals.push(arg);
+    }
+  }
+  return parsed;
+}
+
 const runWithInheritedStdio: InstallRunner = (command, args, cwd) =>
   new Promise((resolve, reject) => {
     const child = spawn(command, args, { cwd, stdio: "inherit", shell: process.platform === "win32" });
@@ -60,18 +131,20 @@ const runWithInheritedStdio: InstallRunner = (command, args, cwd) =>
 
 /** The whole CLI as a function of argv + environment — no process.exit()/console.log(), so it is directly testable. */
 export async function runCreate(argv: readonly string[], options: CreateOptions): Promise<CreateResult> {
-  const flags = argv.filter((arg) => arg.startsWith("-"));
-  const [target, ...extra] = argv.filter((arg) => !arg.startsWith("-"));
+  const parsed = parseArgs(argv);
+  const [target, ...extra] = parsed.positionals;
 
-  if (flags.includes("--help") || flags.includes("-h")) {
+  if (parsed.help) {
     return { exitCode: 0, stdout: USAGE, stderr: "" };
   }
-  const unknown = flags.find((flag) => flag !== "--no-install");
-  if (unknown) {
-    return { exitCode: 1, stdout: "", stderr: `Unknown option "${unknown}"\n\n${USAGE}` };
+  if (parsed.error) {
+    return { exitCode: 1, stdout: "", stderr: `${parsed.error}\n\n${USAGE}` };
   }
   if (!target || extra.length > 0) {
     return { exitCode: 1, stdout: "", stderr: `Usage: ${USAGE}` };
+  }
+  if (parsed.ci && !parsed.deploy) {
+    return { exitCode: 1, stdout: "", stderr: `--ci only makes sense with --deploy <target>.\n\n${USAGE}` };
   }
 
   let result;
@@ -87,27 +160,46 @@ export async function runCreate(argv: readonly string[], options: CreateOptions)
   const pm = detectPackageManager(options.userAgent);
   const runtime = addArgs(pm, false, RUNTIME_DEPENDENCIES);
   const dev = addArgs(pm, true, DEV_DEPENDENCIES);
+  const deployDev = addArgs(pm, true, DEPLOY_DEPENDENCIES);
+  const initArgs = parsed.deploy ? ["deploy", "init", "--target", parsed.deploy, ...(parsed.ci ? ["--ci", parsed.ci] : [])] : [];
+  const blixInit = execBlix(pm, initArgs);
   const dir = relative(options.cwd, result.directory) || ".";
   let stdout = `Created ${result.packageName} in ${dir}\n`;
 
-  if (flags.includes("--no-install")) {
+  if (parsed.noInstall) {
     stdout += `\nNext:\n  cd ${dir}\n  ${pm} ${runtime.join(" ")}\n  ${pm} ${dev.join(" ")}\n`;
-  } else {
-    const install = options.install ?? runWithInheritedStdio;
-    for (const args of [runtime, dev]) {
-      const code = await install(pm, args, result.directory);
-      if (code !== 0) {
-        return {
-          exitCode: code,
-          stdout,
-          stderr: `\n"${pm} ${args.join(" ")}" failed (exit ${code}). The files are in ${dir}; run the install yourself.\n`,
-        };
-      }
+    if (parsed.deploy) {
+      stdout += `  ${pm} ${deployDev.join(" ")}\n  ${blixInit.command} ${blixInit.args.join(" ")}\n`;
     }
-    const run = pm === "npm" ? "npm run" : pm;
-    stdout += `\nNext:\n  cd ${dir}\n  ${run} dev\n  curl http://localhost:3000/hello/world\n`;
+    return { exitCode: 0, stdout, stderr: "" };
   }
 
+  const install = options.install ?? runWithInheritedStdio;
+  const steps: { command: string; args: readonly string[] }[] = [
+    { command: pm, args: runtime },
+    { command: pm, args: dev },
+    ...(parsed.deploy ? [{ command: pm, args: deployDev }, blixInit] : []),
+  ];
+  for (const step of steps) {
+    const code = await install(step.command, step.args, result.directory);
+    if (code !== 0) {
+      const isInit = parsed.deploy !== undefined && step === steps.at(-1);
+      return {
+        exitCode: code,
+        stdout,
+        stderr: `\n"${step.command} ${step.args.join(" ")}" failed (exit ${code}). The files are in ${dir}; ${
+          isInit ? "run `blix deploy init` yourself (the app itself is ready)." : "run the install yourself."
+        }\n`,
+      };
+    }
+  }
+
+  const run = pm === "npm" ? "npm run" : pm;
+  stdout += `\nNext:\n  cd ${dir}\n  ${run} dev\n  curl http://localhost:3000/hello/world\n`;
+  if (parsed.deploy) {
+    const dryRun = execBlix(pm, ["deploy", "--dry-run"]);
+    stdout += `\nDeploy (${parsed.deploy}${parsed.ci ? `, ${parsed.ci}` : ""}):\n  review blix.config.ts, then\n  ${dryRun.command} ${dryRun.args.join(" ")}\n`;
+  }
   return { exitCode: 0, stdout, stderr: "" };
 }
 
