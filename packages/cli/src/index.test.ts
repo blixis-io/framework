@@ -281,3 +281,12 @@ export const blixCommand = { name: "deploy", description: "x", run: ({ cwd }) =>
     expect(existsSync(join(cwd, "src", "posts", "posts.service.ts"))).toBe(true);
   });
 });
+
+describe("blix doctor wiring", () => {
+  it("is listed in usage and dispatched", async () => {
+    expect((await runCli(["--help"], process.cwd())).stdout).toContain("blix doctor");
+    const result = await runCli(["doctor"], "/nonexistent-dir-for-doctor");
+    expect(result.exitCode).toBe(1);
+    expect(result.stdout).toContain("no readable package.json");
+  });
+});
