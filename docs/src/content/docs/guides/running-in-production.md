@@ -33,6 +33,16 @@ process.on("SIGTERM", () => {
 
 `app.close(signal?)` closes the listening socket *and* runs every `OnApplicationShutdown` hook in the application (see [Lifecycle Hooks](/framework/concepts/lifecycle-hooks/)) — the string you pass through is handed to each hook as-is, so a database connection's shutdown hook can log or branch on which signal triggered it. `close()` is idempotent: calling it more than once (a signal handler *and* a test's cleanup both running it, say) is safe — the second call is a no-op, not a duplicate teardown.
 
+## Malformed requests
+
+On `listen()`, Node's HTTP parser rejects broken framing before a controller ever runs, and the server keeps serving other connections:
+
+- request headers over Node's `maxHeaderSize` (16 KiB by default) → `431 Request Header Fields Too Large`
+- a non-numeric, negative or duplicated `Content-Length`, or `Content-Length` together with `Transfer-Encoding` → `400 Bad Request`
+- bytes past the declared `Content-Length` are parsed as the next request on the connection; if they aren't valid HTTP that is a `400` and the connection is closed
+
+A body that never reaches its declared `Content-Length` keeps the request waiting until the client hangs up (answered with `400`, see [Body parsing rules](/framework/concepts/request-validation/#body-parsing-rules)) or until `requestTimeout` (`504`). A chunked body without a `Content-Length` is cut off with `413` as soon as it crosses `bodyLimit`, even while the client is still sending. A client that disconnects mid-body is not logged as a server error.
+
 ## Client disconnects propagate as a real `AbortSignal`
 
 `close()` stops accepting new connections, drops idle keep-alive sockets, and lets in-flight requests finish. Anything still running after `shutdownTimeout` (default 10 seconds) has its socket destroyed, which aborts its `request.signal`. Pass `shutdownTimeout: Infinity` to wait indefinitely, or a smaller value to fit your orchestrator's kill grace period.

@@ -4,7 +4,7 @@ Updated 2026-10-02 (after merging #67 and its successful release workflow). Dele
 
 ## 0. Right now
 
-State of `main`: head `ba5861c` (#67 CI download authentication); local main synced and checked out. No open PRs. Release #65 was verified; post-merge release workflow for #67 also passed.
+State of `main`: head `09d7d64` (handover/TODO docs on top of #67). One open PR: `feat/http-malformed-edge-cases`. Release #65 was verified; post-merge release workflow for #67 also passed.
 
 - [x] #59 (Version Packages) and #60 (http: route info in ExecutionContext, route metadata, `@GlobalGuard`) merged; #61 (auth decorators), #62 (Version Packages) merged
 - [x] #58-#62 released 2026-10-02 (create-blixis 0.2.0, http 0.4.0, auth 0.2.0, openapi 0.2.4, tenancy 0.1.5, testing 0.1.5); verified on the registry + a real server with protectAllRoutes over a socket (401/403/200)
@@ -14,6 +14,7 @@ State of `main`: head `ba5861c` (#67 CI download authentication); local main syn
 - [x] #65 Version Packages merged and published 2026-10-02: cli 0.4.0, deploy 0.4.1, commands 0.1.2. Registry versions verified; clean pnpm install with `minimumReleaseAge=0` passed CLI version/doctor, real app command execution, generated handlers returning HTTP 200 for all three providers in Node 26, and per-field flag override.
 - [x] #67 CI download fix merged. All GitHub checks passed with fresh EditorConfig v4.0.2 downloads on all three runners; post-merge release workflow 37013625852 succeeded.
 - [x] earlier this session: #43-#58 (OIDC fixes, deploy targets Docker/Vercel/Netlify/Cloudflare, GitLab/Bitbucket CI, `@Command`, `@OnEvent`, `@Transactional`, duplicate-copy guard fix, create-blixis `--deploy`); details in sections 1-2 and 4-5
+- [ ] PR open: `feat/http-malformed-edge-cases` (http patch: malformed-HTTP socket tests + quiet handling of mid-body client disconnects; see section 7). Review and merge [you]
 - [ ] pick the next thing [decide]. Suggested order: `@Cron` in a new `@blixis-io/schedule` package (needs a 0.0.0 placeholder + trusted publisher first [you]), then more auth (refresh/session helpers), then the account-dependent verifications (section 4)
 
 ## 1. Release history (done)
@@ -83,6 +84,7 @@ Process:
 - [ ] Version Packages PR: the bot's PR never gets CI; push an empty commit to changeset-release/main every time main moves (the Release job regenerates the branch)
 - [ ] tests that create temp dirs: Vite's resolver and NODE_PATH can "find" this repo's own workspace packages from a temp dir; inject the registry or clear NODE_PATH
 - [ ] Codex sandbox may block real socket/Postgres tests with EPERM. Rerun CI with the required sandbox approval; do not treat a blocked run as passing. #66 passed outside the sandbox.
+- [ ] Claude Code cloud sessions: the container defaults to Node 22 (`nvm install 24`, then put its bin first on PATH). There is no Docker, but the Postgres 16 binaries in `/usr/lib/postgresql/16/bin` can run a throwaway cluster on port 5434 (user/password/db `blixis`) so the db/tenancy/hello-api tests run. The `editorconfig-checker` wrapper cannot download its binary there (GitHub API 403 through the proxy), so `pnpm run ci` exits 1 at format:check. Report that step as not run; don't count it as passing.
 
 npm / pnpm:
 - [ ] pnpm 11 ignores versions published < 24h ago (`minimumReleaseAge`) and errors on lockfile entries that young (also inside Vercel/Docker/CI installs). For fresh-release testing use `pnpm --config.minimumReleaseAge=0 ...`; for users `minimumReleaseAgeExclude: ["@blixis-io/*"]` works (documented). For 24h after a release `pnpm create blixis` scaffolds the PREVIOUS versions.
@@ -100,7 +102,7 @@ Cleanup:
 - [x] (done via `blix doctor`, #64) duplicate-copy detection only works when BOTH copies include the guard; consider a `blix doctor` that checks the installed @blixis-io/* versions agree, decorator flags are set, packageManager is pinned
 - [ ] `blix doctor` false positive after pnpm dependency changes: obsolete core/di folders remaining in node_modules/.pnpm are counted as installed duplicates even when `pnpm why` reports one version. Reproduced with published cli 0.4.0 during #65 verification; a clean install passes. Follow the active dependency graph instead of counting every physical folder [me].
 - [ ] concurrency/regression tests for RequestContext under real sockets with interleaved requests (some exist) [me]
-- [ ] malformed-HTTP edge cases beyond a bad request line (oversized headers, bad content-length) [me]
+- [x] malformed-HTTP edge cases beyond a bad request line (branch `feat/http-malformed-edge-cases`, PR open, http patch). Real-socket tests in `packages/http/src/production.test.ts`: 431 for oversized headers; 400 from Node's parser for a non-numeric, negative or conflicting Content-Length (and CL + Transfer-Encoding), handler never runs; a short body answers 400 on half-close or 504 with `requestTimeout`; surplus bytes after Content-Length are parsed as the next request (400, connection closed, so the first response can be lost); a chunked body over `bodyLimit` gets 413 while the client is still sending. Each test checks the server still serves a normal request afterwards. **Bug found and fixed:** each client disconnect mid-body logged two stack traces (an "unexpected" 500 from the body read, then `ERR_STREAM_UNABLE_TO_PIPE` from piping into the destroyed socket). Now a failed body read is a 400 and `sendWebResponse` skips a destroyed response, cancelling its body. Regression tests fail on the old code.
 - [ ] docs: request path overview; design principles (low priority)
 - [ ] hello-api: add a `blix deploy` config and the docker target as a real, tested example
 - [ ] compat matrix gaps (all "not tested" on the Compatibility page): Postgres 16/17, TypeScript 5/6, Jest transformer, npm/yarn/bun real installs, Bun/Deno/Cloudflare

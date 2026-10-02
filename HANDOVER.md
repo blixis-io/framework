@@ -2,7 +2,7 @@
 
 Committed so cloud sessions and other agents can read it. Read this first, then `TODO.tmp.md`. Both are meant for any coding agent (Codex, Claude Code) picking up the work.
 
-Last updated: 2026-10-02, after merging CI fix #67 and its successful release workflow.
+Last updated: 2026-10-02, after opening the malformed-HTTP edge-case PR (`feat/http-malformed-edge-cases`).
 
 ## What this is
 
@@ -12,7 +12,8 @@ Read `AGENTS.md` before touching Turborepo config.
 
 ## Current status
 
-- `main` is at `ba5861c` (CI download authentication, #67). Local main is synced and checked out. No open PRs.
+- `main` is at `09d7d64` (handover/TODO docs commit on top of #67).
+- Open PR from `feat/http-malformed-edge-cases`: malformed-HTTP tests over a real socket against the Node adapter, plus a fix (http patch). A client that disconnects mid-body no longer logs two server-error stack traces; a truncated body now answers 400. Verified in a cloud session: build, typecheck, lint and all 922 tests passed (Postgres 16 locally; CI uses 18). The editorconfig step could not run there (binary download blocked), so `pnpm run ci` exited 1 at that step only. Waiting on review and merge.
 - 13 packages are on npm, published via Changesets + OIDC Trusted Publishing.
 - #65 merged and published successfully: cli 0.4.0, deploy 0.4.1, commands 0.1.2. Verified on npm and in a fresh pnpm install with `minimumReleaseAge=0`: CLI version/doctor, app command execution, provider entries returning HTTP 200 in Node 26, and app flag override. No live provider deployment was run.
 - #67 merged: workflow token authenticates EditorConfig binary downloads. Full local CI exited 0 (909 tests); GitHub CI and both compatibility jobs passed with fresh downloads. Post-merge release workflow 37013625852 also passed.

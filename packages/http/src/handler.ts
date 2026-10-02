@@ -114,14 +114,19 @@ export function buildRouter(controllers: readonly Class[], globalGuards: readonl
   return router;
 }
 
-/** Reads the stream chunk by chunk and cancels it the moment `limit` bytes are exceeded, so a chunked body without a `Content-Length` can't be buffered whole before being rejected. */
+/**
+ * Reads the stream chunk by chunk and cancels it the moment `limit` bytes are exceeded, so a chunked body without a `Content-Length` can't be buffered whole before being rejected.
+ * A stream that errors (the client disconnected or closed the connection mid-body) is the client's fault, so it becomes a 400 instead of an unexpected, logged 500.
+ */
 async function readBodyText(body: ReadableStream<Uint8Array>, limit: number): Promise<string> {
   const reader = body.getReader();
   const decoder = new TextDecoder();
   let received = 0;
   let text = "";
   for (;;) {
-    const { done, value } = await reader.read();
+    const { done, value } = await reader.read().catch(() => {
+      throw new BadRequestException("Request body was not fully received");
+    });
     if (done) {
       return text + decoder.decode();
     }
