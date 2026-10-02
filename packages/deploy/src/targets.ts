@@ -1,10 +1,12 @@
 import type { Target } from "./config.js";
+import { cloudflareAdapter, initCloudflare } from "./cloudflare.js";
 import { dockerAdapter, initDocker } from "./docker.js";
 import { initNetlify, netlifyAdapter } from "./netlify.js";
 import type { CiRequirements, InitContext, InitPlan, Phase, PlanContext, TargetPlan } from "./target-types.js";
 import { initVercel, vercelAdapter } from "./vercel.js";
 import type { Env, Runner } from "./types.js";
 
+export { cloudflareAdapter } from "./cloudflare.js";
 export { dockerAdapter } from "./docker.js";
 export { netlifyAdapter } from "./netlify.js";
 export { vercelAdapter } from "./vercel.js";
@@ -21,7 +23,7 @@ export type {
 } from "./target-types.js";
 
 /** Every supported `type`, in the order `init` lists them. */
-export const TARGET_TYPES = ["docker", "vercel", "netlify"] as const;
+export const TARGET_TYPES = ["docker", "vercel", "netlify", "cloudflare"] as const;
 export type TargetType = (typeof TARGET_TYPES)[number];
 
 export function isTargetType(value: string): value is TargetType {
@@ -56,6 +58,12 @@ export function adapterFor(name: string, target: Target): BoundAdapter {
         plan: (phase, context) => netlifyAdapter.plan(name, target, phase, context),
         ci: () => netlifyAdapter.ci(target),
       };
+    case "cloudflare":
+      return {
+        resolveTag: (env, cwd, runner) => cloudflareAdapter.resolveTag(target, env, cwd, runner),
+        plan: (phase, context) => cloudflareAdapter.plan(name, target, phase, context),
+        ci: () => cloudflareAdapter.ci(target),
+      };
     /* v8 ignore start -- @preserve: exhaustiveness guard, unreachable while every type has a case */
     default: {
       const unreachable: never = target;
@@ -74,6 +82,8 @@ export function initPlanFor(type: TargetType, context: InitContext): Promise<Ini
       return initVercel(context);
     case "netlify":
       return initNetlify(context);
+    case "cloudflare":
+      return initCloudflare(context);
     /* v8 ignore start -- @preserve: exhaustiveness guard, unreachable while every type has a case */
     default: {
       const unreachable: never = type;

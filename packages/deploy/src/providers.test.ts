@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { parseDeployConfig, type NetlifyTarget, type VercelTarget } from "./config.js";
+import { cloudflareAdapter, cloudflareEntry, initCloudflare, workerName } from "./cloudflare.js";
+import { parseDeployConfig, type CloudflareTarget, type NetlifyTarget, type VercelTarget } from "./config.js";
 import { netlifyEntry } from "./netlify.js";
 import { adapterFor, initPlanFor, netlifyAdapter, vercelAdapter } from "./targets.js";
 import { fakeRunner } from "./test-helpers.js";
@@ -21,6 +22,14 @@ function netlify(extra: Record<string, unknown> = {}): NetlifyTarget {
   const target = targetOf("netlify", extra);
   if (target?.type !== "netlify") {
     throw new Error("expected a netlify target");
+  }
+  return target;
+}
+
+function cloudflare(extra: Record<string, unknown> = {}): CloudflareTarget {
+  const target = targetOf("cloudflare", extra);
+  if (target?.type !== "cloudflare") {
+    throw new Error("expected a cloudflare target");
   }
   return target;
 }
@@ -187,5 +196,83 @@ describe("initPlanFor", () => {
     expect(plan.files.map((file) => file.path)).toEqual(["netlify/functions/api.mjs", "netlify.toml", "public/.gitkeep"]);
     expect(plan.files[1]?.content).toBe('[build]\n  command = "npm run build"\n  publish = "public"\n  functions = "netlify/functions"\n');
     expect(plan.notes.join(" ")).toContain("netlify link");
+  });
+});
+
+describe("cloudflare", () => {
+  it("config defaults", () => {
+    expect(cloudflare()).toEqual({ type: "cloudflare", cliVersion: "latest", env: [], config: "wrangler.toml" });
+  });
+
+  it("builds, then deploys with wrangler; the default config file is not passed", () => {
+    const { steps, missingEnv } = cloudflareAdapter.plan("edge", cloudflare(), "deploy", ctx());
+
+    expect(commands(steps)).toEqual(["pnpm run build", "npx --yes wrangler@latest deploy"]);
+    expect(missingEnv).toEqual([]);
+  });
+
+  it("passes a custom config file, a named environment and a pinned CLI version", () => {
+    const target = cloudflare({ config: "wrangler.jsonc", environment: "staging", cliVersion: "4.146.0" });
+
+    expect(commands(cloudflareAdapter.plan("edge", target, "deploy", ctx()).steps)[1]).toBe(
+      "npx --yes wrangler@4.146.0 deploy --config wrangler.jsonc --env staging",
+    );
+  });
+
+  it("a build-only plan is just the build; listed variables are required only to deploy", () => {
+    const target = cloudflare({ env: ["API_KEY"] });
+
+    expect(commands(cloudflareAdapter.plan("edge", target, "build", ctx()).steps)).toEqual(["pnpm run build"]);
+    expect(cloudflareAdapter.plan("edge", target, "deploy", ctx()).missingEnv).toEqual(["API_KEY"]);
+  });
+
+  it("CI needs the Cloudflare credentials plus the target's own variables, and no Docker", () => {
+    expect(cloudflareAdapter.ci(cloudflare({ env: ["X"] }))).toEqual({ secrets: ["CLOUDFLARE_API_TOKEN", "CLOUDFLARE_ACCOUNT_ID", "X"], docker: false });
+  });
+
+  it("labels the deploy with the git commit", async () => {
+    await expect(cloudflareAdapter.resolveTag(cloudflare(), { BLIX_TAG: "v3" }, "/app", fakeRunner())).resolves.toBe("v3");
+  });
+
+  it("the Worker entry exports createFetchHandler of the app module (golden)", () => {
+    expect(cloudflareEntry("dist/app.module.js", "AppModule")).toBe(`import { createFetchHandler } from "@blixis-io/http";
+import { AppModule } from "../dist/app.module.js";
+
+export default createFetchHandler(AppModule);
+`);
+  });
+
+  it.each([
+    ["my-api", "my-api"],
+    ["@acme/My_Orders.API", "my-orders-api"],
+    ["UPPER", "upper"],
+    ["--weird--name--", "weird-name"],
+    ["@scope/", "app"],
+    ["", "app"],
+  ])("workerName(%j) is %j", (packageName, expected) => {
+    expect(workerName(packageName)).toBe(expected);
+  });
+
+  it("initCloudflare writes wrangler.toml with the injected date (golden)", async () => {
+    const plan = await initCloudflare({
+      cwd: "/definitely/not/a/project/my-worker",
+      packageManager: "pnpm",
+      runner: fakeRunner(),
+      options: { entry: "dist/main.js", appModule: "dist/app.module.js", appExport: "AppModule" },
+      now: new Date("2026-10-02T12:00:00Z"),
+    });
+
+    expect(plan.files.map((file) => file.path)).toEqual(["cloudflare/worker.mjs", "wrangler.toml"]);
+    // No package.json there, so the name falls back to the directory name.
+    expect(plan.files[1]?.content).toBe(`name = "my-worker"
+main = "cloudflare/worker.mjs"
+compatibility_date = "2026-10-02"
+compatibility_flags = ["nodejs_compat"]
+`);
+    expect(plan.target).toEqual({ type: "cloudflare" });
+  });
+
+  it("adapterFor binds it", () => {
+    expect(adapterFor("edge", cloudflare()).ci().secrets).toContain("CLOUDFLARE_API_TOKEN");
   });
 });

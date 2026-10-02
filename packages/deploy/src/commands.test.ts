@@ -234,7 +234,7 @@ describe("blix deploy init", () => {
 
   it("rejects a target type that isn't supported, and an unknown CI provider", async () => {
     const unsupported = await run(["init", "--target", "ftp"], undefined, deps(fakeRunner()));
-    expect(unsupported.stderr).toContain('Unsupported target "ftp". Supported: docker, vercel, netlify.');
+    expect(unsupported.stderr).toContain('Unsupported target "ftp". Supported: docker, vercel, netlify, cloudflare.');
     expect((await run(["init", "--ci", "travis"], undefined, deps(fakeRunner()))).stderr).toContain('Unknown CI provider "travis"');
   });
 
@@ -310,6 +310,48 @@ describe("blix deploy init for Vercel and Netlify", () => {
     expect(result.stdout).toContain("kept blix.config.ts. Add this under deploy.targets yourself:");
     expect(result.stdout).toContain('      docs: {\n        type: "netlify",');
     expect(readFileSync(join(cwd, "blix.config.ts"), "utf8")).toBe("export default {};\n");
+  });
+});
+
+describe("blix deploy init for Cloudflare", () => {
+  it("writes the Worker entry and a wrangler.toml named after the package, with nodejs_compat", async () => {
+    writeFileSync(join(cwd, "package.json"), '{"name":"@acme/My_Orders_API"}');
+
+    const result = await run(["init", "--target", "cloudflare", "--ci", "github"], undefined, deps(fakeRunner()));
+
+    expect(result.exitCode).toBe(0);
+    expect(readFileSync(join(cwd, "cloudflare/worker.mjs"), "utf8")).toContain('import { AppModule } from "../dist/app.module.js";');
+    const wrangler = readFileSync(join(cwd, "wrangler.toml"), "utf8");
+    expect(wrangler).toContain('name = "my-orders-api"');
+    expect(wrangler).toContain('main = "cloudflare/worker.mjs"');
+    expect(wrangler).toContain('compatibility_flags = ["nodejs_compat"]');
+    expect(wrangler).toMatch(/compatibility_date = "\d{4}-\d{2}-\d{2}"/);
+    expect(readFileSync(join(cwd, "blix.config.ts"), "utf8")).toContain('type: "cloudflare"');
+    const workflow = readFileSync(join(cwd, ".github/workflows/deploy.yml"), "utf8");
+    expect(workflow).toContain("CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}");
+    expect(workflow).toContain("CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}");
+    expect(result.stdout).toContain("note: the Worker entry uses createFetchHandler");
+    expect(result.stdout).toContain("nodejs_compat");
+  });
+
+  it("deploys with wrangler: build, then npx wrangler deploy (dry run)", async () => {
+    const cf = { default: "edge", targets: { edge: { type: "cloudflare", environment: "staging", config: "wrangler.jsonc" } } };
+
+    const result = await run(["--dry-run"], config(cf), deps(fakeRunner()));
+
+    expect(result.stdout).toBe("# deploy edge (cloudflare), tag latest\n$ npm run build\n$ npx --yes wrangler@latest deploy --config wrangler.jsonc --env staging\n");
+  });
+
+  it("GitLab and Bitbucket jobs for Cloudflare have no Docker part and list the credentials", async () => {
+    const cf = { targets: { edge: { type: "cloudflare" } } };
+
+    await run(["ci", "gitlab"], config(cf), deps(fakeRunner()));
+    await run(["ci", "bitbucket"], config(cf), deps(fakeRunner()));
+
+    const gitlab = readFileSync(join(cwd, ".gitlab-ci.yml"), "utf8");
+    expect(gitlab).not.toContain("dind");
+    expect(gitlab).toContain("#   CLOUDFLARE_API_TOKEN");
+    expect(readFileSync(join(cwd, "bitbucket-pipelines.yml"), "utf8")).toContain("#   CLOUDFLARE_ACCOUNT_ID");
   });
 });
 

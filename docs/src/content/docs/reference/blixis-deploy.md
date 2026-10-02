@@ -12,9 +12,9 @@ The `blix deploy` command, loaded by `blix` from your project's `node_modules`. 
 ```
 blix deploy [target] [--dry-run]
 blix deploy build [target] [--dry-run]
-blix deploy init [--target docker|vercel|netlify] [--name prod] [--ci github] [--branch main] [--force]
+blix deploy init [--target docker|vercel|netlify|cloudflare] [--name prod] [--ci github] [--branch main] [--force]
 blix deploy init --target docker [--image <name>] [--entry dist/main.js]
-blix deploy init --target vercel|netlify [--app-module dist/app.module.js] [--app-export AppModule]
+blix deploy init --target vercel|netlify|cloudflare [--app-module dist/app.module.js] [--app-export AppModule]
 blix deploy ci <provider> [target] [--branch main] [--force]
 blix deploy doctor [target]
 ```
@@ -75,6 +75,17 @@ interface NetlifyTarget {
   dir?: string; // publish directory, default "public"
   functions?: string; // default "netlify/functions"
   site?: string; // else NETLIFY_SITE_ID
+}
+```
+
+```ts
+interface CloudflareTarget {
+  type: "cloudflare";
+  environment?: string; // wrangler deploy --env <name>
+  config?: string; // default "wrangler.toml"; passed with --config only when different
+  build?: string;
+  cliVersion?: string; // default "latest"
+  env?: string[];
 }
 ```
 
