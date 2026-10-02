@@ -62,4 +62,6 @@ DuplicatePackageError: Two copies of @blixis-io/di are loaded in this process:
   0.2.0  file:///app/node_modules/.pnpm/@blixis-io+di@0.2.0/node_modules/@blixis-io/di/dist/index.js
 ```
 
+A concrete case: `@blixis-io/core` moving from 0.2.x to 0.3.0 changed the version range that every package depending on it declares (while the framework is 0.x, a minor bump is a new range). An app still on core 0.2.x that upgrades only `@blixis-io/http` therefore ends up with two copies of core. Upgrade the framework packages together: `pnpm update "@blixis-io/*" --latest` (or the equivalent in your package manager). If pnpm 11 refuses the brand-new versions, see [the 24-hour release gate](/framework/start-here/installation/#pnpm-11-skips-versions-younger-than-24-hours).
+
 The fix is to keep all `@blixis-io/*` packages on matching versions and reinstall (`pnpm why @blixis-io/core` shows who pulls which). The check only works when **both** copies include it: a copy from before that release stays silent, so if you see the `NotAModuleError` above on older versions, suspect this first.
