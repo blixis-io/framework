@@ -41,6 +41,9 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       - run: pnpm run ci
+        env:
+          # The EditorConfig wrapper downloads its binary through the GitHub API.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       # After `pnpm run ci` on purpose: some tests run the built binaries, which that step builds.
       # This also makes the 90% line/branch thresholds in vitest.config.ts a CI gate.
@@ -92,3 +95,6 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       - run: pnpm run ci
+        env:
+          # The EditorConfig wrapper downloads its binary through the GitHub API.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
