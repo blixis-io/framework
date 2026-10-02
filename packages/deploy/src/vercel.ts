@@ -18,7 +18,7 @@ export const vercelAdapter: TargetAdapter<VercelTarget> = {
     return { steps, missingEnv };
   },
 
-  ci: (target) => ({ secrets: ["VERCEL_TOKEN", "VERCEL_ORG_ID", "VERCEL_PROJECT_ID", ...target.env] }),
+  ci: (target) => ({ secrets: ["VERCEL_TOKEN", "VERCEL_ORG_ID", "VERCEL_PROJECT_ID", ...target.env], docker: false }),
 };
 
 export function vercelEntry(appModule: string, appExport: string): string {

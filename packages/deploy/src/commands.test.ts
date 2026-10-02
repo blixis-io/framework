@@ -376,6 +376,43 @@ describe("blix deploy for Vercel and Netlify (planning)", () => {
   });
 });
 
+describe("blix deploy with GitLab CI and Bitbucket Pipelines", () => {
+  it("init --ci gitlab writes .gitlab-ci.yml with a Docker service for a docker target", async () => {
+    const result = await run(["init", "--ci", "gitlab", "--image", "registry.gitlab.com/acme/api"], undefined, deps(fakeRunner()));
+
+    expect(result.stdout).toContain("created .gitlab-ci.yml");
+    const yaml = readFileSync(join(cwd, ".gitlab-ci.yml"), "utf8");
+    expect(yaml).toContain("- docker:27-dind");
+    expect(yaml).toContain("REGISTRY_USERNAME: $CI_REGISTRY_USER");
+    expect(yaml).toContain("blix deploy prod");
+  });
+
+  it("init --target vercel --ci bitbucket writes bitbucket-pipelines.yml without a Docker service", async () => {
+    await run(["init", "--target", "vercel", "--ci", "bitbucket"], undefined, deps(fakeRunner()));
+
+    const yaml = readFileSync(join(cwd, "bitbucket-pipelines.yml"), "utf8");
+    expect(yaml).not.toContain("docker");
+    expect(yaml).toContain("#   VERCEL_TOKEN");
+    expect(yaml).toContain("blix deploy prod");
+  });
+
+  it("ci gitlab / ci bitbucket regenerate the file for a configured target", async () => {
+    const withEnv = { targets: { prod: { ...prod.targets.prod, env: ["FLY_API_TOKEN"] } } };
+
+    const gitlab = await run(["ci", "gitlab"], config(withEnv), deps(fakeRunner()));
+    const bitbucket = await run(["ci", "bitbucket"], config(withEnv), deps(fakeRunner()));
+
+    expect(gitlab.stdout).toBe("created .gitlab-ci.yml\n");
+    expect(bitbucket.stdout).toBe("created bitbucket-pipelines.yml\n");
+    expect(readFileSync(join(cwd, ".gitlab-ci.yml"), "utf8")).toContain("#   FLY_API_TOKEN");
+    expect(readFileSync(join(cwd, "bitbucket-pipelines.yml"), "utf8")).toContain("services:\n            - docker");
+  });
+
+  it("lists all three providers when one is unknown", async () => {
+    expect((await run(["ci", "travis"], config(prod), deps(fakeRunner()))).stderr).toContain("Providers: github, gitlab, bitbucket.");
+  });
+});
+
 describe("blix deploy ci", () => {
   it("generates the workflow for a configured target, including its required variables", async () => {
     const withEnv = { targets: { prod: { ...prod.targets.prod, env: ["FLY_API_TOKEN"] } } };

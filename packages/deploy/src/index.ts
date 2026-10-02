@@ -2,7 +2,7 @@ import type { BlixCommand } from "@blixis-io/cli";
 import { runDeploy, USAGE } from "./commands.js";
 import { processRunner } from "./runner.js";
 
-export { ciProviderFor, CI_PROVIDER_IDS, githubActions, type CiProvider, type CiRenderOptions } from "./ci.js";
+export { bitbucketPipelines, ciProviderFor, CI_PROVIDER_IDS, githubActions, gitlabCi, type CiProvider, type CiRenderOptions } from "./ci.js";
 export {
   defineDeployConfig,
   DeployConfigError,

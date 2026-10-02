@@ -100,6 +100,7 @@ describe("adapterFor", () => {
     expect(bound.ci()).toEqual({
       secrets: ["FLY_API_TOKEN"],
       registry: { host: "ghcr.io", usernameEnv: "REGISTRY_USERNAME", passwordEnv: "REGISTRY_PASSWORD" },
+      docker: true,
     });
   });
 

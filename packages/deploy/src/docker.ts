@@ -67,7 +67,7 @@ export const dockerAdapter: TargetAdapter<DockerTarget> = {
     return { steps, missingEnv: [...missing] };
   },
 
-  ci: (target) => ({ secrets: target.env, registry: target.registry }),
+  ci: (target) => ({ secrets: target.env, registry: target.registry, docker: true }),
 };
 
 /** `ghcr.io/owner/repo` from a GitHub remote URL, lower-cased (registries require it). */

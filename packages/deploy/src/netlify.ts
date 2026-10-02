@@ -26,7 +26,7 @@ export const netlifyAdapter: TargetAdapter<NetlifyTarget> = {
     return { steps, missingEnv };
   },
 
-  ci: (target) => ({ secrets: ["NETLIFY_AUTH_TOKEN", ...(target.site ? [] : ["NETLIFY_SITE_ID"]), ...target.env] }),
+  ci: (target) => ({ secrets: ["NETLIFY_AUTH_TOKEN", ...(target.site ? [] : ["NETLIFY_SITE_ID"]), ...target.env], docker: false }),
 };
 
 export function netlifyEntry(appModule: string, appExport: string): string {

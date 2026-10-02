@@ -24,7 +24,7 @@ blix deploy doctor [target]
 | `blix deploy [target]` | Runs the full plan: log in, build, push, then the `after` command. Without a target: `deploy.default`, else the only target. |
 | `build` | Only builds. Needs no credentials. |
 | `init` | Writes `blix.config.ts`, the files the target needs, and optionally a CI file. Never overwrites without `--force`. If a config already exists it prints the target to add instead of editing it. `--name` names the target (default `prod`). |
-| `ci` | (Re)generates the CI file for a configured target. Providers: `github`. |
+| `ci` | (Re)generates the CI file for a configured target. Providers: `github` (`.github/workflows/deploy.yml`), `gitlab` (`.gitlab-ci.yml`), `bitbucket` (`bitbucket-pipelines.yml`). |
 | `doctor` | Checks config, git, Docker, and which required variables are set. Exits `1` only if Docker is missing or the config is invalid. |
 
 `--dry-run` prints each command as `$ ...` and runs nothing. Options accept `--name value` or `--name=value`. Every error exits `1`.
@@ -97,4 +97,4 @@ steps.map(formatStep); // ["docker build -t ...", ...]
 
 `initPlanFor(type, context)` returns what `init` would write (the target for the config, files, notes), so another tool can scaffold a target too.
 
-A plan is a list of `Step`s (`command`, `args`, optional `env`, `stdinFromEnv`, `shell`). A `Runner` executes them; `processRunner` is the real one, and tests inject a fake. Adding a target type means adding an adapter and a `case` in `adapterFor`; adding a CI system means adding a `CiProvider`.
+A plan is a list of `Step`s (`command`, `args`, optional `env`, `stdinFromEnv`, `shell`). A `Runner` executes them; `processRunner` is the real one, and tests inject a fake. Adding a target type means adding an adapter and a `case` in `adapterFor`; adding a CI system means adding a `CiProvider` (`githubActions`, `gitlabCi` and `bitbucketPipelines` are exported). `ci()` on an adapter reports what a CI file must provide: the secret names, the registry, and whether the deploy runs `docker`, which decides whether GitLab and Bitbucket jobs get a Docker daemon.
