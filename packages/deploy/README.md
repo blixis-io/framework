@@ -4,7 +4,7 @@
 
 ```bash
 pnpm add -D @blixis-io/cli @blixis-io/deploy
-blix deploy init --ci github   # blix.config.ts, Dockerfile, .dockerignore, GitHub Actions workflow
+blix deploy init --ci github   # blix.config.ts, Dockerfile, .dockerignore, GitHub Actions workflow (or --ci gitlab / --ci bitbucket)
 blix deploy --dry-run          # print every command, run none
 blix deploy                    # log in, build, push, then your `after` command
 ```

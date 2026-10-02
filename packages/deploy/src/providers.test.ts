@@ -79,6 +79,7 @@ describe("vercelAdapter.plan", () => {
   it("CI needs the Vercel credentials plus the target's own variables", () => {
     expect(vercelAdapter.ci(vercel({ env: ["DATABASE_URL"] }))).toEqual({
       secrets: ["VERCEL_TOKEN", "VERCEL_ORG_ID", "VERCEL_PROJECT_ID", "DATABASE_URL"],
+      docker: false,
     });
   });
 

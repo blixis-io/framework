@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { CI_PROVIDER_IDS, ciProviderFor, githubActions } from "./ci.js";
 
-const base = { target: "prod", nodeVersion: "24", branch: "main", secrets: [] as string[] };
+const base = { target: "prod", nodeVersion: "24", branch: "main", secrets: [] as string[], docker: false };
 
 describe("githubActions.render", () => {
   it("renders the full pnpm workflow for ghcr.io (golden)", () => {
     const yaml = githubActions.render({
       ...base,
+      docker: true,
       packageManager: "pnpm",
       registry: { host: "ghcr.io", usernameEnv: "REGISTRY_USERNAME", passwordEnv: "REGISTRY_PASSWORD" },
     });
@@ -99,9 +100,9 @@ jobs:
 });
 
 describe("ciProviderFor", () => {
-  it("knows github", () => {
+  it("knows github, gitlab and bitbucket", () => {
     expect(ciProviderFor("github")).toBe(githubActions);
-    expect(CI_PROVIDER_IDS).toEqual(["github"]);
+    expect(CI_PROVIDER_IDS).toEqual(["github", "gitlab", "bitbucket"]);
   });
 
   it("returns undefined for an unknown provider", () => {

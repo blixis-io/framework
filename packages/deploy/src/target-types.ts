@@ -22,6 +22,8 @@ export interface CiRequirements {
   /** Environment variable names to pass through from the CI secret store. */
   secrets: string[];
   registry?: { host: string; usernameEnv: string; passwordEnv: string } | undefined;
+  /** The deploy runs `docker`, so CI systems that don't ship a Docker daemon (GitLab, Bitbucket) must provide one. */
+  docker: boolean;
 }
 
 /** One place a Blixis app can be deployed. Adding a new platform means adding an adapter. */

@@ -231,6 +231,7 @@ async function runInit(context: CommandContext, parsed: ParsedArgs, deps: Deploy
           branch: flag(parsed, "branch") ?? "main",
           secrets: requirements.secrets,
           registry: requirements.registry,
+          docker: requirements.docker,
         }),
         force,
       )} ${ci.filePath}`,
@@ -267,6 +268,7 @@ async function runCi(context: CommandContext, parsed: ParsedArgs): Promise<CliRe
       branch: flag(parsed, "branch") ?? "main",
       secrets: requirements.secrets,
       registry: requirements.registry,
+      docker: requirements.docker,
     }),
     parsed.flags.has("force"),
   );

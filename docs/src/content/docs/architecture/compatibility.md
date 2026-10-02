@@ -44,6 +44,8 @@ Each row says how the claim is backed. **CI** means a workflow job runs it on ev
 | Netlify (`blix deploy`) | Verified up to the deploy call | Checked 2026-10-01, from files `blix deploy init` generated: `netlify dev` served the function, and `netlify functions:build` produced a zip that answered correctly when extracted and run. Not tried: a real `netlify deploy` (needs an account). |
 | Vercel (`blix deploy`) | Verified up to the deploy call | Checked 2026-10-01, from files `blix deploy init` generated: `vercel build` produced a `nodejs24.x` function that answered correctly. Not checked: Vercel's own launcher and a real `vercel deploy` (need an account). |
 
+| GitLab CI and Bitbucket Pipelines (`blix deploy ci`) | Commands verified, pipelines not run | Checked 2026-10-02: the generated files parse as YAML; the job's commands (`corepack enable`, `pnpm install --frozen-lockfile` / `npm ci`, `blix deploy --dry-run`) ran in a clean `node:24` container; the Docker client install ran on `linux/amd64`. Not run: the pipelines on GitLab or Bitbucket (no accounts), so GitLab's `docker:27-dind` service and Bitbucket's `docker` service are unverified. |
+
 All four need the app built to plain JavaScript first (Rolldown or `tsc`), because the providers' own bundlers compile TypeScript with esbuild and drop decorator metadata.
 
 ## Database

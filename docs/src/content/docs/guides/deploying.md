@@ -154,10 +154,26 @@ A pnpm 11 project that has just upgraded to a fresh `@blixis-io/*` release can f
 
 The generated workflow is deliberately thin: check out, install, run `blix deploy <target>`. For `ghcr.io` it uses GitHub's own `GITHUB_TOKEN` and the `packages: write` permission, so no secrets need setting up. For any other registry it reads the credentials from repository secrets named after the target's `usernameEnv` and `passwordEnv` (default `REGISTRY_USERNAME` and `REGISTRY_PASSWORD`).
 
-For Vercel and Netlify the workflow has no registry step and passes the provider's secrets instead. GitLab CI and Bitbucket Pipelines are planned and will generate the same thing.
+For Vercel and Netlify the workflow has no registry step and passes the provider's secrets instead.
+
+### GitLab CI and Bitbucket Pipelines
+
+```bash
+blix deploy init --ci gitlab        # .gitlab-ci.yml
+blix deploy init --ci bitbucket     # bitbucket-pipelines.yml
+blix deploy ci gitlab               # regenerate for a configured target (also: bitbucket)
+```
+
+Both generate one job that runs in a plain `node` image on pushes to your branch (`--branch`, default `main`): install with your package manager, then `blix deploy <target>`. The same logic as everywhere else, in a different wrapper. What differs from GitHub:
+
+- **Docker targets need a Docker daemon**, which neither system's default job image has. GitLab gets the `docker:27-dind` service and the Docker client downloaded into the job; Bitbucket gets its `docker` service, plus the client downloaded only if the image lacks one. Vercel and Netlify jobs have no Docker part.
+- **Secrets are CI/CD variables you set yourself** (GitLab: Settings > CI/CD > Variables, masked; Bitbucket: Repository settings > Pipelines > Repository variables, secured). A comment at the top of each generated file lists exactly which. On GitLab, for `registry.gitlab.com` the credentials come from GitLab's own `CI_REGISTRY_USER` / `CI_REGISTRY_PASSWORD`, so nothing needs setting.
+- **pnpm and yarn run `corepack enable`** first, so the version pinned in `packageManager` is the one used (see the pnpm note above); bun is installed with npm.
 
 ## What's checked
 
 **Docker:** the generated workflow parsed as valid YAML, and the full flow (`init`, `build`, a real image built from the generated Dockerfile, run, called, and stopped gracefully) was run against Docker on 2026-10-01. Pushing to a registry and the GitHub Actions run itself are covered by unit tests and a dry run, not exercised against a real registry.
+
+**GitLab CI and Bitbucket Pipelines:** the generated files were parsed as valid YAML and their structure checked. The job's own commands were run in a clean `node:24` container, the way the CI system would: `corepack enable`, `pnpm install --frozen-lockfile` and `blix deploy` (pnpm, with the pinned pnpm used), and `npm ci` and `blix deploy` (npm), each with `--dry-run`. The Docker client download was run in `node:24` on `linux/amd64`. **Not run:** the pipelines on GitLab or Bitbucket themselves, so the Docker-in-Docker service on GitLab and Bitbucket's `docker` service are unverified.
 
 **Vercel and Netlify:** from files `blix deploy init` generated, Vercel's own `vercel build` produced a function that answered correctly, and Netlify's own `functions:build` produced a zip that answered correctly when extracted and run. The final `vercel deploy` and `netlify deploy` calls need an account, so they were checked as dry-run commands only.
