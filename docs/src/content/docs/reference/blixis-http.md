@@ -167,9 +167,15 @@ interface CanActivate {
 interface ExecutionContext {
   request: Request;
   params: Readonly<Record<string, string>>;
+  controller: Class; // the controller whose route is being handled
+  handler: string | symbol; // the method handling it
 }
 
 function UseGuards(...guards: Class<CanActivate>[]): ClassDecorator & MethodDecorator;
+function GlobalGuard(): ClassDecorator; // the guard runs on every route, before the route's own guards
+function isGlobalGuard(target: object): boolean;
+function SetRouteMetadata(key: symbol, value: unknown): ClassDecorator & MethodDecorator;
+function getRouteMetadata(key: symbol, context: Pick<ExecutionContext, "controller" | "handler">): unknown; // method value, else controller value
 function getClassGuards(target: object): Class<CanActivate>[];
 function getMethodGuards(target: object, propertyKey: string | symbol): Class<CanActivate>[];
 ```

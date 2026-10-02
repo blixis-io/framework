@@ -8,6 +8,9 @@ import { hashPassword } from "./password.js";
 import * as passwordModule from "./password.js";
 import type { CredentialStore, RefreshTokenRecord, RefreshTokenStore } from "./issuing.js";
 
+/** The controller every hand-built ExecutionContext in this file points at. */
+class TestController {}
+
 const SECRET = "test-secret-at-least-32-bytes-long!!";
 const ClaimsSchema = z.object({ sub: z.string(), roles: z.array(z.string()) });
 type TestClaims = z.infer<typeof ClaimsSchema>;
@@ -105,7 +108,7 @@ describe("AuthService.signIn", () => {
     const pair = await authService.signIn("alice@example.com", "correct horse battery staple");
 
     await runInRequestContext(async () => {
-      await expect(jwtGuard.canActivate({ request: requestWith(pair.accessToken), params: {} })).resolves.toBe(true);
+      await expect(jwtGuard.canActivate({ request: requestWith(pair.accessToken), params: {}, controller: TestController, handler: "route" })).resolves.toBe(true);
     });
     expect(pair.refreshToken).toBeTruthy();
     expect(pair.accessTokenExpiresAt.getTime()).toBeGreaterThan(Date.now());

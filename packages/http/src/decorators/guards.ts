@@ -3,6 +3,10 @@ import { defineMetadata, getMetadata, type Class } from "@blixis-io/di";
 export interface ExecutionContext {
   request: Request;
   params: Readonly<Record<string, string>>;
+  /** The controller class whose route is being handled. Read route metadata with `getRouteMetadata(KEY, context)`. */
+  controller: Class;
+  /** The name of the controller method handling this request. */
+  handler: string | symbol;
 }
 
 export interface CanActivate {
@@ -36,4 +40,43 @@ export function getClassGuards(target: object): Class<CanActivate>[] {
 
 export function getMethodGuards(target: object, propertyKey: string | symbol): Class<CanActivate>[] {
   return getMetadata(GUARDS, target, propertyKey) ?? [];
+}
+
+const GLOBAL_GUARD = Symbol("blixis:global-guard");
+
+/**
+ * Marks a guard class as global: once it is registered as a provider, it runs on **every** route, before
+ * the route's own `@UseGuards`. Found through the application's providers, so there is nothing else to
+ * wire up. Several global guards run in dependency order; the first to deny stops the request.
+ */
+export function GlobalGuard(): ClassDecorator {
+  return (target) => {
+    defineMetadata(GLOBAL_GUARD, true, target);
+  };
+}
+
+export function isGlobalGuard(target: object): boolean {
+  return getMetadata<boolean>(GLOBAL_GUARD, target) === true;
+}
+
+/**
+ * A decorator that attaches `value` under `key` to a controller (every route in it) or to one route, so a
+ * guard or interceptor can read it with `getRouteMetadata`. `@Roles("admin")` and `@Public()` are built on this.
+ */
+export function SetRouteMetadata(key: symbol, value: unknown): ClassDecorator & MethodDecorator {
+  const decorator = (target: object, propertyKey?: string | symbol): void => {
+    if (propertyKey === undefined) {
+      defineMetadata(key, value, target);
+    } else {
+      defineMetadata(key, value, target, propertyKey);
+    }
+  };
+  return decorator;
+}
+
+/** What `SetRouteMetadata` stored for the route being handled: the method's own value if it has one, else the controller's. */
+export function getRouteMetadata(key: symbol, context: Pick<ExecutionContext, "controller" | "handler">): unknown {
+  const prototype: unknown = context.controller.prototype;
+  const onMethod: unknown = typeof prototype === "object" && prototype !== null ? getMetadata(key, prototype, context.handler) : undefined;
+  return onMethod ?? getMetadata(key, context.controller);
 }

@@ -2,7 +2,7 @@ import type { Application } from "@blixis-io/core";
 import type { Class } from "@blixis-io/di";
 import type { ZodType } from "zod";
 import { getControllerPrefix } from "./decorators/controller.js";
-import { getClassGuards, getMethodGuards, type CanActivate } from "./decorators/guards.js";
+import { getClassGuards, getMethodGuards, isGlobalGuard, type CanActivate } from "./decorators/guards.js";
 import { getClassInterceptors, getMethodInterceptors, type Interceptor } from "./decorators/interceptors.js";
 import { getParamSources, type ParamSource } from "./decorators/params.js";
 import { getHttpCode, getReturnsSchema, getReturnsValidate, getRoutes } from "./decorators/routes.js";
@@ -64,7 +64,27 @@ interface RouteEntry {
  * on the owning module — this doesn't instantiate them, it only records
  * which classes `createHandler` will later ask the `Application` for.
  */
-export function buildRouter(controllers: readonly Class[]): Router<RouteEntry> {
+/** Guard classes marked `@GlobalGuard()` among the application's resolved providers, in dependency order. */
+function discoverGlobalGuards(application: Application): Class<CanActivate>[] {
+  const found: Class<CanActivate>[] = [];
+  for (const [, instance] of application.resolved()) {
+    if (typeof instance !== "object" || instance === null || !isGlobalGuard(instance.constructor)) {
+      continue;
+    }
+    const guardClass: unknown = instance.constructor;
+    if (!isGuardClass(guardClass)) {
+      throw new TypeError(`${instance.constructor.name} is marked @GlobalGuard() but has no canActivate() method.`);
+    }
+    found.push(guardClass);
+  }
+  return found;
+}
+
+function isGuardClass(value: unknown): value is Class<CanActivate> {
+  return typeof value === "function" && typeof value.prototype === "object" && value.prototype !== null && "canActivate" in value.prototype;
+}
+
+export function buildRouter(controllers: readonly Class[], globalGuards: readonly Class<CanActivate>[] = []): Router<RouteEntry> {
   const router = new Router<RouteEntry>();
 
   for (const controller of controllers) {
@@ -85,7 +105,7 @@ export function buildRouter(controllers: readonly Class[]): Router<RouteEntry> {
         httpCode: getHttpCode(prototype, route.propertyKey),
         responseSchema: getReturnsSchema(prototype, route.propertyKey),
         validateResponse: getReturnsValidate(prototype, route.propertyKey),
-        guards: [...classGuards, ...getMethodGuards(prototype, route.propertyKey)],
+        guards: [...globalGuards, ...classGuards, ...getMethodGuards(prototype, route.propertyKey)],
         interceptors: [...classInterceptors, ...getMethodInterceptors(prototype, route.propertyKey)],
       });
     }
@@ -228,7 +248,7 @@ export function createHandler(
   application: Application,
   options: HandlerOptions = {},
 ): (request: Request) => Promise<Response> {
-  const router = buildRouter(controllers);
+  const router = buildRouter(controllers, discoverGlobalGuards(application));
   const bodyLimit = options.bodyLimit ?? DEFAULT_BODY_LIMIT;
 
   const requestTimeout = options.requestTimeout;
@@ -256,7 +276,7 @@ export function createHandler(
         // run once an earlier one has already denied the request.
         for (const guardClass of route.guards) {
           const guard = application.get(guardClass);
-          const allowed = await guard.canActivate({ request, params: match.params });
+          const allowed = await guard.canActivate({ request, params: match.params, controller: route.controller, handler: route.propertyKey });
           if (!allowed) {
             throw new ForbiddenException();
           }
@@ -283,7 +303,7 @@ export function createHandler(
         // built right-to-left so the first entry ends up as the outer call.
         const pipeline = route.interceptors.reduceRight<() => Promise<Response>>((next, interceptorClass) => {
           const interceptor = application.get(interceptorClass);
-          return async () => interceptor.intercept({ request, params: match.params }, next);
+          return async () => interceptor.intercept({ request, params: match.params, controller: route.controller, handler: route.propertyKey }, next);
         }, invoke);
 
         return await (requestTimeout === undefined ? pipeline() : raceAbort(pipeline(), request.signal, incoming.signal));
