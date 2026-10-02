@@ -1,6 +1,7 @@
 # Blixis Framework
 
 [![CI](https://github.com/blixis-io/framework/actions/workflows/ci.yml/badge.svg)](https://github.com/blixis-io/framework/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/blixis-io/framework/graph/badge.svg)](https://codecov.io/gh/blixis-io/framework)
 [![npm](https://img.shields.io/npm/v/@blixis-io/core.svg)](https://www.npmjs.com/package/@blixis-io/core)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 

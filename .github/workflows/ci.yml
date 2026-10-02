@@ -42,6 +42,17 @@ jobs:
 
       - run: pnpm run ci
 
+      # After `pnpm run ci` on purpose: some tests run the built binaries, which that step builds.
+      # This also makes the 90% line/branch thresholds in vitest.config.ts a CI gate.
+      - run: pnpm run test:coverage
+
+      - uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage/lcov.info
+          # Don't fail the build because Codecov was unreachable or the token isn't set yet.
+          fail_ci_if_error: false
+
   # Not a required check (branch protection requires the `ci` job above, on the
   # minimum supported Node). This one exists so a newer Node breaking something
   # shows up here first, and so the compatibility page has CI evidence for it.

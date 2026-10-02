@@ -5,9 +5,10 @@ export default defineConfig({
     projects: ["packages/*", "examples/*"],
     coverage: {
       provider: "v8",
-      reporter: ["text", "html"],
+      // lcov is what Codecov reads (coverage/lcov.info); text and html are for reading locally.
+      reporter: ["text", "html", "lcov"],
       include: ["packages/*/src/**/*.ts"],
-      exclude: ["**/*.test.ts", "**/index.ts"],
+      exclude: ["**/*.test.ts", "**/index.ts", "**/test-helpers.ts", "**/test-fixtures/**"],
       thresholds: {
         lines: 90,
         branches: 90,
