@@ -96,6 +96,8 @@ describe("runCli: version, help and plugins", () => {
     expect(result.stdout).toContain("blix add <plugin>");
     expect(result.stdout).toContain("blix deploy");
     expect(result.stdout).toContain("@blixis-io/deploy");
+    expect(result.stdout).toContain("blix run");
+    expect(result.stdout).toContain("@blixis-io/commands");
   });
 
   it("runs an installed plugin with its args, cwd and loaded config", async () => {

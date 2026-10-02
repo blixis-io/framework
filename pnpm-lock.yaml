@@ -118,6 +118,18 @@ importers:
 
   packages/cli: {}
 
+  packages/commands:
+    devDependencies:
+      '@blixis-io/cli':
+        specifier: workspace:*
+        version: link:../cli
+      '@blixis-io/core':
+        specifier: workspace:*
+        version: link:../core
+      '@blixis-io/di':
+        specifier: workspace:*
+        version: link:../di
+
   packages/config:
     dependencies:
       '@blixis-io/core':

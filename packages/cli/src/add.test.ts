@@ -46,11 +46,23 @@ describe("runAdd", () => {
     expect(result.stderr).toContain("failed (exit 3)");
   });
 
+  it("installs the commands package for `blix add run`", async () => {
+    const calls: (readonly string[])[] = [];
+
+    const result = await runAdd(["run"], cwd, (_command, args) => {
+      calls.push(args);
+      return Promise.resolve(0);
+    });
+
+    expect(calls).toEqual([["install", "-D", "@blixis-io/commands"]]);
+    expect(result.stdout).toBe("Added @blixis-io/commands. Next: blix run --help\n");
+  });
+
   it("lists the available plugins for an unknown name", async () => {
     const result = await runAdd(["bogus"], cwd, () => Promise.resolve(0));
 
     expect(result.exitCode).toBe(1);
-    expect(result.stderr).toContain('Unknown plugin "bogus". Available: deploy');
+    expect(result.stderr).toContain('Unknown plugin "bogus". Available: deploy, run');
   });
 
   it("shows usage when no plugin is named", async () => {

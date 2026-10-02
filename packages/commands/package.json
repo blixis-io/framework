@@ -1,0 +1,43 @@
+{
+  "name": "@blixis-io/commands",
+  "version": "0.1.0",
+  "description": "@Command: command-line commands written as injectable classes. Run with blix run <command>; they get the same DI container as your HTTP app.",
+  "license": "MIT",
+  "author": "Michael Voeten <michael@voeten.online>",
+  "homepage": "https://blixis-io.github.io/framework/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/blixis-io/framework.git",
+    "directory": "packages/commands"
+  },
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "keywords": ["cli", "commands", "decorators", "dependency-injection", "blix"],
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": ["dist"],
+  "exports": {
+    ".": {
+      "@blixis-io/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "build": "rolldown -c"
+  },
+  "peerDependencies": {
+    "@blixis-io/cli": "workspace:^",
+    "@blixis-io/core": "workspace:^",
+    "@blixis-io/di": "workspace:^"
+  },
+  "devDependencies": {
+    "@blixis-io/cli": "workspace:*",
+    "@blixis-io/core": "workspace:*",
+    "@blixis-io/di": "workspace:*"
+  }
+}
