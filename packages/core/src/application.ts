@@ -14,7 +14,7 @@ import {
   type Token,
 } from "@blixis-io/di";
 import { NotAModuleError, ProviderNotVisibleError } from "./errors.js";
-import { hasOnApplicationShutdown, hasOnModuleInit } from "./lifecycle.js";
+import { hasOnApplicationBootstrap, hasOnApplicationShutdown, hasOnModuleInit } from "./lifecycle.js";
 import { getModuleMetadata, isDynamicModule, moduleClassOf, type ModuleRef } from "./module.js";
 
 interface CollectedModule {
@@ -224,7 +224,21 @@ export class Application {
       }
     }
 
-    return new Application(container, controllers);
+    const app = new Application(container, controllers);
+
+    // After every onModuleInit has finished, so a discovering provider can rely on all others being ready.
+    for (const [, instance] of container.getResolvedEntries()) {
+      if (hasOnApplicationBootstrap(instance)) {
+        await instance.onApplicationBootstrap(app);
+      }
+    }
+
+    return app;
+  }
+
+  /** Every singleton provider instance resolved at boot, with its token, in dependency order. Transient providers are never cached, so they don't appear. */
+  resolved(): ReadonlyArray<readonly [Token, unknown]> {
+    return this.#container.getResolvedEntries();
   }
 
   get<T>(token: Token<T>): T {

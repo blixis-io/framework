@@ -46,7 +46,17 @@ class Application {
   readonly controllers: readonly Class[];
   static create(rootModule: ModuleRef, options?: CreateApplicationOptions): Promise<Application>;
   get<T>(token: Token<T>): T;
+  resolved(): ReadonlyArray<readonly [Token, unknown]>; // every singleton instance + its token, in dependency order
   close(signal?: string): Promise<void>;
+}
+
+interface OnApplicationBootstrap {
+  onApplicationBootstrap(app: BootstrapContext): void | Promise<void>; // after all onModuleInit; for discovery
+}
+
+interface BootstrapContext {
+  resolved(): ReadonlyArray<readonly [Token, unknown]>;
+  get<T>(token: Token<T>): T;
 }
 
 interface CreateApplicationOptions {
