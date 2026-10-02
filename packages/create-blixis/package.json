@@ -1,6 +1,6 @@
 {
   "name": "create-blixis",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "Scaffold a new Blixis app: pnpm create blixis my-app. No @blixis-io/* runtime dependency.",
   "license": "MIT",
   "author": "Michael Voeten <michael@voeten.online>",
