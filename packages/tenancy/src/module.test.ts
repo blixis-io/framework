@@ -23,8 +23,11 @@ function buildTenancy(
   });
 }
 
+/** The controller every hand-built ExecutionContext in this file points at. */
+class TestController {}
+
 function requestWith(params: Record<string, string>) {
-  return { request: new Request("http://localhost/"), params };
+  return { request: new Request("http://localhost/"), params, controller: TestController, handler: "route" };
 }
 
 describe("defineTenancyModule", () => {

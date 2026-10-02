@@ -21,7 +21,7 @@ export class ApiKeyGuard implements CanActivate {
 }
 ```
 
-`ExecutionContext` is `{ request: Request, params: Record<string, string> }` — the same matched route params the controller method itself receives via `@Param`. `canActivate` can be sync or async, and can return `false` to deny or throw its own `HttpException` (an `UnauthorizedException`, say) for a more specific status than the default.
+`ExecutionContext` is `{ request, params, controller, handler }`: the `Request`, the matched route params (the same ones the controller method receives via `@Param`), the controller class, and the name of the method handling the request. The last two are what let a guard read metadata attached to the route (see [Route metadata](#route-metadata)). `canActivate` can be sync or async, and can return `false` to deny or throw its own `HttpException` (an `UnauthorizedException`, say) for a more specific status than the default.
 
 ## `@UseGuards`
 
@@ -41,6 +41,43 @@ export class PostController {
 ```
 
 Guards run **in order, and stop at the first denial** — a later guard never runs once an earlier one has already said no. If any guard returns `false`, the request short-circuits to `403 Forbidden` before params are resolved or the body is read.
+
+## Global guards
+
+A guard marked with `@GlobalGuard()` runs on **every** route, before the route's own `@UseGuards` (class, then method):
+
+```ts
+@Injectable()
+@GlobalGuard()
+export class RequireHttps implements CanActivate {
+  canActivate({ request }: ExecutionContext): boolean {
+    return new URL(request.url).protocol === "https:";
+  }
+}
+```
+
+Register it as a provider like any other guard; there is nothing else to wire up. The application finds marked guards among its providers when it starts. Several global guards run in dependency order (a guard that injects another runs after it), and the first to deny stops the request, so neither the route's own guards nor its handler run. A marked class without a `canActivate()` method fails the boot with its name.
+
+## Route metadata
+
+`SetRouteMetadata(key, value)` attaches a value to a controller (every route in it) or to a single route, and `getRouteMetadata(key, context)` reads it back inside a guard or interceptor: the method's own value if it has one, otherwise the controller's. It is how decorators like `@Roles("admin")` and `@Public()` are built:
+
+```ts
+const AUDIT = Symbol("audit");
+export const Audited = (label: string) => SetRouteMetadata(AUDIT, label);
+
+@Injectable()
+@GlobalGuard()
+class AuditGuard implements CanActivate {
+  canActivate(context: ExecutionContext): boolean {
+    const label = getRouteMetadata(AUDIT, context);
+    if (typeof label === "string") console.log(`audited route: ${label}`);
+    return true;
+  }
+}
+```
+
+`getRouteMetadata` returns `unknown`; narrow it where you read it. Use your own `Symbol` as the key so two packages' metadata never collide.
 
 ## Guard classes must be registered providers
 

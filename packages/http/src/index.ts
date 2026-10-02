@@ -8,7 +8,15 @@ export {
 } from "./decorators/api-metadata.js";
 export { Controller, getControllerPrefix } from "./decorators/controller.js";
 export type { CanActivate, ExecutionContext } from "./decorators/guards.js";
-export { getClassGuards, getMethodGuards, UseGuards } from "./decorators/guards.js";
+export {
+  getClassGuards,
+  getMethodGuards,
+  getRouteMetadata,
+  GlobalGuard,
+  isGlobalGuard,
+  SetRouteMetadata,
+  UseGuards,
+} from "./decorators/guards.js";
 export type { Interceptor } from "./decorators/interceptors.js";
 export { getClassInterceptors, getMethodInterceptors, UseInterceptors } from "./decorators/interceptors.js";
 export type { ParamSource } from "./decorators/params.js";

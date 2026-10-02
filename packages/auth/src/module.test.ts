@@ -5,6 +5,9 @@ import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { defineAuthModule } from "./module.js";
 
+/** The controller every hand-built ExecutionContext in this file points at. */
+class TestController {}
+
 const SECRET = "test-secret-at-least-32-bytes-long!!";
 const ClaimsSchema = z.object({ sub: z.string(), roles: z.array(z.string()) });
 
@@ -47,7 +50,7 @@ describe("defineAuthModule", () => {
     const token = await signToken({ sub: "user-1", roles: ["admin"] });
 
     await runInRequestContext(async () => {
-      const allowed = await guard.canActivate({ request: requestWith(token), params: {} });
+      const allowed = await guard.canActivate({ request: requestWith(token), params: {}, controller: TestController, handler: "route" });
       expect(allowed).toBe(true);
       expect(getCurrentUser(ctx)).toEqual({ sub: "user-1", roles: ["admin"] });
     });
@@ -59,7 +62,7 @@ describe("defineAuthModule", () => {
     const guard = app.get(JwtAuthGuard);
 
     await runInRequestContext(() =>
-      expect(guard.canActivate({ request: requestWith(), params: {} })).rejects.toThrow(UnauthorizedException),
+      expect(guard.canActivate({ request: requestWith(), params: {}, controller: TestController, handler: "route" })).rejects.toThrow(UnauthorizedException),
     );
   });
 
@@ -70,7 +73,7 @@ describe("defineAuthModule", () => {
     const request = new Request("http://localhost/", { headers: { authorization: "not-a-bearer-token" } });
 
     await runInRequestContext(() =>
-      expect(guard.canActivate({ request, params: {} })).rejects.toThrow(UnauthorizedException),
+      expect(guard.canActivate({ request, params: {}, controller: TestController, handler: "route" })).rejects.toThrow(UnauthorizedException),
     );
   });
 
@@ -81,7 +84,7 @@ describe("defineAuthModule", () => {
     const token = await signToken({ sub: "user-1", roles: [] }, { secret: "a-completely-different-secret!!" });
 
     await runInRequestContext(() =>
-      expect(guard.canActivate({ request: requestWith(token), params: {} })).rejects.toThrow(UnauthorizedException),
+      expect(guard.canActivate({ request: requestWith(token), params: {}, controller: TestController, handler: "route" })).rejects.toThrow(UnauthorizedException),
     );
   });
 
@@ -92,7 +95,7 @@ describe("defineAuthModule", () => {
     const token = await signToken({ sub: "user-1", roles: [] }, { expSecondsFromNow: -60 });
 
     await runInRequestContext(() =>
-      expect(guard.canActivate({ request: requestWith(token), params: {} })).rejects.toThrow(UnauthorizedException),
+      expect(guard.canActivate({ request: requestWith(token), params: {}, controller: TestController, handler: "route" })).rejects.toThrow(UnauthorizedException),
     );
   });
 
@@ -103,7 +106,7 @@ describe("defineAuthModule", () => {
     const token = await signToken({ sub: "user-1" }); // missing `roles`
 
     await runInRequestContext(() =>
-      expect(guard.canActivate({ request: requestWith(token), params: {} })).rejects.toThrow(UnauthorizedException),
+      expect(guard.canActivate({ request: requestWith(token), params: {}, controller: TestController, handler: "route" })).rejects.toThrow(UnauthorizedException),
     );
   });
 
@@ -114,7 +117,7 @@ describe("defineAuthModule", () => {
     const token = await signToken({ sub: "user-1", roles: [] });
 
     await runInRequestContext(async () => {
-      await expect(guard.canActivate({ request: requestWith(token), params: {} })).resolves.toBe(true);
+      await expect(guard.canActivate({ request: requestWith(token), params: {}, controller: TestController, handler: "route" })).resolves.toBe(true);
     });
   });
 
@@ -126,8 +129,8 @@ describe("defineAuthModule", () => {
       // it's what real request handling does (one call wraps the whole
       // guard chain) and what makes the JWT guard's write visible here.
       await runInRequestContext(async () => {
-        await jwtGuard.canActivate({ request: requestWith(token), params: {} });
-        expect(app.get(RolesGuard).canActivate({ request: requestWith(), params: {} })).toBe(true);
+        await jwtGuard.canActivate({ request: requestWith(token), params: {}, controller: TestController, handler: "route" });
+        expect(app.get(RolesGuard).canActivate({ request: requestWith(), params: {}, controller: TestController, handler: "route" })).toBe(true);
       });
     });
 
@@ -135,8 +138,8 @@ describe("defineAuthModule", () => {
       const { app, RolesGuard, jwtGuard, token } = await authenticateWithRoles(["editor"], "admin");
 
       await runInRequestContext(async () => {
-        await jwtGuard.canActivate({ request: requestWith(token), params: {} });
-        expect(app.get(RolesGuard).canActivate({ request: requestWith(), params: {} })).toBe(false);
+        await jwtGuard.canActivate({ request: requestWith(token), params: {}, controller: TestController, handler: "route" });
+        expect(app.get(RolesGuard).canActivate({ request: requestWith(), params: {}, controller: TestController, handler: "route" })).toBe(false);
       });
     });
 
@@ -150,7 +153,7 @@ describe("defineAuthModule", () => {
       const app = await createHttpApplication(TestModule);
 
       runInRequestContext(() => {
-        expect(() => app.get(RolesGuard).canActivate({ request: requestWith(), params: {} })).toThrow(
+        expect(() => app.get(RolesGuard).canActivate({ request: requestWith(), params: {}, controller: TestController, handler: "route" })).toThrow(
           UnauthorizedException,
         );
       });
