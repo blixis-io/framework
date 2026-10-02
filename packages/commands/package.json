@@ -1,6 +1,6 @@
 {
   "name": "@blixis-io/commands",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "@Command: command-line commands written as injectable classes. Run with blix run <command>; they get the same DI container as your HTTP app.",
   "license": "MIT",
   "author": "Michael Voeten <michael@voeten.online>",

@@ -1,5 +1,12 @@
 # @blixis-io/deploy
 
+## 0.2.1
+
+### Patch Changes
+
+- Updated dependencies [[`8c10f50`](https://github.com/blixis-io/framework/commit/8c10f5040b0dad21f1f564158073b1532c596028)]:
+  - @blixis-io/cli@0.3.0
+
 ## 0.2.0
 
 ### Minor Changes

@@ -1,5 +1,12 @@
 # @blixis-io/openapi
 
+## 0.2.2
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @blixis-io/http@0.3.1
+
 ## 0.2.1
 
 ### Patch Changes
