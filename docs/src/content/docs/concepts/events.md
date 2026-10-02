@@ -60,6 +60,39 @@ class SearchIndexer {
 
 `on()` returns a function that unsubscribes just that one handler, leaving any others registered for the same event type intact.
 
+## `@OnEvent`: declare the handler instead
+
+The factory also returns an `OnEvent` decorator typed to your event map. Put it on a method and the framework subscribes it for you, so a listener no longer needs the bus injected or a constructor:
+
+```ts
+// events.ts
+export const { EventsModule, EVENT_BUS, OnEvent } = defineEventsModule<AppEvents>();
+```
+
+```ts
+@Injectable()
+class SearchIndexer {
+  constructor(private readonly search: SearchClient) {}
+
+  @OnEvent("post.created")
+  async index(payload: AppEvents["post.created"]): Promise<void> {
+    await this.search.add(payload.postId);
+  }
+}
+```
+
+The compiler checks the method: a parameter that doesn't match the event's payload, or an event name that isn't in the map, is a type error, not a runtime surprise. `this` is the provider, so injected dependencies work.
+
+How it works, and what to know:
+
+- After the application has booted, the events module scans every singleton provider (and controller) for `@OnEvent` methods, including ones inherited from a base class, and subscribes them. This uses the [`OnApplicationBootstrap`](/framework/concepts/lifecycle-hooks/#onapplicationbootstrap) hook. Handlers in any module are found, not only the module that imports `EventsModule`.
+- Because the subscription happens **after** boot, an event emitted from an `onModuleInit` is not seen by `@OnEvent` handlers. Emit from request handling, or from `onApplicationBootstrap`.
+- Transient providers are never cached, so their handlers are not subscribed. Use singleton providers (the default).
+- Handlers are unsubscribed when the application closes.
+- Failure behaviour is the same as `on()`: a handler that throws is logged and doesn't affect the others or the emitter.
+- Two `defineEventsModule()` calls in one app keep separate handlers: each decorator only feeds its own bus.
+- `@OnEvent` on something that isn't a method fails the boot with the class and member name.
+
 ## What `emit()` actually does — and doesn't
 
 The only implementation, `InProcessEventBus`, runs every handler registered for an event **concurrently**, and `emit()` resolves once all of them have settled — success or failure. A handler that throws (or an async handler whose promise rejects) is caught individually: it's logged, but it never stops sibling handlers from running and never makes `emit()` itself reject. There's no ordering guarantee between handlers for the same event.

@@ -13,6 +13,13 @@ In-process domain event pub-sub. See [Events](/framework/concepts/events/) for t
 function defineEventsModule<Events extends Record<string, unknown>>(): {
   EventsModule: { forRoot(options?: EventsForRootOptions): DynamicModule };
   EVENT_BUS: InjectionToken<EventBus<Events>>;
+  OnEvent: <K extends keyof Events & string>(
+    type: K,
+  ) => <T extends (payload: Events[K]) => void | Promise<void>>(
+    target: object,
+    method: string | symbol,
+    descriptor: TypedPropertyDescriptor<T>,
+  ) => void;
 };
 
 interface EventsForRootOptions {
@@ -21,6 +28,8 @@ interface EventsForRootOptions {
 ```
 
 Same factory-closure shape as [`@blixis-io/config`'s `defineConfigModule`](/framework/reference/blixis-config/), [`@blixis-io/auth`'s `defineAuthModule`](/framework/reference/blixis-auth/), and [`@blixis-io/tenancy`'s `defineTenancyModule`](/framework/reference/blixis-tenancy/) — call it once per app (typically in its own `events.ts`), export the result. `Events` is your app's own event-name-to-payload map, declared with `type`, not `interface` — an `interface` doesn't satisfy the `Record<string, unknown>` constraint. Each call to `defineEventsModule()` produces its own distinct `EVENT_BUS` token.
+
+`OnEvent(type)` decorates a method of any singleton provider: the decorated method must accept `Events[type]`, which the compiler checks. The subscription is made once the application has booted (via `OnApplicationBootstrap`) and removed when it closes. See [`@OnEvent`](/framework/concepts/events/#onevent-declare-the-handler-instead).
 
 ## `EventBus<Events>`
 

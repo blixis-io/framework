@@ -1,5 +1,11 @@
-import { Module, type DynamicModule } from "@blixis-io/core";
-import { Injectable, InjectionToken } from "@blixis-io/di";
+import {
+  Module,
+  type BootstrapContext,
+  type DynamicModule,
+  type OnApplicationBootstrap,
+  type OnApplicationShutdown,
+} from "@blixis-io/core";
+import { defineMetadata, getOwnMetadata, Inject, Injectable, InjectionToken } from "@blixis-io/di";
 
 export type EventHandler<Payload> = (payload: Payload) => void | Promise<void>;
 
@@ -60,6 +66,11 @@ class InProcessEventBus<Events extends Record<string, unknown>> implements Event
   }
 }
 
+interface HandlerRecord {
+  type: string;
+  method: string | symbol;
+}
+
 /**
  * Builds an `EVENT_BUS` token typed to one app's event map. Same
  * factory-closure shape as `defineConfigModule`/`defineAuthModule` — the
@@ -69,20 +80,83 @@ class InProcessEventBus<Events extends Record<string, unknown>> implements Event
 export function defineEventsModule<Events extends Record<string, unknown>>(): {
   EventsModule: { forRoot(options?: EventsForRootOptions): DynamicModule };
   EVENT_BUS: InjectionToken<EventBus<Events>>;
+  /**
+   * Subscribes the decorated method to `type`. The compiler checks the method accepts that event's
+   * payload. Works on any singleton provider (or controller) in the application; the handlers are
+   * attached once the app has booted, so an event emitted from `onModuleInit` is not seen yet.
+   */
+  OnEvent: <K extends keyof Events & string>(
+    type: K,
+  ) => <T extends (payload: Events[K]) => void | Promise<void>>(
+    target: object,
+    method: string | symbol,
+    descriptor: TypedPropertyDescriptor<T>,
+  ) => void;
 } {
   const EVENT_BUS = new InjectionToken<EventBus<Events>>("blixis.events.bus");
+  // One metadata key per factory, so two event maps in one app never pick up each other's handlers.
+  const HANDLERS = Symbol("blixis.events.handlers");
+
+  function OnEvent<K extends keyof Events & string>(type: K) {
+    return <T extends (payload: Events[K]) => void | Promise<void>>(
+      target: object,
+      method: string | symbol,
+      _descriptor: TypedPropertyDescriptor<T>,
+    ): void => {
+      const own = getOwnMetadata<HandlerRecord[]>(HANDLERS, target) ?? [];
+      defineMetadata(HANDLERS, [...own, { type, method }], target);
+    };
+  }
+
+  /** Every `@OnEvent` handler declared on `instance`'s class or any of its base classes. */
+  function handlersOf(instance: object): HandlerRecord[] {
+    const records: HandlerRecord[] = [];
+    for (let proto: unknown = Object.getPrototypeOf(instance); typeof proto === "object" && proto !== null; proto = Object.getPrototypeOf(proto)) {
+      records.push(...(getOwnMetadata<HandlerRecord[]>(HANDLERS, proto) ?? []));
+    }
+    return records;
+  }
+
+  /** Finds the `@OnEvent` methods across the whole application after boot and subscribes them. */
+  @Injectable()
+  class EventSubscriber implements OnApplicationBootstrap, OnApplicationShutdown {
+    readonly #unsubscribe: (() => void)[] = [];
+
+    constructor(@Inject(EVENT_BUS) private readonly bus: EventBus<Events>) {}
+
+    onApplicationBootstrap(app: BootstrapContext): void {
+      for (const [, instance] of app.resolved()) {
+        if (typeof instance !== "object" || instance === null) {
+          continue;
+        }
+        for (const { type, method } of handlersOf(instance)) {
+          const handle: unknown = Reflect.get(instance, method);
+          if (typeof handle !== "function") {
+            throw new TypeError(`${instance.constructor.name}.${String(method)} is decorated with @OnEvent("${type}") but is not a method.`);
+          }
+          this.#unsubscribe.push(this.bus.on(type, (payload) => Reflect.apply(handle, instance, [payload]) as void | Promise<void>));
+        }
+      }
+    }
+
+    onApplicationShutdown(): void {
+      for (const off of this.#unsubscribe.splice(0)) {
+        off();
+      }
+    }
+  }
 
   @Module()
   class EventsModule {
     static forRoot(options: EventsForRootOptions = {}): DynamicModule {
       return {
         module: EventsModule,
-        providers: [{ provide: EVENT_BUS, useClass: InProcessEventBus }],
+        providers: [{ provide: EVENT_BUS, useClass: InProcessEventBus }, EventSubscriber],
         exports: [EVENT_BUS],
         global: options.global ?? false,
       };
     }
   }
 
-  return { EventsModule, EVENT_BUS };
+  return { EventsModule, EVENT_BUS, OnEvent };
 }
