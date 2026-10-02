@@ -1,5 +1,13 @@
 # @blixis-io/deploy
 
+## 0.4.1
+
+### Patch Changes
+
+- [#66](https://github.com/blixis-io/framework/pull/66) [`7e98dcf`](https://github.com/blixis-io/framework/commit/7e98dcffc7620d7e4ddf2d969f0b091eddf35c5e) Thanks [@EmVeeNL](https://github.com/EmVeeNL)! - Read `app.module` and `app.export` from existing `blix.config` when generating Vercel, Netlify and Cloudflare entries with `blix deploy init`. Explicit app flags override each config value, and missing fields retain the conventional defaults. Reject invalid app settings before writing provider files.
+- Updated dependencies [[`ef36b88`](https://github.com/blixis-io/framework/commit/ef36b8860d1c3ece123e17282d31cb77b1333d80)]:
+  - @blixis-io/cli@0.4.0
+
 ## 0.4.0
 
 ### Minor Changes
