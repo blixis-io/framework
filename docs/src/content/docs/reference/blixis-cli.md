@@ -35,6 +35,27 @@ blix add deploy
 
 Installs a plugin package as a dev dependency, using the package manager that owns the project (judged by the nearest lockfile at or above the current directory: `pnpm-lock.yaml`, `yarn.lock`, `bun.lock`/`bun.lockb`, `package-lock.json`; npm if there is none). Exits `1` for an unknown plugin or a failed install.
 
+## `blix doctor`
+
+Checks the project in the current directory for the setup mistakes that otherwise show up as confusing runtime errors. It only reads files; it installs and changes nothing.
+
+```bash
+blix doctor
+```
+
+| Check | Level |
+| --- | --- |
+| Node older than 24 | fail |
+| `experimentalDecorators` / `emitDecoratorMetadata` not `true` in `tsconfig.json` (relative `extends` are followed) | fail |
+| `useDefineForClassFields` on, explicitly or through a `target` of ES2022 or newer | fail |
+| More than one physical copy of `@blixis-io/core` or `@blixis-io/di` (pnpm store, nested `node_modules`) | fail |
+| Flag may be inherited from a package `extends` such as `@tsconfig/node24` (not read) | warn |
+| pnpm project without a `packageManager` pin | warn |
+| `tsx`, `ts-node` or `esbuild` in scripts or dependencies (they drop decorator metadata) | warn |
+| Vitest config without decorator metadata (Oxc ignores `tsconfig.json`) | warn |
+
+Exit code is `1` when anything fails, `0` otherwise (warnings don't fail), so it can run in CI.
+
 ## Plugin commands
 
 Some commands live in their own package so the CLI itself stays dependency-free. `blix deploy` is provided by `@blixis-io/deploy` (see [Deploying](/framework/guides/deploying/)) and `blix run` by `@blixis-io/commands` (see [Writing Commands](/framework/guides/writing-commands/)). The CLI finds it in **your project's** `node_modules` (resolved from the current directory, so a workspace package finds the root's install). If it isn't installed, `blix deploy` exits `1` and says to run `blix add deploy`. `blix --help` lists the known plugin commands.

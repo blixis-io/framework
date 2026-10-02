@@ -2,6 +2,7 @@ import { createRequire } from "node:module";
 import { relative } from "node:path";
 import { runAdd, spawnInstall, type InstallRunner } from "./add.js";
 import { ConfigError, loadConfig } from "./config.js";
+import { runDoctor } from "./doctor.js";
 import { generateFile, type GenerateOptions } from "./generate.js";
 import { KNOWN_PLUGINS, loadPlugin } from "./plugins.js";
 import { GENERATOR_TYPES, resolveGeneratorType } from "./templates.js";
@@ -29,6 +30,7 @@ function usage(): string {
     .join("\n");
   return `${GENERATE_USAGE}
 blix add <plugin>   install a plugin package (${Object.keys(KNOWN_PLUGINS).join(", ")})
+blix doctor         check this project: decorator flags, duplicate @blixis-io copies, tooling
 ${plugins}
 
 blix --version
@@ -121,6 +123,9 @@ export async function runCli(argv: readonly string[], cwd: string, options: RunC
   }
   if (command === "add") {
     return runAdd(rest, cwd, options.install ?? spawnInstall);
+  }
+  if (command === "doctor") {
+    return runDoctor(cwd);
   }
   if (command === "--version" || command === "-v") {
     return { exitCode: 0, stdout: `${packageVersion()}\n`, stderr: "" };
