@@ -46,6 +46,9 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       - run: pnpm run ci
+        env:
+          # The EditorConfig wrapper downloads its binary through the GitHub API.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       # Each package's first publish still needs NPM_TOKEN (npm Trusted
       # Publishing/OIDC requires the package to already exist before it
