@@ -20,7 +20,9 @@ curl http://localhost:3000/hello/world   # {"message":"Hello, world!"}
 
 | Option | |
 |---|---|
-| `--no-install` | write the files only and print the install commands |
+| `--deploy <target>` | also set up deployment: `docker`, `vercel`, `netlify` or `cloudflare`. Installs `@blixis-io/cli` and `@blixis-io/deploy` and runs `blix deploy init` |
+| `--ci <provider>` | with `--deploy`: also write the pipeline (`github`, `gitlab` or `bitbucket`) |
+| `--no-install` | write the files only and print the install commands (with `--deploy`, including the deploy ones) |
 
 The target directory must not exist or must be empty. Nested paths work (`apps/api`); the package is named after the last segment. No `@blixis-io/*` runtime dependency.
 

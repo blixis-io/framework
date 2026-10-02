@@ -183,3 +183,115 @@ describe("the real built binary", () => {
     expect(existsSync(join(cwd, "my-app", "src", "app.module.ts"))).toBe(true);
   });
 });
+
+describe("runCreate --deploy", () => {
+  type Call = { command: string; args: readonly string[]; cwd: string };
+  const recorder = (code = 0, failOn?: string) => {
+    const calls: Call[] = [];
+    return {
+      calls,
+      install: (command: string, args: readonly string[], where: string) => {
+        calls.push({ command, args, cwd: where });
+        return Promise.resolve(failOn !== undefined && `${command} ${args.join(" ")}`.includes(failOn) ? code : 0);
+      },
+    };
+  };
+
+  it("installs the CLI and deploy plugin, then runs blix deploy init in the new project", async () => {
+    const { calls, install } = recorder();
+
+    const result = await runCreate(["my-app", "--deploy", "docker", "--ci", "github"], { cwd, userAgent: "pnpm/11.25.0 node/v24", install });
+
+    expect(result.exitCode).toBe(0);
+    expect(calls.map((call) => `${call.command} ${call.args.join(" ")}`)).toEqual([
+      "pnpm add @blixis-io/core @blixis-io/di @blixis-io/http",
+      "pnpm add -D typescript @types/node concurrently",
+      "pnpm add -D @blixis-io/cli @blixis-io/deploy",
+      "pnpm exec blix deploy init --target docker --ci github",
+    ]);
+    expect(calls.every((call) => call.cwd === join(cwd, "my-app"))).toBe(true);
+    expect(result.stdout).toContain("Deploy (docker, github):");
+    expect(result.stdout).toContain("pnpm exec blix deploy --dry-run");
+  });
+
+  it("accepts --deploy=target, and --ci is optional", async () => {
+    const { calls, install } = recorder();
+
+    await runCreate(["my-app", "--deploy=vercel"], { cwd, userAgent: "pnpm/11.25.0", install });
+
+    expect(calls.at(-1)?.args).toEqual(["exec", "blix", "deploy", "init", "--target", "vercel"]);
+  });
+
+  it.each([
+    ["npm/11.0.0", "npx", ["blix", "deploy", "init", "--target", "netlify"]],
+    ["yarn/4.1.0", "yarn", ["blix", "deploy", "init", "--target", "netlify"]],
+    ["bun/1.2.0", "bunx", ["blix", "deploy", "init", "--target", "netlify"]],
+  ] as const)("%s runs the local blix through its own runner", async (agent, command, args) => {
+    const { calls, install } = recorder();
+
+    await runCreate(["my-app", "--deploy", "netlify"], { cwd, userAgent: agent, install });
+
+    expect(calls.at(-1)).toMatchObject({ command, args });
+  });
+
+  it("does not touch deployment without --deploy", async () => {
+    const { calls, install } = recorder();
+
+    const result = await runCreate(["my-app"], { cwd, userAgent: "pnpm/11.25.0", install });
+
+    expect(calls).toHaveLength(2);
+    expect(result.stdout).not.toContain("Deploy (");
+  });
+
+  it("rejects --ci without --deploy before writing anything", async () => {
+    const result = await runCreate(["my-app", "--ci", "github"], { cwd });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain("--ci only makes sense with --deploy");
+    expect(existsSync(join(cwd, "my-app"))).toBe(false);
+  });
+
+  it.each([["--deploy"], ["--deploy", "--no-install"], ["--ci"]])("rejects %j with no value", async (...args) => {
+    const result = await runCreate(["my-app", ...args], { cwd });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toMatch(/--(deploy|ci) needs a value/);
+  });
+
+  it("with --no-install prints every command to run instead of running any", async () => {
+    const { calls, install } = recorder();
+
+    const result = await runCreate(["my-app", "--deploy", "cloudflare", "--no-install"], { cwd, userAgent: "pnpm/11.25.0", install });
+
+    expect(calls).toEqual([]);
+    expect(result.stdout).toContain("pnpm add -D @blixis-io/cli @blixis-io/deploy");
+    expect(result.stdout).toContain("pnpm exec blix deploy init --target cloudflare");
+  });
+
+  it("if init fails the app is still there, and the message says to run init yourself", async () => {
+    const { install } = recorder(2, "deploy init");
+
+    const result = await runCreate(["my-app", "--deploy", "bogus"], { cwd, userAgent: "pnpm/11.25.0", install });
+
+    expect(result.exitCode).toBe(2);
+    expect(result.stderr).toContain("run `blix deploy init` yourself (the app itself is ready)");
+    expect(existsSync(join(cwd, "my-app", "src", "main.ts"))).toBe(true);
+  });
+
+  it("if an install fails, no later step runs", async () => {
+    const { calls, install } = recorder(5, "typescript");
+
+    const result = await runCreate(["my-app", "--deploy", "docker"], { cwd, userAgent: "pnpm/11.25.0", install });
+
+    expect(result.exitCode).toBe(5);
+    expect(result.stderr).toContain("run the install yourself");
+    expect(calls).toHaveLength(2);
+  });
+
+  it("documents the flags in --help", async () => {
+    const result = await runCreate(["--help"], { cwd });
+
+    expect(result.stdout).toContain("--deploy <target>");
+    expect(result.stdout).toContain("--ci <provider>");
+  });
+});

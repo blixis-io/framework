@@ -19,6 +19,14 @@ pnpm create blixis my-app
 
 This writes a runnable app (service, controller, module, `main.ts`, and a `tsconfig.json` with the settings below), installs `@blixis-io/core`, `@blixis-io/di`, `@blixis-io/http`, `typescript`, `@types/node` and `concurrently`, and tells you how to run it. `pnpm dev` compiles with `tsc` and then recompiles on every change while Node restarts on the new output (no `tsx`: it can't emit decorator metadata). It detects pnpm, npm, yarn or bun from how you invoked it (`npm create blixis@latest my-app` works too); pass `--no-install` to only write the files. The [Quickstart](/framework/start-here/quickstart/) builds the same app by hand.
 
+To set up deployment at the same time, add `--deploy <target>` (`docker`, `vercel`, `netlify` or `cloudflare`) and, optionally, `--ci <provider>` (`github`, `gitlab` or `bitbucket`):
+
+```bash
+pnpm create blixis my-app --deploy docker --ci github
+```
+
+That also installs `@blixis-io/cli` and `@blixis-io/deploy` and runs [`blix deploy init`](/framework/guides/deploying/) for you, so the project comes with its deploy config, the files that target needs, and the pipeline. If that last step fails the app is still created, and you can run `blix deploy init` yourself.
+
 ## pnpm 11 skips versions younger than 24 hours
 
 pnpm 11 ignores any package version published in the last 24 hours (its `minimumReleaseAge` default is a supply-chain safeguard), and fails if a lockfile pins one. You will notice it in the first day after a Blixis release:
