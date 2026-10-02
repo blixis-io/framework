@@ -89,6 +89,41 @@ remove(@Param("id") id: string) {
 
 A user with none of the required roles gets a plain `false` — same as any other guard denial — which the framework turns into `403 Forbidden`.
 
+## `@Roles` and `@Public`, and protecting everything
+
+`createRolesGuard` needs a guard class per role set, registered by hand and ordered after the auth guard. The decorators do the same job with less ceremony. `AuthGuard` (returned by `defineAuthModule`) authenticates the request, then enforces `@Roles(...)` if the route has one:
+
+```ts
+@Controller("admin")
+@UseGuards(AuthGuard)
+export class AdminController {
+  @Get("users")
+  @Roles("admin", "support") // at least one of these
+  users() { /* ... */ }
+
+  @Get("ping")
+  @Public() // no token needed
+  ping() { return "pong"; }
+}
+```
+
+An unauthenticated request is a `401`, a request without the role is a `403`. `@Roles` on a controller covers every route in it; a route's own `@Roles` replaces it, and `@Public()` on a route overrides everything above it.
+
+To make **every** route require a token without touching each controller, opt in with `protectAllRoutes`:
+
+```ts
+AuthModule.forRoot({ secret: process.env.JWT_SECRET!, protectAllRoutes: true })
+```
+
+Now an undecorated route answers `401` without a token, and the routes that must stay open say so with `@Public()`: your login and refresh routes, a health check. That is the point of the default: a controller added later can't be forgotten and left open. It is off by default, so enabling it is a deliberate change; until you do, nothing about existing routes changes, and `@Roles` only takes effect on routes that carry `@UseGuards(AuthGuard)`.
+
+Things to know:
+
+- `@Public()` skips authentication entirely, so a valid token sent to a public route is not read and `getCurrentUser` is `undefined` there.
+- Roles come from the token's `roles` claim, which must be an array of strings. A token without it fails any `@Roles` check with `403`.
+- `protectAllRoutes` uses the `@GlobalGuard()` mechanism from `@blixis-io/http` (see [Guards & Authorization](/framework/concepts/guards-and-authorization/#global-guards)). Routes mounted with `app.mount()`, such as `serveOpenApi`, bypass guards and stay public.
+- `JwtAuthGuard` and `createRolesGuard` are unchanged and still work.
+
 ## `global` is off by default
 
 ```ts

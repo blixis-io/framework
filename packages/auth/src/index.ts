@@ -1,4 +1,4 @@
-export { defineAuthModule, type AuthModuleOptions, type IssuingOptions } from "./module.js";
+export { defineAuthModule, Public, Roles, type AuthModuleOptions, type IssuingOptions } from "./module.js";
 export {
   type AuthService,
   type CredentialStore,
