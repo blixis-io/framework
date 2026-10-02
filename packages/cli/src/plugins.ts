@@ -21,7 +21,8 @@ export interface BlixCommand {
 
 /** Commands that live in their own package, so the CLI itself stays dependency-free. */
 export const KNOWN_PLUGINS: Readonly<Record<string, { package: string; description: string }>> = {
-  deploy: { package: "@blixis-io/deploy", description: "build and deploy to Docker, Vercel, Netlify, Cloudflare ..." },
+  deploy: { package: "@blixis-io/deploy", description: "build and deploy to Docker, Vercel, Netlify ..." },
+  run: { package: "@blixis-io/commands", description: "run an app command written with @Command" },
 };
 
 export type PluginLookup =

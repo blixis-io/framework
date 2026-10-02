@@ -79,6 +79,7 @@ Legacy decorators are required (`experimentalDecorators` + `emitDecoratorMetadat
 | [`@blixis-io/method-hooks`](packages/method-hooks) | `@Before`/`@After`/`@Around` method decorators for adding behavior without editing a method's body. |
 | [`@blixis-io/openapi`](packages/openapi) | Generates an OpenAPI 3.1 document from a running app's real controllers. |
 | [`@blixis-io/cli`](packages/cli) | The `blix` binary — scaffolds controller/service/module/guard/interceptor files from a template. |
+| [`@blixis-io/commands`](packages/commands) | `@Command` — command-line tasks as injectable classes, run with `blix run`. |
 | [`@blixis-io/deploy`](packages/deploy) | `blix deploy` — build a Docker image, push it, and generate a GitHub Actions workflow. |
 | [`create-blixis`](packages/create-blixis) | `pnpm create blixis my-app` — scaffolds a runnable starter app and installs its dependencies. |
 | [`@blixis-io/tenancy`](packages/tenancy) | Request-scoped multi-tenant access control — mechanism only, no data model. |
