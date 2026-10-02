@@ -29,6 +29,10 @@ blix deploy doctor [target]
 
 `--dry-run` prints each command as `$ ...` and runs nothing. Options accept `--name value` or `--name=value`. Every error exits `1`.
 
+For Vercel, Netlify and Cloudflare, `init` reads `app.module` and `app.export` from your existing `blix.config`, just like `blix run`. Each explicit `--app-module` or `--app-export` flag overrides its config value. Missing fields default to `dist/app.module.js` and `AppModule`. Invalid app settings fail before files are written. Docker uses `--entry` (default `dist/main.js`) instead.
+
+These values are used when generating the function or Worker entry. After changing them, regenerate the entry with `init --force` or edit its import yourself.
+
 ## Configuration
 
 The `deploy` section of `blix.config.ts`:

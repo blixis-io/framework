@@ -255,6 +255,58 @@ describe("blix deploy init", () => {
   });
 });
 
+describe("blix deploy init app location", () => {
+  const entries = [
+    ["vercel", "api/index.mjs", "../"],
+    ["netlify", "netlify/functions/api.mjs", "../../"],
+    ["cloudflare", "cloudflare/worker.mjs", "../"],
+  ];
+
+  it.each(entries)("%s uses app config and preserves the config file", async (target, entry, prefix) => {
+    const source = 'export default { app: { module: "build/root.js", export: "RootModule" } };\n';
+    writeFileSync(join(cwd, "blix.config.mjs"), source);
+    const loaded: LoadedConfig = { path: join(cwd, "blix.config.mjs"), config: { app: { module: "build/root.js", export: "RootModule" } } };
+
+    const result = await run(["init", "--target", target], loaded, deps(fakeRunner()));
+
+    expect(result.exitCode).toBe(0);
+    expect(readFileSync(join(cwd, entry), "utf8")).toContain(`import { RootModule } from "${prefix}build/root.js";`);
+    expect(readFileSync(join(cwd, "blix.config.mjs"), "utf8")).toBe(source);
+  });
+
+  it.each([
+    [{ module: "build/root.js" }, [], "build/root.js", "AppModule"],
+    [{ export: "RootModule" }, [], "dist/app.module.js", "RootModule"],
+    [{ module: "build/root.js", export: "RootModule" }, ["--app-module", "out/app.js"], "out/app.js", "RootModule"],
+    [{ module: "build/root.js", export: "RootModule" }, ["--app-export", "OtherModule"], "build/root.js", "OtherModule"],
+    [{ module: null, export: 42 }, ["--app-module", "out/app.js", "--app-export", "OtherModule"], "out/app.js", "OtherModule"],
+    [{}, [], "dist/app.module.js", "AppModule"],
+  ])("resolves flags, config and defaults independently (%j, %j)", async (app, flags, module, name) => {
+    const loaded: LoadedConfig = { path: join(cwd, "blix.config.json"), config: { app } };
+    const result = await run(["init", "--target", "vercel", ...flags], loaded, deps(fakeRunner()));
+
+    expect(result.exitCode).toBe(0);
+    expect(readFileSync(join(cwd, "api/index.mjs"), "utf8")).toContain(`import { ${name} } from "../${module}";`);
+  });
+
+  it.each([null, [], "bad", { module: "" }, { export: 42 }, { module: null }, { export: "" }])("rejects invalid app config before writing files (%j)", async (app) => {
+    const loaded: LoadedConfig = { path: join(cwd, "blix.config.json"), config: { app } };
+    const result = await run(["init", "--target", "vercel"], loaded, deps(fakeRunner()));
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain("app");
+    expect(existsSync(join(cwd, "api/index.mjs"))).toBe(false);
+    expect(existsSync(join(cwd, "blix.config.ts"))).toBe(false);
+  });
+
+  it("does not require app settings for Docker", async () => {
+    const result = await run(["init"], { path: join(cwd, "blix.config.json"), config: { app: null } }, deps(fakeRunner()));
+
+    expect(result.exitCode).toBe(0);
+    expect(readFileSync(join(cwd, "Dockerfile"), "utf8")).toContain('"dist/main.js"');
+  });
+});
+
 describe("blix deploy init for Vercel and Netlify", () => {
   it("vercel: writes config, entry, vercel.json and public/, and a workflow with the Vercel secrets", async () => {
     const result = await run(["init", "--target", "vercel", "--ci", "github"], undefined, deps(fakeRunner()));

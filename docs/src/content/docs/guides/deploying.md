@@ -120,7 +120,16 @@ import { AppModule } from "../dist/app.module.js";
 export default createFetchHandler(AppModule);
 ```
 
-It needs `@blixis-io/http` 0.3 or newer. If your compiled module lives elsewhere, pass `--app-module build/root.js --app-export RootModule`. Vercel also gets a `vercel.json` (every path goes to the function) and a `public/` directory it insists on; Netlify gets a `netlify.toml` and the function in `netlify/functions/`.
+It needs `@blixis-io/http` 0.3 or newer. If your compiled module lives elsewhere, set the shared app location in your existing `blix.config.ts`:
+
+```ts
+export default defineConfig({
+  app: { module: "build/root.js", export: "RootModule" },
+  // Other config sections...
+});
+```
+
+`init` uses these values for the generated entry, and `blix run` uses them to load your app. Pass `--app-module` or `--app-export` to override either value for this generation. Without flags or config values, the defaults are `dist/app.module.js` and `AppModule`. Vercel also gets a `vercel.json` (every path goes to the function) and a `public/` directory it insists on; Netlify gets a `netlify.toml` and the function in `netlify/functions/`.
 
 `blix deploy` then runs your build script and the provider's CLI through `npx`:
 
@@ -170,7 +179,7 @@ compatibility_date = "2026-10-02"
 compatibility_flags = ["nodejs_compat"]
 ```
 
-The Worker name is derived from your package name (lower-case letters, digits and dashes; `@acme/My_API` becomes `my-api`). `nodejs_compat` is required: the framework uses `node:async_hooks`, `node:http` and `node:stream`. Pass `--app-module` and `--app-export` if your compiled module lives elsewhere. Needs `@blixis-io/http` 0.3 or newer.
+The Worker name is derived from your package name (lower-case letters, digits and dashes; `@acme/My_API` becomes `my-api`). `nodejs_compat` is required: the framework uses `node:async_hooks`, `node:http` and `node:stream`. The generated import uses `app.module` and `app.export` from your existing `blix.config`; `--app-module` and `--app-export` override those values. Needs `@blixis-io/http` 0.3 or newer.
 
 `blix deploy` then runs your build script and Wrangler:
 

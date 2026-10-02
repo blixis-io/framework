@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { detectPackageManager, type CliResult, type CommandContext } from "@blixis-io/cli";
+import { detectPackageManager, type CliResult, type CommandContext, type LoadedConfig } from "@blixis-io/cli";
 import { CI_PROVIDER_IDS, ciProviderFor } from "./ci.js";
 import { DeployConfigError, RESERVED_TARGET_NAMES, TargetSchema, parseDeployConfig, selectTarget, type DeployConfig } from "./config.js";
 import { renderConfigFile, renderTarget } from "./config-file.js";
@@ -22,6 +22,7 @@ blix deploy init [--target docker|vercel|netlify|cloudflare] [--name prod] [--ci
                                       write blix.config.ts, the files the target needs, and a CI workflow
                                       docker: [--image <name>] [--entry dist/main.js]
                                       vercel/netlify/cloudflare: [--app-module dist/app.module.js] [--app-export AppModule]
+                                      app flags override app.module / app.export in blix.config
 blix deploy ci <provider> [target] [--branch main] [--force]
                                       (re)generate the CI file. Providers: ${CI_PROVIDER_IDS.join(", ")}
 blix deploy doctor [target]           check config, tools and environment
@@ -166,6 +167,20 @@ function pinsPackageManager(cwd: string): boolean {
 
 const CONFIG_NAMES = ["blix.config.ts", "blix.config.mts", "blix.config.js", "blix.config.mjs", "blix.config.json"];
 
+/** Resolve each app field independently: explicit flag, config value, then the conventional default. */
+function initAppLocation(loaded: LoadedConfig | undefined, parsed: ParsedArgs): { appModule: string; appExport: string } {
+  const section = loaded?.config["app"];
+  if (section !== undefined && (typeof section !== "object" || section === null || Array.isArray(section))) {
+    throw new DeployConfigError('blix.config "app" must be an object like { module: "dist/app.module.js", export: "AppModule" }.');
+  }
+  const appModule = flag(parsed, "app-module") ?? (section && "module" in section ? section.module : "dist/app.module.js");
+  const appExport = flag(parsed, "app-export") ?? (section && "export" in section ? section.export : "AppModule");
+  if (typeof appModule !== "string" || typeof appExport !== "string" || appModule === "" || appExport === "") {
+    throw new DeployConfigError('App module and export must be non-empty strings (app.module / app.export in blix.config, or --app-module / --app-export).');
+  }
+  return { appModule, appExport };
+}
+
 async function runInit(context: CommandContext, parsed: ParsedArgs, deps: DeployDeps): Promise<CliResult> {
   const type = flag(parsed, "target") ?? "docker";
   if (!isTargetType(type)) {
@@ -191,8 +206,7 @@ async function runInit(context: CommandContext, parsed: ParsedArgs, deps: Deploy
     options: {
       image: flag(parsed, "image"),
       entry: flag(parsed, "entry") ?? "dist/main.js",
-      appModule: flag(parsed, "app-module") ?? "dist/app.module.js",
-      appExport: flag(parsed, "app-export") ?? "AppModule",
+      ...(type === "docker" ? { appModule: "dist/app.module.js", appExport: "AppModule" } : initAppLocation(context.config, parsed)),
     },
   });
   const lines: string[] = plan.notes.map((note) => `note: ${note}`);
