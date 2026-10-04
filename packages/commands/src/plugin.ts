@@ -1,6 +1,6 @@
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import { createApplication, type Application } from "@blixis-io/core";
+import { createApplication, Module, type Application, type ModuleRef } from "@blixis-io/core";
 import type { BlixCommand, CliResult, CommandContext } from "@blixis-io/cli";
 import type { Class } from "@blixis-io/di";
 import { discoverCommands, helpFor, listCommands, runCommand } from "./run.js";
@@ -33,8 +33,39 @@ function isClass(value: unknown): value is Class {
   return typeof value === "function";
 }
 
-/** Imports the compiled app module and boots it without listening: no sockets, just the module graph and its lifecycle hooks. */
-export async function bootApplication(cwd: string, location: AppLocation): Promise<Application> {
+/** An empty anchor for the wrapped root, the same trick `createHttpApplication` uses. */
+@Module()
+class CommandRootModule {}
+
+type ImportHttp = () => Promise<unknown>;
+
+const importHttp: ImportHttp = () => import("@blixis-io/http");
+
+/**
+ * `RequestContext` is provided by the HTTP layer, so a plain `createApplication` boot leaves it out, and every guard or
+ * service that injects it would fail the whole boot ("No provider for RequestContext"). When `@blixis-io/http` is installed
+ * (an optional peer, resolved like core and di so the app and `blix run` share one copy) its module is added; without it,
+ * or with an http version that predates the export, nothing is added.
+ */
+export async function loadRequestContextModule(load: ImportHttp = importHttp): Promise<Class | undefined> {
+  let loaded: unknown;
+  try {
+    loaded = await load();
+  } catch (error) {
+    if (error instanceof Error && Reflect.get(error, "code") === "ERR_MODULE_NOT_FOUND" && error.message.includes("@blixis-io/http")) {
+      return undefined;
+    }
+    throw error;
+  }
+  const module: unknown = typeof loaded === "object" && loaded !== null ? Reflect.get(loaded, "RequestContextModule") : undefined;
+  return isClass(module) ? module : undefined;
+}
+
+/**
+ * Imports the compiled app module and boots it without listening: no sockets, just the module graph and its lifecycle hooks.
+ * `RequestContext` is available (empty, since there is no request) when the app has `@blixis-io/http`.
+ */
+export async function bootApplication(cwd: string, location: AppLocation, loadHttp: ImportHttp = importHttp): Promise<Application> {
   const path = resolve(cwd, location.module);
   let loaded: unknown;
   try {
@@ -47,7 +78,9 @@ export async function bootApplication(cwd: string, location: AppLocation): Promi
   if (!isClass(root)) {
     throw new Error(`${location.module} has no export named "${location.export}" (set "app.export" in blix.config).`);
   }
-  return createApplication(root);
+  const requestContext = await loadRequestContextModule(loadHttp);
+  const wrapped: ModuleRef = requestContext ? { module: CommandRootModule, imports: [root, requestContext] } : root;
+  return createApplication(wrapped);
 }
 
 export interface RunDeps {

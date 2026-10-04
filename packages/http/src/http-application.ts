@@ -17,9 +17,12 @@ export interface ShutdownOptions {
 
 export type HttpApplicationOptions = HandlerOptions & CreateApplicationOptions & ShutdownOptions;
 
-/** Provides `RequestContext` app-wide, without the user needing to import anything — every `createHttpApplication` root gets wrapped with this. */
+/**
+ * Provides `RequestContext` app-wide, without the user needing to import anything — every `createHttpApplication` root gets wrapped with this.
+ * Exported for entry points that boot the app without the HTTP layer (`blix run`), so providers that inject `RequestContext` still resolve there.
+ */
 @Module({ providers: [RequestContext], exports: [RequestContext], global: true })
-class RequestContextModule {}
+export class RequestContextModule {}
 
 /** Empty static anchor for the synthetic root — its own metadata is unused, only `imports` matters. */
 @Module()

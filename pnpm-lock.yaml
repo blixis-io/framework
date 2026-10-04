@@ -63,6 +63,9 @@ importers:
 
   examples/hello-api:
     dependencies:
+      '@blixis-io/commands':
+        specifier: workspace:*
+        version: link:../../packages/commands
       '@blixis-io/config':
         specifier: workspace:*
         version: link:../../packages/config
@@ -75,6 +78,9 @@ importers:
       '@blixis-io/di':
         specifier: workspace:*
         version: link:../../packages/di
+      '@blixis-io/events':
+        specifier: workspace:*
+        version: link:../../packages/events
       '@blixis-io/http':
         specifier: workspace:*
         version: link:../../packages/http
@@ -129,6 +135,9 @@ importers:
       '@blixis-io/di':
         specifier: workspace:*
         version: link:../di
+      '@blixis-io/http':
+        specifier: workspace:*
+        version: link:../http
 
   packages/config:
     dependencies:

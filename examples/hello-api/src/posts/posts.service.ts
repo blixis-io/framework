@@ -1,10 +1,12 @@
 import type { OnModuleInit } from "@blixis-io/core";
 import { Inject, Injectable } from "@blixis-io/di";
+import type { EventBus } from "@blixis-io/events";
 import { NotFoundException, RequestContext } from "@blixis-io/http";
 import { LOGGER, type Logger } from "@blixis-io/logging";
 import { eq, sql } from "drizzle-orm";
 import { DATABASE, type Database } from "../db/index.js";
 import { posts } from "../db/schema.js";
+import { EVENT_BUS, type AppEvents } from "../events.js";
 import type { CreatePostInput, Post, UpdatePostInput } from "./post.schema.js";
 
 @Injectable()
@@ -13,6 +15,7 @@ export class PostsService implements OnModuleInit {
     @Inject(DATABASE) private readonly db: Database,
     @Inject(LOGGER) private readonly log: Logger,
     private readonly ctx: RequestContext,
+    @Inject(EVENT_BUS) private readonly events: EventBus<AppEvents>,
   ) {}
 
   /**
@@ -53,6 +56,7 @@ export class PostsService implements OnModuleInit {
       throw new Error("insert returned no row");
     }
     this.log.info("post created", { postId: String(row.id), title: row.title });
+    await this.events.emit("post.created", { postId: String(row.id), title: row.title });
     return toPost(row);
   }
 
@@ -79,6 +83,7 @@ export class PostsService implements OnModuleInit {
     // entry point), rather than assuming the guard always ran.
     const apiClient = this.ctx.get<string>("apiClient") ?? "unknown";
     this.log.info("post deleted", { postId: id, apiClient });
+    await this.events.emit("post.deleted", { postId: id });
   }
 }
 
