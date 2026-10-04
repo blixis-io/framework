@@ -12,7 +12,8 @@ Read `AGENTS.md` before touching Turborepo config.
 
 ## Current status
 
-- `main` is at `e1c471e` (#69).
+- `main` is at `4e37519` (#71).
+- #71 merged: `blix doctor` duplicate check follows the reachable dependency graph, so leftover `.pnpm` folders no longer trigger a false positive (cli patch, queued for the next Version Packages PR). Tested on synthetic fixtures only, not a real pnpm install with leftovers.
 - #69 merged (was `feat/http-malformed-edge-cases`): malformed-HTTP tests over a real socket against the Node adapter, plus a fix (http patch). A client that disconnects mid-body no longer logs two server-error stack traces; a truncated body now answers 400. Verified in a cloud session: build, typecheck, lint and all 922 tests passed (Postgres 16 locally; CI uses 18). The editorconfig step could not run there (binary download blocked), so `pnpm run ci` exited 1 at that step only. CI on the PR passed in full, including editorconfig. Also checked `createFetchHandler` under Bun 1.3.13: a mid-body stream error gives 400 and nothing logged.
 - 13 packages are on npm, published via Changesets + OIDC Trusted Publishing.
 - #65 merged and published successfully: cli 0.4.0, deploy 0.4.1, commands 0.1.2. Verified on npm and in a fresh pnpm install with `minimumReleaseAge=0`: CLI version/doctor, app command execution, provider entries returning HTTP 200 in Node 26, and app flag override. No live provider deployment was run.

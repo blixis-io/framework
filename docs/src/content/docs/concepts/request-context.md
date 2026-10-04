@@ -63,7 +63,13 @@ Reading outside a request scope isn't necessarily wrong — a service might be s
 
 ## Isolation between requests
 
-Two requests handled concurrently never see each other's values — each gets its own store for the full lifetime of that request, including anything it `await`s. You don't need to do anything for this; it falls out of `AsyncLocalStorage` and the fact that `createHandler` wraps each incoming request in its own scope before guards even run.
+Two requests handled concurrently never see each other's values — each gets its own store for the full lifetime of that request, including anything it `await`s. Specifically, over a real socket:
+
+- A request sees only its own values at every point: in its guards, while its body is read, in the controller and services after any number of `await`s, timers (`setImmediate`, `process.nextTick`) and parallel `Promise.all` branches, and in interceptors on the way in and out.
+- Requests on a reused keep-alive connection don't carry anything over: each one starts with an empty store.
+- A request the client abandoned, or that hit `requestTimeout` (504), keeps running to its end in its own store. Whatever it writes afterwards never shows up in another request.
+
+You don't need to do anything for this; it falls out of `AsyncLocalStorage` and the fact that `createHandler` wraps each incoming request in its own scope before guards even run.
 
 ## Next
 
