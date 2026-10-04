@@ -1,10 +1,12 @@
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createApplication, Module } from "@blixis-io/core";
+import { RequestContext } from "@blixis-io/http";
 import { describe, expect, it, vi } from "vitest";
 import { Argument, Command } from "./decorators.js";
-import { appLocation, blixCommand, bootApplication, DEFAULT_APP, runCommands } from "./plugin.js";
+import { appLocation, blixCommand, bootApplication, DEFAULT_APP, loadRequestContextModule, runCommands } from "./plugin.js";
 
+const notInstalled = () => Promise.reject(Object.assign(new Error("Cannot find package '@blixis-io/http' imported from x"), { code: "ERR_MODULE_NOT_FOUND" }));
 const failing = () => Promise.reject(new Error("could not connect to the database"));
 const fixtures = join(dirname(fileURLToPath(import.meta.url)), "test-fixtures");
 const ctx = (args: string[], config?: Record<string, unknown>) => ({
@@ -41,6 +43,26 @@ describe("bootApplication", () => {
     await app.close();
   });
 
+  it("provides RequestContext, so guards and services that inject it still boot (and it reads empty outside a request)", async () => {
+    const app = await bootApplication(fixtures, { module: "needs-context.mjs", export: "AppModule" });
+
+    const injected = app.resolved().map(([, instance]) => instance).find((instance) => instance?.constructor.name === "NeedsContext");
+    const context: unknown = typeof injected === "object" && injected !== null ? Reflect.get(injected, "context") : undefined;
+    if (!(context instanceof RequestContext)) {
+      throw new Error("NeedsContext did not receive a RequestContext");
+    }
+    expect(context.get("anything")).toBeUndefined();
+    await app.close();
+  });
+
+  it("boots an app that doesn't need RequestContext when http can't be loaded", async () => {
+    const app = await bootApplication(fixtures, { module: "app.mjs", export: "AppModule" }, notInstalled);
+    await app.close();
+
+    // And one that does need it keeps the plain "No provider" error, which names what is missing.
+    await expect(bootApplication(fixtures, { module: "needs-context.mjs", export: "AppModule" }, notInstalled)).rejects.toThrow('No provider for "RequestContext"');
+  });
+
   it("explains how to fix a module that can't be loaded", async () => {
     await expect(bootApplication(fixtures, { module: "missing.mjs", export: "AppModule" })).rejects.toThrow(
       /Could not load missing\.mjs: .*\nBuild your app first/s,
@@ -53,6 +75,26 @@ describe("bootApplication", () => {
 
   it("rejects an export that isn't a class", async () => {
     await expect(bootApplication(fixtures, { module: "app.mjs", export: "NotAModule" })).rejects.toThrow('has no export named "NotAModule"');
+  });
+});
+
+describe("loadRequestContextModule", () => {
+  it("returns the module http exports", async () => {
+    class RequestContextModule {}
+    expect(await loadRequestContextModule(() => Promise.resolve({ RequestContextModule }))).toBe(RequestContextModule);
+  });
+
+  it("returns nothing when http is not installed, or is too old to export it", async () => {
+    const missing = Object.assign(new Error("Cannot find package '@blixis-io/http' imported from /app"), { code: "ERR_MODULE_NOT_FOUND" });
+    expect(await loadRequestContextModule(() => Promise.reject(missing))).toBeUndefined();
+    expect(await loadRequestContextModule(() => Promise.resolve({}))).toBeUndefined();
+    expect(await loadRequestContextModule(() => Promise.resolve(undefined))).toBeUndefined();
+  });
+
+  it("does not swallow other failures, such as a broken http install or a different missing package", async () => {
+    const other = Object.assign(new Error("Cannot find package 'left-pad' imported from /app"), { code: "ERR_MODULE_NOT_FOUND" });
+    await expect(loadRequestContextModule(() => Promise.reject(other))).rejects.toThrow("left-pad");
+    await expect(loadRequestContextModule(() => Promise.reject(new Error("SyntaxError in http")))).rejects.toThrow("SyntaxError in http");
   });
 });
 

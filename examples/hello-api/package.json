@@ -12,10 +12,12 @@
     "start": "node dist/main.js"
   },
   "dependencies": {
+    "@blixis-io/commands": "workspace:*",
     "@blixis-io/config": "workspace:*",
     "@blixis-io/core": "workspace:*",
     "@blixis-io/db": "workspace:*",
     "@blixis-io/di": "workspace:*",
+    "@blixis-io/events": "workspace:*",
     "@blixis-io/http": "workspace:*",
     "@blixis-io/logging": "workspace:*",
     "@blixis-io/openapi": "workspace:*",

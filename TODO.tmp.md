@@ -58,10 +58,10 @@ Built:
 - [x] `@OnEvent` in events, typed to the app's event map, compile-checked (#48)
 
 Follow-ups for what was just built:
-- [ ] `blix run` boots with createApplication, so RequestContext (provided by the http wrapper) isn't registered: a command that injects it fails. Documented. Decide if `blix run` should add it for apps that import http [decide]
+- [x] `blix run` and RequestContext: you chose "blix run provides it". `bootApplication` wraps the root with http's now-exported `RequestContextModule` when `@blixis-io/http` is importable (optional peer of commands; http minor + commands minor). Found via hello-api: its guards and PostsService inject RequestContext, so NO hello-api command could boot. The old docs claim that services using it only during requests were unaffected was wrong (singletons all resolve at boot); corrected.
 - [ ] commands: `--json` output, `blix new command` generator, shipping a real example command (db:migrate / seed) in `@blixis-io/db`
 - [ ] @OnEvent only sees events emitted after boot (not from onModuleInit); transient providers unsupported. Documented.
-- [ ] add a `@Command` and an `@OnEvent` example to examples/hello-api
+- [x] `@Command` and `@OnEvent` example in examples/hello-api: `posts:seed` command, `PostActivity` listener, `events.ts`; PostsService emits `post.created`/`post.deleted`. 10 e2e tests. Verified for real: built and ran `blix run`, `blix run posts:seed --help` and `blix run posts:seed -n 2` against the local Postgres (rows 515, 516 left in the dev DB; tests wipe the table). Not verified: a pnpm-installed (non-workspace) app, where the optional http peer resolves through a real install.
 
 Still ideas (each can reuse the bootstrap discovery hook):
 - db: `@Repository(table)`

@@ -106,6 +106,8 @@ Command names are lower-case letters and digits, with `-`, `:` or `.` between wo
 
 A command is just a provider, so any module can bring its own. A library can export a module whose providers include `@Command` classes, and `blix run` finds them in the same listing.
 
-## What a command can't use
+## `RequestContext` in a command
 
-The app is booted with `createApplication`, not `createHttpApplication`, so `RequestContext` (which the HTTP layer provides per request) isn't registered. Services that use it only inside request handling are unaffected; a command that injects it directly will fail with a missing-provider error.
+An app with HTTP guards or services that inject `RequestContext` still boots under `blix run`: when `@blixis-io/http` is installed, `blix run` provides `RequestContext` the way `createHttpApplication` does. There is no request, so it reads empty (`get` returns `undefined`, `has` returns `false`) and `set` throws, as described under [Request Context](/framework/concepts/request-context/#gethas-vs-set-outside-a-request). Code that falls back when nothing is set, like `PostsService.remove()` in [hello-api](/framework/examples/hello-api-walkthrough/), works unchanged.
+
+`@blixis-io/http` is an optional peer dependency of `@blixis-io/commands`, resolved like `@blixis-io/core` and `@blixis-io/di` so `blix run` and your app share one copy. An app without `@blixis-io/http` is booted as before. Because every provider is created at boot, an app that injects `RequestContext` but has no `@blixis-io/http` fails with `No provider for "RequestContext"` before any command runs.

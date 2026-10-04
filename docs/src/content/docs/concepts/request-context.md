@@ -61,6 +61,8 @@ ctx.set("user", value); // throws RequestContextError — this one's a bug, not 
 
 Reading outside a request scope isn't necessarily wrong — a service might be shared between HTTP handling and some other entry point, and "is there a current user" has an honest answer of "no" either way. Writing outside a request scope has no honest answer: there's no request for the value to belong to, so `set()` throws instead of silently doing nothing.
 
+This is not hypothetical: `blix run` boots your app without a request ever existing, and provides `RequestContext` so guards and services that inject it still start. See [Writing Commands](/framework/guides/writing-commands/#requestcontext-in-a-command).
+
 ## Isolation between requests
 
 Two requests handled concurrently never see each other's values — each gets its own store for the full lifetime of that request, including anything it `await`s. Specifically, over a real socket:

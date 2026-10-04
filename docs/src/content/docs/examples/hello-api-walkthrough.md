@@ -12,6 +12,7 @@ examples/hello-api/src/
   main.ts
   app.module.ts
   config.ts
+  events.ts
   db/
     schema.ts
     index.ts
@@ -22,6 +23,8 @@ examples/hello-api/src/
     posts.service.ts
     posts.controller.ts
     posts.module.ts
+    post-activity.ts
+    seed.command.ts
     api-key.guard.ts
     timing.interceptor.ts
     posts.e2e.test.ts
@@ -87,6 +90,8 @@ this.log.info("post deleted", { postId: id, apiClient });
 
 That value comes from `ApiKeyGuard`, below — see [Request Context](/framework/concepts/request-context/) for the full picture.
 
+`create()` and `remove()` also emit `post.created` and `post.deleted` on the event bus, after the database write succeeds. See `posts/post-activity.ts` below for who listens.
+
 ## `posts/api-key.guard.ts`
 
 ```ts
@@ -135,12 +140,71 @@ Full CRUD, all five HTTP method decorators in one controller. The one route with
 
 Every route also carries `@ApiOperation({ summary: "..." })`, and the controller itself `@ApiTags("posts")` (`remove` additionally tags `"admin"`) — purely for [`@blixis-io/openapi`](/framework/concepts/api-documentation/)'s generated document; neither decorator affects routing or runtime behavior at all.
 
+## `events.ts` and `posts/post-activity.ts`
+
+```ts title="events.ts"
+export type AppEvents = {
+  "post.created": { postId: string; title: string };
+  "post.deleted": { postId: string };
+};
+
+export const { EventsModule, EVENT_BUS, OnEvent } = defineEventsModule<AppEvents>();
+```
+
+```ts title="posts/post-activity.ts"
+@Injectable()
+export class PostActivity {
+  readonly recent: string[] = [];
+
+  constructor(@Inject(LOGGER) private readonly log: Logger) {}
+
+  @OnEvent("post.created")
+  created(event: AppEvents["post.created"]): void {
+    this.record(`created ${event.postId}: ${event.title}`);
+  }
+
+  @OnEvent("post.deleted")
+  deleted(event: AppEvents["post.deleted"]): void {
+    this.record(`deleted ${event.postId}`);
+  }
+  // ...
+}
+```
+
+The listener never touches the bus: `@OnEvent` is typed to `AppEvents`, so a misspelt event name or a wrong payload type fails to compile, and the framework subscribes the methods when the app boots. `PostsService` doesn't know this class exists. It only emits. The activity list is kept in memory to keep the example small; a real app might write an audit table instead. See [Events](/framework/concepts/events/).
+
+## `posts/seed.command.ts`
+
+```ts
+@Command({ name: "posts:seed", description: "Create sample posts" })
+export class SeedPostsCommand {
+  constructor(private readonly posts: PostsService) {}
+
+  async run(@Option("count", { type: "number", default: 3, short: "n" }) count: number): Promise<number> {
+    for (let index = 1; index <= count; index++) {
+      const post = await this.posts.create({ title: `Sample post ${index}`, body: "" });
+      console.log(`created post ${post.id}: ${post.title}`);
+    }
+    return 0;
+  }
+}
+```
+
+A command is a provider with a `run()` method, so it gets the real `PostsService`: the same code, the same `post.created` event, the same logging as a request. After `pnpm --filter hello-api build`:
+
+```bash
+pnpm --filter hello-api exec blix run                  # lists posts:seed
+pnpm --filter hello-api exec blix run posts:seed -n 5  # creates five posts
+```
+
+`blix run` boots the whole module graph without a socket, including the guards. They inject `RequestContext`, which `blix run` provides (empty, since there is no request). See [Writing Commands](/framework/guides/writing-commands/).
+
 ## `posts/posts.module.ts`
 
 ```ts
 @Module({
   imports: [DrizzleModule.forRoot({ connection: process.env.DATABASE_URL ?? "postgres://blixis:blixis@localhost:5434/blixis" })],
-  providers: [PostsService, ApiKeyGuard, TimingInterceptor],
+  providers: [PostsService, PostActivity, SeedPostsCommand, ApiKeyGuard, TimingInterceptor],
   controllers: [PostsController],
 })
 export class PostsModule {}
@@ -180,6 +244,7 @@ export const { CONFIG, ConfigModule } = defineConfigModule(AppConfigSchema);
   imports: [
     ConfigModule.forRoot(),
     LoggerModule.forRoot({ transports: [consoleTransport()] }),
+    EventsModule.forRoot({ global: true }),
     PostsModule,
   ],
   controllers: [HealthController],
@@ -187,7 +252,7 @@ export const { CONFIG, ConfigModule } = defineConfigModule(AppConfigSchema);
 export class AppModule {}
 ```
 
-`ConfigModule` and `LoggerModule` are both `global: true` internally, so every module — including `PostsModule` and its own `DrizzleModule` import — can inject `CONFIG`/`LOGGER` without importing either directly. See [Configuration](/framework/concepts/config/) and [Logging](/framework/concepts/logging/). `HealthController` is listed directly in `controllers` rather than getting its own module — a root module can own controllers itself, exactly like any other module can (see `@Module`'s `ModuleMetadata` in the [`@blixis-io/core` reference](/framework/reference/blixis-core/)).
+`EventsModule.forRoot({ global: true })` makes the bus injectable everywhere without each module importing it. `ConfigModule` and `LoggerModule` are both `global: true` internally, so every module — including `PostsModule` and its own `DrizzleModule` import — can inject `CONFIG`/`LOGGER` without importing either directly. See [Configuration](/framework/concepts/config/) and [Logging](/framework/concepts/logging/). `HealthController` is listed directly in `controllers` rather than getting its own module — a root module can own controllers itself, exactly like any other module can (see `@Module`'s `ModuleMetadata` in the [`@blixis-io/core` reference](/framework/reference/blixis-core/)).
 
 ```ts title="main.ts"
 const app = await createHttpApplication(AppModule);
@@ -215,7 +280,7 @@ The `SIGTERM` handler is the whole graceful-shutdown story — see [Running in P
 
 ## `posts/posts.e2e.test.ts`
 
-Six tests, all through `Test.createModule({ imports: [PostsModule] }).compile()` and `app.request(...)` — no mocking, a real application built fresh per test, against the same real Postgres the app itself uses. `createTestApp()` deletes every row from `posts` right after compiling, so each test starts from an empty table even though the database itself persists across tests. They cover: create + list, a Zod validation failure (`400` with issues), a missing post (`404`), the wrong method on a known path (`405` with `Allow`), the guard denying and then allowing a `DELETE`, and a `PATCH` partial update. This is the pattern [Test-Driven API Development](/framework/tutorials/test-driven-api-development/) walks through building from scratch.
+Ten tests, all through `Test.createModule({ imports: [..., EventsModule.forRoot({ global: true }), PostsModule] }).compile()` and `app.request(...)` — no mocking, a real application built fresh per test, against the same real Postgres the app itself uses. `createTestApp()` deletes every row from `posts` right after compiling, so each test starts from an empty table even though the database itself persists across tests. They cover: create + list, a Zod validation failure (`400` with issues), a missing post (`404`), the wrong method on a known path (`405` with `Allow`), the guard denying and then allowing a `DELETE`, a `PATCH` partial update, the `@OnEvent` listener seeing a create and a delete (and nothing for a rejected request), and `posts:seed` run through `runCommand` (including a non-numeric `--count` failing with exit code `1`). This is the pattern [Test-Driven API Development](/framework/tutorials/test-driven-api-development/) walks through building from scratch.
 
 ## Running it yourself
 

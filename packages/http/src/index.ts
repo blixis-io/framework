@@ -41,6 +41,7 @@ export {
   type HttpApplicationOptions,
   type ListenHandle,
   type MountedHandler,
+  RequestContextModule,
   type ShutdownOptions,
 } from "./http-application.js";
 export { createFetchHandler, type FetchHandler } from "./fetch-handler.js";

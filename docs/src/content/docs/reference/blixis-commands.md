@@ -50,7 +50,7 @@ blix run <command> --help show its usage
 | Step | |
 |---|---|
 | Load | Imports the compiled module from `app.module` in `blix.config` (default `dist/app.module.js`) and its `app.export` (default `AppModule`) |
-| Boot | `createApplication`, with no HTTP server. `OnModuleInit` and `OnApplicationBootstrap` hooks run |
+| Boot | `createApplication`, with no HTTP server, plus `RequestContext` when `@blixis-io/http` is installed (empty outside a request). `OnModuleInit` and `OnApplicationBootstrap` hooks run |
 | Discover | Every resolved singleton provider with `@Command` metadata |
 | Run | Parses the arguments, calls `run()` |
 | Close | `app.close("command")`, always, so `OnApplicationShutdown` hooks run even when the command failed |

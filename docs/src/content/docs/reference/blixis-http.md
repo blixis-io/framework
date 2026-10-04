@@ -210,7 +210,7 @@ class RequestContextError extends Error {}
 function runInRequestContext<T>(fn: () => T): T;
 ```
 
-Injectable anywhere without registering it — `createHttpApplication` provides it globally. `runInRequestContext` is what `createHandler` wraps around each request; you only call it yourself if you're building a request-handling pipeline outside `createHandler`. See [Request Context](/framework/concepts/request-context/).
+Injectable anywhere without registering it — `createHttpApplication` provides it globally, through the exported global `RequestContextModule`. Entry points that boot an app without the HTTP layer (`blix run` does) import that module to provide it too. `runInRequestContext` is what `createHandler` wraps around each request; you only call it yourself if you're building a request-handling pipeline outside `createHandler`. See [Request Context](/framework/concepts/request-context/).
 
 ## Router
 

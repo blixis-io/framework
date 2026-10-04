@@ -1,14 +1,18 @@
+import { getCommandOptions, runCommand } from "@blixis-io/commands";
 import { Test, type TestApplication } from "@blixis-io/testing";
 import { consoleTransport, LoggerModule } from "@blixis-io/logging";
 import { describe, expect, it } from "vitest";
 import { DATABASE } from "../db/index.js";
 import { posts } from "../db/schema.js";
+import { EventsModule } from "../events.js";
+import { PostActivity } from "./post-activity.js";
 import { PostsModule } from "./posts.module.js";
+import { SeedPostsCommand } from "./seed.command.js";
 import type { Post } from "./post.schema.js";
 
 async function createTestApp(): Promise<TestApplication> {
   const app = await Test.createModule({
-    imports: [LoggerModule.forRoot({ transports: [consoleTransport()] }), PostsModule],
+    imports: [LoggerModule.forRoot({ transports: [consoleTransport()] }), EventsModule.forRoot({ global: true }), PostsModule],
   }).compile();
   // Real Postgres table, shared across tests — start each test from empty.
   await app.get(DATABASE).delete(posts);
@@ -96,6 +100,62 @@ describe("Posts API (e2e)", () => {
     expect(patchRes.status).toBe(200);
     expect(((await patchRes.json()) as Post).title).toBe("updated");
 
+    await app.close();
+  });
+
+  it("tells the @OnEvent listener about created and deleted posts", async () => {
+    const app = await createTestApp();
+    const activity = app.get(PostActivity);
+    activity.recent.length = 0;
+
+    const createRes = await app.request("/posts", { method: "POST", json: { title: "watched" } });
+    const { id } = (await createRes.json()) as Post;
+    await app.request(`/posts/${id}`, { method: "DELETE", headers: { "x-api-key": "dev-secret" } });
+
+    expect(activity.recent).toEqual([`created ${id}: watched`, `deleted ${id}`]);
+
+    await app.close();
+  });
+
+  it("does not tell the listener about a post that failed validation", async () => {
+    const app = await createTestApp();
+    const activity = app.get(PostActivity);
+    activity.recent.length = 0;
+
+    await app.request("/posts", { method: "POST", json: {} });
+
+    expect(activity.recent).toEqual([]);
+
+    await app.close();
+  });
+});
+
+describe("posts:seed command", () => {
+  it("creates the requested number of posts through the same service, and the listener sees each", async () => {
+    const app = await createTestApp();
+    const command = app.get(SeedPostsCommand);
+    const options = getCommandOptions(SeedPostsCommand);
+    expect(options?.name).toBe("posts:seed");
+    const activity = app.get(PostActivity);
+    activity.recent.length = 0;
+
+    const result = await runCommand({ options: options ?? { name: "posts:seed" }, instance: command }, ["--count", "2"]);
+
+    expect(result.exitCode).toBe(0);
+    const listed = (await (await app.request("/posts")).json()) as Post[];
+    expect(listed.map((post) => post.title)).toEqual(["Sample post 1", "Sample post 2"]);
+    expect(activity.recent).toHaveLength(2);
+
+    await app.close();
+  });
+
+  it("rejects a count that is not a number", async () => {
+    const app = await createTestApp();
+    const options = getCommandOptions(SeedPostsCommand);
+
+    const result = await runCommand({ options: options ?? { name: "posts:seed" }, instance: app.get(SeedPostsCommand) }, ["--count", "lots"]);
+
+    expect(result.exitCode).toBe(1);
     await app.close();
   });
 });
