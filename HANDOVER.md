@@ -12,8 +12,8 @@ Read `AGENTS.md` before touching Turborepo config.
 
 ## Current status
 
-- `main` is at `09d7d64` (handover/TODO docs commit on top of #67).
-- Open PR from `feat/http-malformed-edge-cases`: malformed-HTTP tests over a real socket against the Node adapter, plus a fix (http patch). A client that disconnects mid-body no longer logs two server-error stack traces; a truncated body now answers 400. Verified in a cloud session: build, typecheck, lint and all 922 tests passed (Postgres 16 locally; CI uses 18). The editorconfig step could not run there (binary download blocked), so `pnpm run ci` exited 1 at that step only. Waiting on review and merge.
+- `main` is at `e1c471e` (#69).
+- #69 merged (was `feat/http-malformed-edge-cases`): malformed-HTTP tests over a real socket against the Node adapter, plus a fix (http patch). A client that disconnects mid-body no longer logs two server-error stack traces; a truncated body now answers 400. Verified in a cloud session: build, typecheck, lint and all 922 tests passed (Postgres 16 locally; CI uses 18). The editorconfig step could not run there (binary download blocked), so `pnpm run ci` exited 1 at that step only. CI on the PR passed in full, including editorconfig. Also checked `createFetchHandler` under Bun 1.3.13: a mid-body stream error gives 400 and nothing logged.
 - 13 packages are on npm, published via Changesets + OIDC Trusted Publishing.
 - #65 merged and published successfully: cli 0.4.0, deploy 0.4.1, commands 0.1.2. Verified on npm and in a fresh pnpm install with `minimumReleaseAge=0`: CLI version/doctor, app command execution, provider entries returning HTTP 200 in Node 26, and app flag override. No live provider deployment was run.
 - #67 merged: workflow token authenticates EditorConfig binary downloads. Full local CI exited 0 (909 tests); GitHub CI and both compatibility jobs passed with fresh downloads. Post-merge release workflow 37013625852 also passed.
