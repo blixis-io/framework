@@ -1,5 +1,5 @@
 import { existsSync, readdirSync, readFileSync, realpathSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { detectPackageManager } from "./pm.js";
 import type { CliResult } from "./types.js";
 
@@ -189,50 +189,65 @@ function checkTsConfig(cwd: string): Finding[] {
   return findings;
 }
 
-/** Every physical copy of `@blixis-io/<name>` reachable from the project's node_modules, by real path. */
-function findCopies(cwd: string, name: string): { version: string; path: string }[] {
-  const nodeModules = join(cwd, "node_modules");
-  const candidates: string[] = [join(nodeModules, "@blixis-io", name)];
+/**
+ * Every physical copy of `@blixis-io/core` and `@blixis-io/di` that something installed can actually resolve: the
+ * project's `node_modules` entries, then each package's own nested `node_modules` and, for pnpm, the sibling entries
+ * next to it in the virtual store. Folders nothing links to (leftovers in `.pnpm` after a dependency change) don't
+ * count, which is what `pnpm why` reports too. Keyed by real path, so a symlinked copy is counted once.
+ */
+function findCopies(cwd: string, names: readonly string[]): Map<string, { version: string; path: string }[]> {
+  const wanted = new Set(names.map((name) => `@blixis-io/${name}`));
+  const copies = new Map<string, { version: string; path: string }[]>(names.map((name) => [name, []]));
+  const seenPackages = new Set<string>();
+  const seenDirectories = new Set<string>();
 
-  // pnpm's virtual store: one directory per version and peer-dependency combination.
-  const store = join(nodeModules, ".pnpm");
-  if (existsSync(store)) {
-    for (const entry of readdirSync(store)) {
-      if (entry.startsWith(`@blixis-io+${name}@`)) {
-        candidates.push(join(store, entry, "node_modules", "@blixis-io", name));
-      }
+  const scan = (directory: string): void => {
+    if (seenDirectories.has(directory) || !existsSync(directory)) {
+      return;
     }
-  }
-
-  // npm/yarn: a package carrying its own nested copy.
-  if (existsSync(nodeModules)) {
-    for (const entry of readdirSync(nodeModules)) {
+    seenDirectories.add(directory);
+    for (const entry of readdirSync(directory)) {
       if (entry.startsWith(".")) {
         continue;
       }
-      const parents = entry.startsWith("@") && existsSync(join(nodeModules, entry)) ? readdirSync(join(nodeModules, entry)).map((child) => join(nodeModules, entry, child)) : [join(nodeModules, entry)];
-      for (const parent of parents) {
-        candidates.push(join(parent, "node_modules", "@blixis-io", name));
+      const packages = entry.startsWith("@") ? readdirSync(join(directory, entry)).map((child) => join(directory, entry, child)) : [join(directory, entry)];
+      for (const candidate of packages) {
+        visit(candidate);
       }
     }
-  }
+  };
 
-  const found = new Map<string, string>();
-  for (const candidate of candidates) {
+  const visit = (candidate: string): void => {
     if (!existsSync(join(candidate, "package.json"))) {
-      continue;
+      return;
     }
     const real = realpathSync(candidate);
+    if (seenPackages.has(real)) {
+      return;
+    }
+    seenPackages.add(real);
     const manifest = readJsonc(join(real, "package.json"));
-    found.set(real, typeof manifest?.["version"] === "string" ? manifest["version"] : "unknown");
-  }
-  return [...found].map(([path, version]) => ({ version, path }));
+    const name = manifest?.["name"];
+    if (typeof name === "string" && wanted.has(name)) {
+      copies.get(name.slice("@blixis-io/".length))?.push({ version: typeof manifest?.["version"] === "string" ? manifest["version"] : "unknown", path: real });
+    }
+    scan(join(real, "node_modules"));
+    // pnpm: a package's dependencies are its siblings, `.pnpm/<id>/node_modules/<dep>`.
+    const container = dirname(real);
+    const siblings = basename(container).startsWith("@") ? dirname(container) : container;
+    if (basename(siblings) === "node_modules") {
+      scan(siblings);
+    }
+  };
+
+  scan(join(cwd, "node_modules"));
+  return copies;
 }
 
 function checkDuplicates(cwd: string): Finding[] {
   const findings: Finding[] = [];
-  for (const name of ["core", "di"]) {
-    const copies = findCopies(cwd, name);
+  const found = findCopies(cwd, ["core", "di"]);
+  for (const [name, copies] of found) {
     if (copies.length > 1) {
       findings.push({
         level: "fail",

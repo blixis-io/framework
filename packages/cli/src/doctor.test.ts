@@ -26,6 +26,14 @@ function levels(findings: ReturnType<typeof diagnose>, match: string): string[] 
   return findings.filter((finding) => finding.message.includes(match)).map((finding) => finding.level);
 }
 
+/** A pnpm-style install: the real package in the virtual store, symlinked from `from` (relative to the project). */
+function pnpmPackage(name: string, version: string, from: string): void {
+  const store = `node_modules/.pnpm/@blixis-io+${name}@${version}/node_modules/@blixis-io/${name}`;
+  write(`${store}/package.json`, { name: `@blixis-io/${name}`, version });
+  mkdirSync(dirname(join(cwd, from)), { recursive: true });
+  symlinkSync(join(cwd, store), join(cwd, from));
+}
+
 describe("blix doctor", () => {
   it("passes a correctly configured project", () => {
     write("package.json", { packageManager: "pnpm@11.0.0", dependencies: { "@blixis-io/core": "^0.3.0" } });
@@ -111,8 +119,9 @@ describe("blix doctor", () => {
   it("detects two physical copies of core, including a nested one", () => {
     write("package.json", { dependencies: { "@blixis-io/core": "^0.3.0" } });
     write("tsconfig.json", GOOD_TSCONFIG);
-    write("node_modules/@blixis-io/core/package.json", { version: "0.3.0" });
-    write("node_modules/@blixis-io/http/node_modules/@blixis-io/core/package.json", { version: "0.2.0" });
+    write("node_modules/@blixis-io/core/package.json", { name: "@blixis-io/core", version: "0.3.0" });
+    write("node_modules/@blixis-io/http/package.json", { name: "@blixis-io/http", version: "0.3.0" });
+    write("node_modules/@blixis-io/http/node_modules/@blixis-io/core/package.json", { name: "@blixis-io/core", version: "0.2.0" });
 
     const result = runDoctor(cwd, { nodeVersion: "24.0.0" });
 
@@ -120,20 +129,34 @@ describe("blix doctor", () => {
     expect(result.stdout).toContain("2 copies of @blixis-io/core are installed: 0.2.0, 0.3.0");
   });
 
-  it("detects two versions in the pnpm virtual store, and counts one symlinked copy once", () => {
+  it("detects two linked versions in the pnpm virtual store, and counts one symlinked copy once", () => {
     write("package.json", {});
     write("tsconfig.json", GOOD_TSCONFIG);
-    write("node_modules/.pnpm/@blixis-io+di@0.1.0/node_modules/@blixis-io/di/package.json", { version: "0.1.0" });
+    pnpmPackage("di", "0.1.0", "node_modules/@blixis-io/di");
     expect(runDoctor(cwd, { nodeVersion: "24.0.0" }).stdout).toContain("a single copy of @blixis-io/di (0.1.0)");
 
-    mkdirSync(join(cwd, "node_modules/@blixis-io"), { recursive: true });
-    symlinkSync(join(cwd, "node_modules/.pnpm/@blixis-io+di@0.1.0/node_modules/@blixis-io/di"), join(cwd, "node_modules/@blixis-io/di"));
-    expect(runDoctor(cwd, { nodeVersion: "24.0.0" }).stdout).toContain("a single copy of @blixis-io/di (0.1.0)");
+    // A second package whose own dependency resolves to another version: both are reachable.
+    pnpmPackage("http", "0.1.0", "node_modules/@blixis-io/http");
+    const httpStore = join(cwd, "node_modules/.pnpm/@blixis-io+http@0.1.0/node_modules/@blixis-io");
+    write("node_modules/.pnpm/@blixis-io+di@0.1.1/node_modules/@blixis-io/di/package.json", { name: "@blixis-io/di", version: "0.1.1" });
+    symlinkSync(join(cwd, "node_modules/.pnpm/@blixis-io+di@0.1.1/node_modules/@blixis-io/di"), join(httpStore, "di"));
 
-    write("node_modules/.pnpm/@blixis-io+di@0.1.1/node_modules/@blixis-io/di/package.json", { version: "0.1.1" });
     const result = runDoctor(cwd, { nodeVersion: "24.0.0" });
     expect(result.exitCode).toBe(1);
-    expect(result.stdout).toContain("2 copies of @blixis-io/di");
+    expect(result.stdout).toContain("2 copies of @blixis-io/di are installed: 0.1.0, 0.1.1");
+  });
+
+  it("ignores obsolete virtual-store folders that nothing links to", () => {
+    write("package.json", {});
+    write("tsconfig.json", GOOD_TSCONFIG);
+    pnpmPackage("core", "0.4.0", "node_modules/@blixis-io/core");
+    // Left behind after an upgrade: still on disk, referenced by nothing.
+    write("node_modules/.pnpm/@blixis-io+core@0.3.0/node_modules/@blixis-io/core/package.json", { name: "@blixis-io/core", version: "0.3.0" });
+
+    const result = runDoctor(cwd, { nodeVersion: "24.0.0" });
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("a single copy of @blixis-io/core (0.4.0)");
   });
 
   it("warns about a missing packageManager pin under pnpm only", () => {

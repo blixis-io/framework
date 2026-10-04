@@ -48,11 +48,13 @@ blix doctor
 | Node older than 24 | fail |
 | `experimentalDecorators` / `emitDecoratorMetadata` not `true` in `tsconfig.json` (relative `extends` are followed) | fail |
 | `useDefineForClassFields` on, explicitly or through a `target` of ES2022 or newer | fail |
-| More than one physical copy of `@blixis-io/core` or `@blixis-io/di` (pnpm store, nested `node_modules`) | fail |
+| More than one copy of `@blixis-io/core` or `@blixis-io/di` that your installed packages can actually resolve (nested `node_modules`, or two versions linked in the pnpm store) | fail |
 | Flag may be inherited from a package `extends` such as `@tsconfig/node24` (not read) | warn |
 | pnpm project without a `packageManager` pin | warn |
 | `tsx`, `ts-node` or `esbuild` in scripts or dependencies (they drop decorator metadata) | warn |
 | Vitest config without decorator metadata (Oxc ignores `tsconfig.json`) | warn |
+
+The duplicate check follows the real dependency graph from your `node_modules`, the same one `pnpm why` reports. Folders that remain in `node_modules/.pnpm` after you changed a dependency, but that nothing links to, are not counted, so an upgrade no longer needs a clean install to pass. A copy that is symlinked from several places counts once.
 
 Exit code is `1` when anything fails, `0` otherwise (warnings don't fail), so it can run in CI.
 
