@@ -8,10 +8,10 @@ sidebar:
 This page follows a single request through `@blixis-io/http` in the order things happen. The other concept pages each cover one stage in depth; this one shows how they fit together, so you can answer "where does this get checked?" and "why did I get that status?".
 
 ```text
-socket → Request → timeout → route match → ┌ RequestContext scope ──────────────────────────┐ → Response → socket
-                                           │ guards → interceptors → params + body → handler │
-                                           │          ↑ exceptions become responses here     │
-                                           └─────────────────────────────────────────────────┘
+socket > Request > timeout > route match > RequestContext scope > Response > socket
+
+inside the scope: guards > interceptors > params + body > handler
+exceptions thrown anywhere inside the scope become responses
 ```
 
 ## 1. The socket becomes a `Request`
