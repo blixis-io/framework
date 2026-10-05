@@ -1,6 +1,6 @@
 {
   "name": "@blixis-io/di",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "A small, readable dependency injection container — @Injectable, @Inject, tokens, providers, singleton/transient scopes.",
   "license": "MIT",
   "author": "Michael Voeten <michael@voeten.online>",
