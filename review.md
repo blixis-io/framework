@@ -1,6 +1,6 @@
 # Code review: Blixis Framework
 
-Reviewed 2026-10-05 against `main` at `9c4358a` (PR #72). Two PRs were open and are **not** covered: #73 (request-path docs) and #74 (`blix run` provides `RequestContext`, hello-api command and listener example).
+Reviewed 2026-10-05 against `main` at `9c4358a` (PR #72). Two PRs were still open and are **not** covered in depth: #73 (request-path docs) and #74 (`blix run` provides `RequestContext`, hello-api command and listener example). Both have since merged and shipped; see [Status since the review](#status-since-the-review). All numbers below are from `9c4358a` unless stated.
 
 ## How to read this
 
@@ -17,6 +17,22 @@ Every finding carries a status tag, so you can tell what was proven from what wa
 Severity: **High** (can take a service down or leak data), **Medium** (wrong behaviour or real risk under plausible use), **Low** (rough edge, cosmetic or hardening), **Info** (trade-off to be aware of).
 
 No Critical findings. The core is in good shape: strict TypeScript, 99% line coverage, tests against a real Postgres, almost no copy-pasted code, and thoughtful security basics. The problems cluster in **operational edges** (what happens when a database connection drops, a hook fails, or a request is slightly unusual) and in **supply-chain hygiene**.
+
+## Status since the review
+
+Updated 2026-10-05, after the release. Nothing in the findings below has been fixed yet: they are scheduled in [`TODO.tmp.md`](./TODO.tmp.md) section 0 (P1 onwards), in the order of the agenda at the end of this file.
+
+| Item | Status |
+| --- | --- |
+| #73 request-path docs | Merged. |
+| #74 `blix run` provides `RequestContext`, hello-api command and listener | Merged. Tests on `main` are now **936** (927 at review time). |
+| Release #70 | Merged and published: commands 0.2.0, http 0.5.0, cli 0.4.1, auth 0.2.1, openapi 0.2.5, tenancy 0.1.6, testing 0.1.6. All seven confirmed on the registry. |
+| Fresh install, published versions, with `@blixis-io/http` | Built and ran: `blix run`, `blix run ping` (a command injecting `RequestContext`, which read empty), `blix doctor` clean, one copy each of core and di. Closes the "not verified" caveat on #74. |
+| Fresh install, published versions, without `@blixis-io/http` | Built and ran `blix run hello`. The optional peer import fails quietly as designed. |
+| New observation for MNT-1 | `commands@0.2.0` declares its peers with caret ranges (`@blixis-io/http ^0.5.0`, optional), the right shape; `auth` and its siblings still pin exact versions (`core 0.3.1`, `di 0.1.2`, `http 0.4.0` seen on the registry before this release). |
+| Known friction | Within 24 h of a release, `pnpm exec` also fails the `minimumReleaseAge` check, not just `install`, so users adding the new versions need `minimumReleaseAgeExclude: ["@blixis-io/*"]`. Already documented; recorded as a lesson in the TODO. |
+
+Not reviewed in depth: the code added by #74 (`bootApplication` wrapping in `commands/src/plugin.ts`, the exported `RequestContextModule`, the hello-api example). It has its own tests and the real-install checks above, but no review pass against the categories in this document.
 
 ## Summary
 
@@ -247,13 +263,15 @@ Exact duplication is negligible (0.12%). The duplication that exists is conceptu
 
 Ordered by value and risk. Size: S under half a day, M about a day, L several days. Owner: **me** = I can do it unattended, **you** = needs a decision, an account or a secret.
 
-### 0. Housekeeping (this week)
+Tier numbers 0 to 6 below are P0 to P6 in `TODO.tmp.md` section 0, which is the working copy. One difference: the TODO schedules the peer-dependency decision (MNT-1) at the start of P1, because it changes install requirements and release order for everything after it.
+
+### 0. Housekeeping (done)
 
 | # | Item | Size | Owner |
 | --- | --- | --- | --- |
-| 0.1 | Merge #73 (request-path docs) and #74 (`blix run` provides `RequestContext`, hello-api example). Both are green. | S | you |
-| 0.2 | Release: the Version Packages PR will carry http minor, commands minor, cli patch (pending changesets for #69, #71, #74). Push the empty commit to `changeset-release/main` so CI runs, merge, then verify on the registry and in a fresh install. | S | you + me |
-| 0.3 | Refresh `TODO.tmp.md` section 0 and `HANDOVER.md` (stale status, SHAs) after the merges. | S | me |
+| 0.1 | ~~Merge #73 (request-path docs) and #74.~~ **Done.** | S | you |
+| 0.2 | ~~Release (Version Packages PR #70).~~ **Done:** CI triggered with the empty commit, merged, published, verified on the registry and in two fresh installs. | S | you + me |
+| 0.3 | ~~Refresh `TODO.tmp.md` and `HANDOVER.md`.~~ **Done:** the TODO now opens with this agenda (section 0, tiers P0 to P6), the handover points to it. | S | me |
 
 ### 1. Fix the findings (small PRs, each with a regression test that fails on the old code)
 

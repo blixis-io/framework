@@ -1,11 +1,82 @@
 # Blixis Framework: working TODO (temporary; committed so cloud sessions can read it)
 
-Updated 2026-10-02 (after merging #67 and its successful release workflow). Delete when done. `[you]` = needs your hands (npm, browser, account), `[me]` = I can do it, `[decide]` = needs a decision first.
+Updated 2026-10-05, after the 2026-10-05 release (#70) and the full code review ([`review.md`](./review.md)). Delete when done. `[you]` = needs your hands (npm, browser, account, merge), `[me]` = an agent can do it unattended, `[decide]` = needs a decision first.
 
-## 0. Right now
+## 0. Agenda (prioritized)
 
-State of `main`: head `09d7d64` (handover/TODO docs on top of #67). One open PR: `feat/http-malformed-edge-cases`. Release #65 was verified; post-merge release workflow for #67 also passed.
+State of `main`: head `9a73afb` ("Version Packages", #70). No open PRs apart from the docs PR carrying `review.md` and this file. Released 2026-10-05: commands 0.2.0, http 0.5.0, cli 0.4.1, auth 0.2.1, openapi 0.2.5, tenancy 0.1.6, testing 0.1.6, all verified on the registry. Real installs outside the workspace (published versions, `--config.minimumReleaseAge=0`): an app with `@blixis-io/http` ran `blix run` and a command injecting `RequestContext` (empty, `doctor` clean, one copy of core/di); an app without http ran `blix run` too, so the optional peer works both ways.
 
+Finding IDs (REL-1, BUG-2, ...) refer to [`review.md`](./review.md), which has the evidence and how each was reproduced. **Work top to bottom.** Each fix is its own PR, with a regression test that fails on the old code, a changeset if a published package changes, and docs in the same PR.
+
+### P0: housekeeping
+
+- [ ] merge the docs PR that carries `review.md`, this TODO and HANDOVER [you]
+- [x] merged #73 (request-path docs) and #74 (`blix run` provides `RequestContext`; hello-api `posts:seed` and `@OnEvent` example) [you]
+- [x] release #70 merged, published and verified (see above)
+
+### P1: reliability and correctness (do before new features)
+
+Decide first, because it changes install requirements and release order:
+- [ ] **[decide] peer dependencies (MNT-1).** Published `auth`/`config`/`db`/`events`/`logging`/`openapi`/`tenancy`/`testing` pin `core`, `di` and `http` to exact versions (`npm view @blixis-io/auth dependencies` shows `core 0.3.1`, `di 0.1.2`, `http 0.4.0` at the time of the review), so any patch of core gives apps two copies. Same issue for `zod` and `drizzle-orm`. Recommendation: move `core`, `di`, `http`, `zod`, `drizzle-orm` to `peerDependencies` (`workspace:^`) of the packages that extend them, as `commands` and `deploy` already do. Breaking for installs, fine while 0.x.
+
+Fixes, in order:
+- [ ] 1. db: attach `pool.on("error")` that logs through `LOGGER`; default `connectionTimeoutMillis`; test that terminates an idle backend. **High: an idle connection loss currently crashes the process (reproduced).** REL-1, REL-4 [me]
+- [ ] 2. core: `close()` runs every shutdown hook and throws an `AggregateError`; a failed boot runs shutdown hooks for what was built. REL-2, REL-3 [me]
+- [ ] 3. http router: throw at registration when a param name conflicts at the same path position (`:id` vs `:postId`); percent-decode params; decide on `//` and trailing slashes. BUG-1, BUG-2 [me]
+- [ ] 4. http: build `request.url` from the `Host` header (opt-in trusted proxy), exact JSON media type, `WWW-Authenticate` on 401, one source for problem+json titles. BUG-4, SEC-11, BUG-8, DRY-7 [me]
+- [ ] 5. cli/deploy: `Object.hasOwn`/`Map` for the four user-keyed lookups (`blix add constructor` runs `npm install -D undefined`); reject generator names that are not valid identifiers. BUG-3, BUG-7 [me]
+- [ ] 6. auth: minimum secret length, `requiredClaims: ["exp"]`, optional `issuer`/`audience`, case-insensitive `Bearer`, cap Argon2 parameters read from stored hashes. SEC-2, SEC-10 [me]
+- [ ] 7. deploy: `.strict()` config schemas (a typo like `pussh: false` currently leaves `push: true`); default to pinned, tested provider CLI versions instead of `latest`. SEC-6, SEC-1 [me; real provider deploys still need accounts [you]]
+- [ ] 8. logging: error-aware, cycle-safe serializer (an `Error` in context prints `{}`); check the level before allocating; optional `redact`. BUG-5, PERF-1, SEC-8 [me]
+- [ ] 9. openapi: degrade per operation on schemas that can't be represented (`z.date()`, transforms); use `io: "input"` for request bodies; no `instanceof` on zod classes. BUG-6 [me]
+- [ ] 10. CI and supply chain: SHA-pin actions (also in the generated deploy workflows), Dependabot for actions and npm, `pnpm audit --prod` gate, CodeQL, `SECURITY.md`, run coverage once instead of tests twice, docs link check, automate the empty commit for the Version Packages PR. SEC-3, SEC-4, PERF-7, DOC-1, CI-4 [me; enabling CodeQL/Dependabot in repo settings [you]]
+- [ ] 11. small cleanups: fix the broken doc anchor (`response-validation.md` to `cookbook/#returning-a-raw-response`), drop stale `NPM_TOKEN` plumbing from `release.yml` once OIDC is confirmed for every published package, delete the stray local `packages/plugins/`. BUG-13, MNT-6, MNT-7 [me; confirm npm tokens [you]]
+
+### P2: decisions that unblock more work
+
+- [ ] [decide] security middleware (SEC-5): CORS, security headers, rate limiting (sign-in has none), trusted proxy. Recommendation: a small separate `@blixis-io/security` package with guard/interceptor APIs, opt-in
+- [ ] [decide] import-time config validation (MNT-2): `ConfigModule.forRoot()` validates `process.env` when `AppModule` is imported, so `blix run`, `blix doctor`, OpenAPI generation and tests need a full environment just to import it
+- [ ] [decide] parallel `onModuleInit` per dependency level (PERF-3), mainly for serverless cold starts
+- [ ] the open decisions in section 3 (SSH deploys, PR previews, interactive `deploy init`, `minimumReleaseAgeExclude` in the scaffold, Node-only http entry, per-module token scoping)
+
+### P3: consolidation (after the fixes, so they stay fixed)
+
+- [ ] one package-manager helper (`install`, `exec`, `add`, `detect`) in `@blixis-io/cli`, reused by deploy, create-blixis and the Dockerfile generator (DRY-1)
+- [ ] one spawn helper and one argument parser (`util.parseArgs`) instead of three of each (DRY-2, DRY-3)
+- [ ] `defineContextKey<T>()` in http; collapse duplicated guard code in auth (DRY-4, DRY-5)
+- [ ] deploy: single render-options builder, shared config file names (DRY-6)
+- [ ] test plumbing: one env-overridable Postgres connection constant, a composite action for the Postgres service, generated vitest aliases (DRY-8)
+- [ ] route framework error output (unexpected 500s, event-handler failures) through the injected logger with method, path and a request id (MNT-3, REL-5)
+
+### P4: test and quality investment
+
+- [ ] property-based tests (fast-check) for the router, the JSONC stripper in `cli/doctor.ts`, the PHC parser, the YAML/Dockerfile renderers (TST-1)
+- [ ] a benchmark script and a CI performance budget (PERF-8)
+- [ ] Windows and macOS in the `compat` matrix, at least for the CLI packages (TST-5)
+- [ ] replace timing windows with deterministic latches in the socket tests (TST-4)
+- [ ] per-package coverage floors; re-audit the 24 `v8 ignore` blocks, one is stale (TST-3, TST-6)
+- [ ] type-level tests for the decorator typings (TST-7); an exports/API snapshot check with `publint`/`attw` (MNT-8)
+
+### P5: carried over (still open)
+
+- [ ] docs: design principles page (low priority)
+- [ ] hello-api: a real, tested `blix deploy` config and docker target
+- [ ] compat matrix gaps: Postgres 16/17, TypeScript 5/6, Jest transformer, npm/yarn/bun real installs, Bun/Deno/Cloudflare for the fetch handler
+- [ ] `blix run`: `--json` output, `blix new command` generator, a real `db:migrate`/seed command in `@blixis-io/db`
+- [ ] never exercised: real registry push, generated workflows on GitHub/GitLab/Bitbucket, real `vercel deploy` / `netlify deploy` [you + me]
+- [ ] revoke any leftover npm token [you]
+- [ ] bundle-cms: tell Codex what now exists (`@Command`/`blix run` with `RequestContext`, `@OnEvent`, deploy, `createFetchHandler`); `@blixis-io/create-cms` placeholder and trusted publisher [you] (section 8)
+
+### P6: new capability (once P1 is done)
+
+- [ ] `@Cron` in a new `@blixis-io/schedule` package (needs a `0.0.0` placeholder and trusted publisher first [you])
+- [ ] auth: refresh and session helpers, asymmetric keys/JWKS, sign-in rate limiting (ties to SEC-5)
+- [ ] `@blixis-io/queue` (`@Queue` / `@Process`), `@blixis-io/health`
+- [ ] http: `@Version`, `@Header`, `@Redirect`, `@Sse`
+
+## 1. Release history (done)
+
+Merged and released (moved here from section 0):
 - [x] #59 (Version Packages) and #60 (http: route info in ExecutionContext, route metadata, `@GlobalGuard`) merged; #61 (auth decorators), #62 (Version Packages) merged
 - [x] #58-#62 released 2026-10-02 (create-blixis 0.2.0, http 0.4.0, auth 0.2.0, openapi 0.2.4, tenancy 0.1.5, testing 0.1.5); verified on the registry + a real server with protectAllRoutes over a socket (401/403/200)
 - [x] #63 Codecov replaces the old coverage tool (CODECOV_TOKEN set by the user; upload only in the `ci` job)
@@ -14,10 +85,10 @@ State of `main`: head `09d7d64` (handover/TODO docs on top of #67). One open PR:
 - [x] #65 Version Packages merged and published 2026-10-02: cli 0.4.0, deploy 0.4.1, commands 0.1.2. Registry versions verified; clean pnpm install with `minimumReleaseAge=0` passed CLI version/doctor, real app command execution, generated handlers returning HTTP 200 for all three providers in Node 26, and per-field flag override.
 - [x] #67 CI download fix merged. All GitHub checks passed with fresh EditorConfig v4.0.2 downloads on all three runners; post-merge release workflow 37013625852 succeeded.
 - [x] earlier this session: #43-#58 (OIDC fixes, deploy targets Docker/Vercel/Netlify/Cloudflare, GitLab/Bitbucket CI, `@Command`, `@OnEvent`, `@Transactional`, duplicate-copy guard fix, create-blixis `--deploy`); details in sections 1-2 and 4-5
-- [ ] PR open: `feat/http-malformed-edge-cases` (http patch: malformed-HTTP socket tests + quiet handling of mid-body client disconnects; see section 7). Review and merge [you]
-- [ ] pick the next thing [decide]. Suggested order: `@Cron` in a new `@blixis-io/schedule` package (needs a 0.0.0 placeholder + trusted publisher first [you]), then more auth (refresh/session helpers), then the account-dependent verifications (section 4)
+- [x] #69 malformed-HTTP socket tests and quiet mid-body disconnects (http patch); #71 `blix doctor` follows the reachable dependency graph (cli patch); #72 RequestContext isolation tests under real sockets; #73 request-path docs page; #74 `blix run` provides `RequestContext` plus hello-api command and listener (commands minor, http minor); #70 release 2026-10-05: commands 0.2.0, http 0.5.0, cli 0.4.1, auth 0.2.1, openapi 0.2.5, tenancy 0.1.6, testing 0.1.6, verified on the registry and in fresh installs with and without http
+- [x] full code review: [`review.md`](./review.md) (no Critical findings; one High, reproduced)
 
-## 1. Release history (done)
+Earlier releases:
 
 - [x] #65 released 2026-10-02: cli 0.4.0, deploy 0.4.1, commands 0.1.2. Verified on npm and with a clean install (details in section 0).
 - [x] 2026-10-02 big release: create-blixis 0.1.2, core 0.2.1, di 0.1.1, http 0.3.0, cli 0.2.0, deploy 0.2.0 (new), events 0.1.2 (new), testing 0.1.2 (new), openapi 0.2.1, auth/config/db/logging/tenancy 0.1.2. All via OIDC, no NPM_TOKEN. Verified on the registry and with real installs of the Docker/Vercel/Netlify targets.
@@ -31,6 +102,8 @@ State of `main`: head `09d7d64` (handover/TODO docs on top of #67). One open PR:
 - for the next release with a NEW package: placeholder (0.0.0) + `npm trust github <pkg> --repo blixis-io/framework --file release.yml --allow-publish -y` first
 
 ## 3. Decisions waiting on you
+
+The decisions from the code review (peer dependencies, security middleware, import-time config validation, boot concurrency) are listed in section 0, P1 and P2.
 
 - [decide] SSH-to-VPS deploys in `blix deploy`? (I plan "no" for v1)
 - [decide] preview deployments per PR in v1? (I plan "no")
@@ -47,7 +120,7 @@ State of `main`: head `09d7d64` (handover/TODO docs on top of #67). One open PR:
 - [x] M6 create-blixis `--deploy <target> --ci <provider>` (#58, create-blixis minor); verified from the registry (npm). Remaining M6 bits: `blix deploy doctor` polish, and create-cms offering the same once it exists [me, later]
 - [x] deploy init reads the `app` section of blix.config (`{ module, export }`) for Vercel, Netlify and Cloudflare; explicit app flags override config values, missing fields use the existing defaults (#66)
 - [ ] never exercised: real registry push, the generated workflow running on GitHub, real `vercel deploy` / `netlify deploy` (need accounts / a throwaway repo) [you + me]
-- [ ] provider CLIs default to `cliVersion: "latest"`: consider pinning a tested version in generated config
+- [ ] provider CLIs default to `cliVersion: "latest"` and run with deploy tokens in the environment: pin a tested version (now agenda P1.7, SEC-1)
 - [ ] ideas only: `blix deploy rollback` / `status`; reusable GitHub workflow instead of a generated file; OIDC to cloud registries
 
 ## 5. Decorators and discovery
@@ -61,7 +134,7 @@ Follow-ups for what was just built:
 - [x] `blix run` and RequestContext: you chose "blix run provides it". `bootApplication` wraps the root with http's now-exported `RequestContextModule` when `@blixis-io/http` is importable (optional peer of commands; http minor + commands minor). Found via hello-api: its guards and PostsService inject RequestContext, so NO hello-api command could boot. The old docs claim that services using it only during requests were unaffected was wrong (singletons all resolve at boot); corrected.
 - [ ] commands: `--json` output, `blix new command` generator, shipping a real example command (db:migrate / seed) in `@blixis-io/db`
 - [ ] @OnEvent only sees events emitted after boot (not from onModuleInit); transient providers unsupported. Documented.
-- [x] `@Command` and `@OnEvent` example in examples/hello-api: `posts:seed` command, `PostActivity` listener, `events.ts`; PostsService emits `post.created`/`post.deleted`. 10 e2e tests. Verified for real: built and ran `blix run`, `blix run posts:seed --help` and `blix run posts:seed -n 2` against the local Postgres (rows 515, 516 left in the dev DB; tests wipe the table). Not verified: a pnpm-installed (non-workspace) app, where the optional http peer resolves through a real install.
+- [x] `@Command` and `@OnEvent` example in examples/hello-api: `posts:seed` command, `PostActivity` listener, `events.ts`; PostsService emits `post.created`/`post.deleted`. 10 e2e tests. Verified for real: built and ran `blix run`, `blix run posts:seed --help` and `blix run posts:seed -n 2` against the local Postgres (rows 515, 516 left in the dev DB; tests wipe the table). Afterwards verified from the published packages in fresh pnpm installs outside the workspace (see section 0): the optional http peer works with and without `@blixis-io/http`.
 
 Still ideas (each can reuse the bootstrap discovery hook):
 - db: `@Repository(table)`
@@ -77,8 +150,10 @@ Still ideas (each can reuse the bootstrap discovery hook):
 ## 6. Hygiene and lessons (check these before starting work)
 
 Process:
-- [ ] check the EXIT CODE of `pnpm run ci`, not a grep of it (editorconfig step was invisible twice)
+- [ ] check the EXIT CODE of `pnpm run ci`, not a grep of it (editorconfig step was invisible twice); it failed once more on diagram indentation in markdown (editorconfig wants even left-padding)
 - [ ] use the session scratchpad, never /tmp (slipped again: ci.out, ec.out)
+- [ ] probing a suspected bug: write a throwaway `zz-*.test.ts` next to the code (reuses the vitest decorator transform), print with `--reporter=verbose`, delete it after; check `git status` is clean
+- [ ] a merge refused with "head branch is not up to date" means rebase onto `origin/main` and `git push --force-with-lease`, then wait for the three checks
 - [ ] zsh: an unquoted `$VAR` is NOT split into words (use a shell function for `cmd args`), and `--include=*.ts` must be quoted
 - [ ] stacked PRs: CI only runs for PRs whose BASE is main, and retargeting doesn't trigger it (close + reopen does); main protection is strict, so after each merge the next PR goes BEHIND and needs a rebase + force-with-lease push; a rebase drops the duplicated parent commit cleanly
 - [ ] Version Packages PR: the bot's PR never gets CI; push an empty commit to changeset-release/main every time main moves (the Release job regenerates the branch)
@@ -90,6 +165,7 @@ npm / pnpm:
 - [ ] pnpm 11 ignores versions published < 24h ago (`minimumReleaseAge`) and errors on lockfile entries that young (also inside Vercel/Docker/CI installs). For fresh-release testing use `pnpm --config.minimumReleaseAge=0 ...`; for users `minimumReleaseAgeExclude: ["@blixis-io/*"]` works (documented). For 24h after a release `pnpm create blixis` scaffolds the PREVIOUS versions.
 - [ ] `npm trust github <pkg> --repo blixis-io/framework --file release.yml --allow-publish -y`; default is stage-only (E403 on publish); existing entries give E409: list, revoke, re-add. Every package needs its own entry. New package = 0.0.0 placeholder first.
 - [ ] `npm view` lags several minutes after a publish; don't trust a single read
+- [ ] `pnpm exec` (not only `install`/`add`) re-checks the lockfile against `minimumReleaseAge`: in a fresh-release test pass `--config.minimumReleaseAge=0` to every pnpm command, via a shell function in zsh. Within 24h of a release this also hits anyone adding the new versions
 
 Cleanup:
 - [x] Checked `allowBuilds: esbuild: true`: esbuild 0.28.2 is present as a Vite dependency in the current lockfile. Keep the entry; the earlier claim that esbuild isn't installed was stale.
@@ -97,6 +173,8 @@ Cleanup:
 - [ ] revoke any leftover npm token (NPM_TOKEN secret already deleted from GitHub)
 
 ## 7. Framework backlog (external review + this session)
+
+The code-review findings live in [`review.md`](./review.md) and are scheduled in section 0. This section keeps the older backlog.
 
 - [x] dynamic-module identity / multi-registration, streaming body limit, request timeout, graceful shutdown, response-validation policy, stream cancel on disconnect, serveOpenApi, createFetchHandler, duplicate-copy guard, OnApplicationBootstrap
 - [x] (done via `blix doctor`, #64) duplicate-copy detection only works when BOTH copies include the guard; consider a `blix doctor` that checks the installed @blixis-io/* versions agree, decorator flags are set, packageManager is pinned
