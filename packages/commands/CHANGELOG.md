@@ -1,5 +1,12 @@
 # @blixis-io/commands
 
+## 0.2.2
+
+### Patch Changes
+
+- Updated dependencies [[`13e89f8`](https://github.com/blixis-io/framework/commit/13e89f8030871d6cd1937959d48d6ad2a594cf2a)]:
+  - @blixis-io/http@0.7.0
+
 ## 0.2.1
 
 ### Patch Changes

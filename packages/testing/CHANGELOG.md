@@ -1,5 +1,16 @@
 # @blixis-io/testing
 
+## 0.3.0
+
+### Minor Changes
+
+- [#85](https://github.com/blixis-io/framework/pull/85) [`13e89f8`](https://github.com/blixis-io/framework/commit/13e89f8030871d6cd1937959d48d6ad2a594cf2a) Thanks [@EmVeeNL](https://github.com/EmVeeNL)! - No code change: the peer range on `@blixis-io/http` moves to `^0.7.0`, because `http` 0.7.0 is released with these packages. Upgrade `@blixis-io/http` alongside them.
+
+### Patch Changes
+
+- Updated dependencies [[`13e89f8`](https://github.com/blixis-io/framework/commit/13e89f8030871d6cd1937959d48d6ad2a594cf2a)]:
+  - @blixis-io/http@0.7.0
+
 ## 0.2.0
 
 ### Minor Changes
