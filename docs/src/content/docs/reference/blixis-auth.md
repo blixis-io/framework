@@ -48,15 +48,17 @@ function Public(): ClassDecorator & MethodDecorator; // skips authentication
 
 ```ts
 interface AuthModuleOptions<Claims = unknown> {
-  secret: string;
+  secret: string; // at least 32 bytes (HS256), 48 (HS384) or 64 (HS512), else AuthConfigError
   algorithm?: "HS256" | "HS384" | "HS512"; // default "HS256"
+  issuer?: string; // expected `iss`; also signed into issued tokens
+  audience?: string | readonly string[]; // expected `aud`; also signed into issued tokens
   global?: boolean;
   protectAllRoutes?: boolean; // default false: every route needs a token unless @Public() // default false
   issuing?: IssuingOptions<Claims>; // omit for verify-only
 }
 ```
 
-`secret` is the HMAC key used to both verify and (if `issuing` is set) sign tokens (symmetric algorithms only — `HS256`/`HS384`/`HS512`). `global` makes `JwtAuthGuard` (and `AUTH_SERVICE`, if configured) visible to every module without each one importing `AuthModule` directly, same escape hatch as `LoggerModule`/`ConfigModule`; defaults to `false`.
+`secret` is the HMAC key used to both verify and (if `issuing` is set) sign tokens (symmetric algorithms only — `HS256`/`HS384`/`HS512`). It must be at least as long as the hash output, in bytes: 32, 48 or 64; a shorter one makes `forRoot()` throw `AuthConfigError`. A token must have an `exp` claim, and, when `issuer` or `audience` is set, a matching `iss` or `aud`; the `Authorization` scheme `Bearer` is matched case-insensitively. `global` makes `JwtAuthGuard` (and `AUTH_SERVICE`, if configured) visible to every module without each one importing `AuthModule` directly, same escape hatch as `LoggerModule`/`ConfigModule`; defaults to `false`.
 
 ## `AuthModule.forRoot(options)`
 

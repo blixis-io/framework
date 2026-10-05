@@ -200,11 +200,18 @@ export function createAuthServiceClass<Claims>(deps: AuthServiceTokens<Claims>):
       // structurally, so this is the one place that trusts the schema just
       // validated it, same category of boundary cast as @blixis-io/events'
       // `payload as never`.
-      const accessToken = await new SignJWT(parsedClaims.data as JWTPayload)
+      const jwt = new SignJWT(parsedClaims.data as JWTPayload)
         .setProtectedHeader({ alg: this.authOptions.algorithm })
         .setIssuedAt()
-        .setExpirationTime(Math.floor(accessTokenExpiresAt.getTime() / 1000))
-        .sign(this.authOptions.key);
+        .setExpirationTime(Math.floor(accessTokenExpiresAt.getTime() / 1000));
+      // The same values the guard checks, so a token this service issues is one this app's guard accepts.
+      if (this.authOptions.issuer !== undefined) {
+        jwt.setIssuer(this.authOptions.issuer);
+      }
+      if (this.authOptions.audience !== undefined) {
+        jwt.setAudience(typeof this.authOptions.audience === "string" ? this.authOptions.audience : [...this.authOptions.audience]);
+      }
+      const accessToken = await jwt.sign(this.authOptions.key);
 
       const refreshToken = randomBytes(32).toString("base64url");
       const refreshTokenExpiresAt = new Date(now + this.issuingOptions.refreshTokenTtlSeconds * 1000);

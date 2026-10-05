@@ -54,6 +54,37 @@ export async function hashPassword(password: string): Promise<string> {
   return `$argon2id$v=19$m=${MEMORY_KIB},t=${PASSES},p=${PARALLELISM}$${salt.toString("base64url")}$${tag.toString("base64url")}`;
 }
 
+// What a stored hash may ask verifyPassword to do. The parameters come from the hash string, so a corrupted or
+// attacker-writable hash column could otherwise request gigabytes of memory or minutes of CPU per login attempt.
+// Generous enough for every common Argon2id configuration (OWASP's, RFC 9106's second recommendation at 64 MiB).
+const MAX_MEMORY_KIB = 1_048_576; // 1 GiB
+const MAX_PASSES = 20;
+const MAX_PARALLELISM = 16;
+const MIN_TAG_LENGTH = 4;
+const MAX_TAG_LENGTH = 256;
+
+export interface StoredHashParameters {
+  memory: number;
+  passes: number;
+  parallelism: number;
+  tagLength: number;
+}
+
+/** Throws unless a stored hash's parameters are within what `verifyPassword` will compute. Exported for tests only. */
+export function assertWithinLimits({ memory, passes, parallelism, tagLength }: StoredHashParameters): void {
+  if (
+    memory > MAX_MEMORY_KIB ||
+    passes > MAX_PASSES ||
+    parallelism > MAX_PARALLELISM ||
+    tagLength < MIN_TAG_LENGTH ||
+    tagLength > MAX_TAG_LENGTH
+  ) {
+    throw new Error(
+      `Password hash parameters are outside what this package will verify (m=${memory}, t=${passes}, p=${parallelism}, tag=${tagLength} bytes; limits: m<=${MAX_MEMORY_KIB}, t<=${MAX_PASSES}, p<=${MAX_PARALLELISM}, tag ${MIN_TAG_LENGTH} to ${MAX_TAG_LENGTH} bytes). The hash was not made by hashPassword() or is corrupted.`,
+    );
+  }
+}
+
 const PHC_PATTERN = /^\$argon2id\$v=19\$m=(\d+),t=(\d+),p=(\d+)\$([^$]+)\$([^$]+)$/;
 
 // A successful PHC_PATTERN match always has all 5 capture groups present —
@@ -94,6 +125,7 @@ export async function verifyPassword(password: string, hash: string): Promise<bo
 
   const salt = Buffer.from(saltB64, "base64url");
   const expected = Buffer.from(tagB64, "base64url");
+  assertWithinLimits({ memory: Number(memory), passes: Number(passes), parallelism: Number(parallelism), tagLength: expected.length });
   const actual = await argon2id(password, {
     nonce: salt,
     parallelism: Number(parallelism),

@@ -1,6 +1,7 @@
 import { Module } from "@blixis-io/core";
 import { Inject, Injectable, InjectionToken } from "@blixis-io/di";
 import { createHttpApplication, runInRequestContext } from "@blixis-io/http";
+import { decodeJwt } from "jose";
 import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { defineAuthModule } from "./module.js";
@@ -359,5 +360,59 @@ describe("issuing.imports pass-through", () => {
     class TestModule {}
 
     await expect(createHttpApplication(TestModule)).rejects.toThrow(/No provider for/);
+  });
+});
+
+async function buildScoped(options: { issuer?: string; audience?: string | string[] }) {
+  const stores = createStores();
+  const auth = defineAuthModule(ClaimsSchema);
+
+  @Module({
+    imports: [
+      auth.AuthModule.forRoot({
+        secret: SECRET,
+        ...options,
+        issuing: { credentialStore: stores.TestCredentialStore, refreshTokenStore: stores.TestRefreshTokenStore },
+      }),
+    ],
+  })
+  class ScopedModule {}
+
+  const app = await createHttpApplication(ScopedModule);
+  stores.accounts.set("a@example.com", { subject: "user-1", passwordHash: await hashPassword("pw-pw-pw-pw") });
+  stores.claimsBySubject.set("user-1", { sub: "user-1", roles: [] });
+  return { authService: app.get(auth.AUTH_SERVICE), jwtGuard: app.get(auth.JwtAuthGuard) };
+}
+
+describe("tokens issued with an issuer and audience configured", () => {
+  it("signs the issuer and audience into the access token, and the same app's guard accepts it", async () => {
+    const { authService, jwtGuard } = await buildScoped({ issuer: "https://auth.example.com", audience: "orders-api" });
+
+    const pair = await authService.signIn("a@example.com", "pw-pw-pw-pw");
+
+    const claims = decodeJwt(pair.accessToken);
+    expect(claims.iss).toBe("https://auth.example.com");
+    expect(claims.aud).toBe("orders-api");
+    await runInRequestContext(async () => {
+      await expect(jwtGuard.canActivate({ request: requestWith(pair.accessToken), params: {}, controller: TestController, handler: "route" })).resolves.toBe(true);
+    });
+  });
+
+  it("signs several audiences as a list", async () => {
+    const { authService } = await buildScoped({ audience: ["orders-api", "billing-api"] });
+
+    const pair = await authService.signIn("a@example.com", "pw-pw-pw-pw");
+
+    expect(decodeJwt(pair.accessToken).aud).toEqual(["orders-api", "billing-api"]);
+    expect(decodeJwt(pair.accessToken).iss).toBeUndefined();
+  });
+
+  it("adds neither claim when none is configured", async () => {
+    const { authService } = await buildScoped({});
+
+    const claims = decodeJwt((await authService.signIn("a@example.com", "pw-pw-pw-pw")).accessToken);
+
+    expect(claims.iss).toBeUndefined();
+    expect(claims.aud).toBeUndefined();
   });
 });

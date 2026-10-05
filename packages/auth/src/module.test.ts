@@ -3,7 +3,7 @@ import { createHttpApplication, RequestContext, runInRequestContext, Unauthorize
 import { SignJWT } from "jose";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
-import { defineAuthModule } from "./module.js";
+import { AuthConfigError, defineAuthModule } from "./module.js";
 
 /** The controller every hand-built ExecutionContext in this file points at. */
 class TestController {}
@@ -181,5 +181,166 @@ describe("defineAuthModule", () => {
     const b = defineAuthModule(ClaimsSchema);
 
     expect(a.JwtAuthGuard).not.toBe(b.JwtAuthGuard);
+  });
+});
+
+/** The `WWW-Authenticate` value an `UnauthorizedException` carries, or undefined for anything else. */
+function challengeOf(error: unknown): string | undefined {
+  return error instanceof UnauthorizedException ? error.headers?.["www-authenticate"] : undefined;
+}
+
+const forRootWith = (secret: string, algorithm?: "HS256" | "HS384" | "HS512") =>
+  defineAuthModule(ClaimsSchema).AuthModule.forRoot({ secret, ...(algorithm ? { algorithm } : {}) });
+
+async function headerOutcome(header: string | undefined) {
+  const { AuthModule, JwtAuthGuard } = defineAuthModule(ClaimsSchema);
+  const app = await createHttpApplication(AuthModule.forRoot({ secret: SECRET }));
+  const guard = app.get(JwtAuthGuard);
+  const request = new Request("http://localhost/", header === undefined ? {} : { headers: { authorization: header } });
+  return runInRequestContext(async () => {
+    try {
+      return { allowed: await guard.canActivate({ request, params: {}, controller: TestController, handler: "route" }) };
+    } catch (error) {
+      return { error };
+    }
+  });
+}
+
+describe("AuthModule.forRoot: the secret must be strong enough for the algorithm", () => {
+  it("accepts the minimum for each algorithm, in bytes: 32 for HS256, 48 for HS384, 64 for HS512", () => {
+    expect(() => forRootWith("a".repeat(32))).not.toThrow();
+    expect(() => forRootWith("a".repeat(32), "HS256")).not.toThrow();
+    expect(() => forRootWith("a".repeat(48), "HS384")).not.toThrow();
+    expect(() => forRootWith("a".repeat(64), "HS512")).not.toThrow();
+  });
+
+  it.each([
+    ["an empty secret", "", undefined],
+    ["a short word", "secret", undefined],
+    ["one byte under HS256's minimum", "a".repeat(31), "HS256"],
+    ["a 32-byte secret for HS384", "a".repeat(32), "HS384"],
+    ["a 47-byte secret for HS384", "a".repeat(47), "HS384"],
+    ["a 48-byte secret for HS512", "a".repeat(48), "HS512"],
+    ["a 63-byte secret for HS512", "a".repeat(63), "HS512"],
+  ] as const)("refuses %s at boot, before any token could be signed or verified with it", (_label, secret, algorithm) => {
+    expect(() => forRootWith(secret, algorithm)).toThrow(AuthConfigError);
+  });
+
+  it("counts bytes, not characters: 16 two-byte characters are 32 bytes", () => {
+    expect(() => forRootWith("é".repeat(16))).not.toThrow();
+    expect(() => forRootWith("é".repeat(15))).toThrow(AuthConfigError);
+  });
+
+  it("says what is wrong and how to fix it, without printing the secret", () => {
+    const secret = "hunter2-hunter2";
+
+    let message = "";
+    try {
+      forRootWith(secret);
+    } catch (error) {
+      message = error instanceof Error ? error.message : "";
+    }
+
+    expect(message).toContain("HS256");
+    expect(message).toContain("32 bytes");
+    expect(message).toContain(`${secret.length} bytes`);
+    expect(message).toContain("openssl rand");
+    expect(message).not.toContain(secret);
+  });
+});
+
+describe("JwtAuthGuard: what a token must carry", () => {
+  const key = new TextEncoder().encode(SECRET);
+
+  async function verdict(token: string, options: Parameters<ReturnType<typeof defineAuthModule<typeof ClaimsSchema>>["AuthModule"]["forRoot"]>[0] = { secret: SECRET }) {
+    const { AuthModule, JwtAuthGuard } = defineAuthModule(ClaimsSchema);
+    const app = await createHttpApplication(AuthModule.forRoot(options));
+    const guard = app.get(JwtAuthGuard);
+    return runInRequestContext(async () => {
+      try {
+        return { allowed: await guard.canActivate({ request: requestWith(token), params: {}, controller: TestController, handler: "route" }) };
+      } catch (error) {
+        return { error };
+      }
+    });
+  }
+
+  const claims = { sub: "user-1", roles: [] };
+  const sign = (build: (jwt: SignJWT) => SignJWT) => build(new SignJWT(claims).setProtectedHeader({ alg: "HS256" }).setIssuedAt()).sign(key);
+
+  it("rejects a token that never expires, even with a valid signature", async () => {
+    const result = await verdict(await sign((jwt) => jwt));
+
+    expect(result.error).toBeInstanceOf(UnauthorizedException);
+    expect(challengeOf(result.error)).toBe('Bearer error="invalid_token"');
+  });
+
+  it("still accepts a token that has an expiry in the future", async () => {
+    expect((await verdict(await sign((jwt) => jwt.setExpirationTime("1h")))).allowed).toBe(true);
+  });
+
+  describe("with an issuer configured", () => {
+    const options = { secret: SECRET, issuer: "https://auth.example.com" };
+
+    it("accepts a token from that issuer", async () => {
+      expect((await verdict(await sign((jwt) => jwt.setExpirationTime("1h").setIssuer("https://auth.example.com")), options)).allowed).toBe(true);
+    });
+
+    it.each([
+      ["another issuer", (jwt: SignJWT) => jwt.setIssuer("https://staging.example.com")],
+      ["no issuer", (jwt: SignJWT) => jwt],
+    ])("rejects a token with %s, though signed with the same secret", async (_label, build) => {
+      const result = await verdict(await sign((jwt) => build(jwt.setExpirationTime("1h"))), options);
+
+      expect(result.error).toBeInstanceOf(UnauthorizedException);
+    });
+  });
+
+  describe("with an audience configured", () => {
+    const options = { secret: SECRET, audience: "orders-api" };
+
+    it("accepts a token for that audience, including when the token lists several", async () => {
+      expect((await verdict(await sign((jwt) => jwt.setExpirationTime("1h").setAudience("orders-api")), options)).allowed).toBe(true);
+      expect((await verdict(await sign((jwt) => jwt.setExpirationTime("1h").setAudience(["billing-api", "orders-api"])), options)).allowed).toBe(true);
+    });
+
+    it.each([
+      ["another audience", (jwt: SignJWT) => jwt.setAudience("billing-api")],
+      ["no audience", (jwt: SignJWT) => jwt],
+    ])("rejects a token with %s", async (_label, build) => {
+      const result = await verdict(await sign((jwt) => build(jwt.setExpirationTime("1h"))), options);
+
+      expect(result.error).toBeInstanceOf(UnauthorizedException);
+    });
+  });
+
+  it("does not look at issuer or audience when none is configured", async () => {
+    const token = await sign((jwt) => jwt.setExpirationTime("1h").setIssuer("anyone").setAudience("anything"));
+
+    expect((await verdict(token)).allowed).toBe(true);
+  });
+});
+
+describe("JwtAuthGuard: the Authorization header", () => {
+  it.each(["Bearer", "bearer", "BEARER", "BeArEr"])("accepts the scheme written as %s (RFC 7235: case-insensitive)", async (scheme) => {
+    expect((await headerOutcome(`${scheme} ${await signToken({ sub: "u", roles: [] })}`)).allowed).toBe(true);
+  });
+
+  it("accepts more than one space between the scheme and the token", async () => {
+    expect((await headerOutcome(`Bearer    ${await signToken({ sub: "u", roles: [] })}`)).allowed).toBe(true);
+  });
+
+  it.each([
+    ["no header at all", undefined],
+    ["the scheme with no token", "Bearer"],
+    ["the scheme with only spaces after it", "Bearer   "],
+    ["another scheme", "Basic dXNlcjpwYXNz"],
+    ["a token with a space inside it", "Bearer abc def"],
+    ["the scheme glued to the token", "Bearerabc"],
+  ])("answers 401 with the bare Bearer challenge for %s", async (_label, header) => {
+    const result = await headerOutcome(header);
+
+    expect(result.error).toBeInstanceOf(UnauthorizedException);
+    expect(challengeOf(result.error)).toBe("Bearer");
   });
 });

@@ -41,7 +41,23 @@ me() {
 }
 ```
 
-`JwtAuthGuard` reads the `Authorization` header, verifies the token (HMAC — `HS256` by default, or `HS384`/`HS512`) against the `secret` from `forRoot()`, and validates the decoded payload against your claims schema. Any failure — missing header, bad signature, expired token, a payload that fails the schema — throws `UnauthorizedException` (a real `401`), never a plain `false`: a bad token is a client authentication failure, not a generic "denied," so it gets its own status rather than folding into a guard's usual `403`. The response carries a `WWW-Authenticate` challenge as RFC 9110 requires: `Bearer` when no token was sent, `Bearer error="invalid_token"` when one was sent and failed (RFC 6750). Sign-in (`AuthService.signIn`) returns a plain `401` with no challenge, since its credentials travel in the request body rather than an `Authorization` header.
+`JwtAuthGuard` reads the `Authorization` header (the `Bearer` scheme, in any letter case, as RFC 7235 allows), verifies the token (HMAC — `HS256` by default, or `HS384`/`HS512`) against the `secret` from `forRoot()`, and validates the decoded payload against your claims schema. A token must carry an `exp` claim: one that never expires is refused even with a valid signature. Any failure — missing header, bad signature, expired token, a payload that fails the schema — throws `UnauthorizedException` (a real `401`), never a plain `false`: a bad token is a client authentication failure, not a generic "denied," so it gets its own status rather than folding into a guard's usual `403`. The response carries a `WWW-Authenticate` challenge as RFC 9110 requires: `Bearer` when no token was sent, `Bearer error="invalid_token"` when one was sent and failed (RFC 6750). Sign-in (`AuthService.signIn`) returns a plain `401` with no challenge, since its credentials travel in the request body rather than an `Authorization` header.
+
+### The secret, the issuer and the audience
+
+`forRoot()` refuses a weak secret at boot with `AuthConfigError`: at least **32 bytes** for `HS256`, 48 for `HS384`, 64 for `HS512` (RFC 7518, section 3.2; counted in bytes of the UTF-8 text). The error gives the length, never the value. Generate one at random, for example `openssl rand -base64 48` (64 characters, enough for every algorithm), and keep it in the environment, not in the repository.
+
+Two optional settings stop one app's tokens being accepted by another that happens to share a secret (staging and production, two services):
+
+```ts
+AuthModule.forRoot({
+  secret: process.env.JWT_SECRET!,
+  issuer: "https://auth.example.com", // the token's `iss` must be exactly this
+  audience: "orders-api", // the token's `aud` must list this (or any of them, if you pass an array)
+});
+```
+
+When set, a token without the claim or with a different value is a `401`, and tokens issued by `AUTH_SERVICE` carry them. When unset, `iss` and `aud` are neither checked nor added.
 
 On success, the verified claims are stored in [`RequestContext`](/framework/concepts/request-context/) for the rest of the request. Read them back with `getCurrentUser`:
 
