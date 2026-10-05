@@ -3,7 +3,7 @@
 The HTTP layer built on [`@blixis-io/core`](https://www.npmjs.com/package/@blixis-io/core) — routing, controllers, request validation with [Zod](https://zod.dev), guards, RFC 9457 error responses.
 
 ```bash
-npm install @blixis-io/http @blixis-io/core @blixis-io/di
+npm install @blixis-io/http @blixis-io/core @blixis-io/di zod
 ```
 
 ```ts

@@ -3,7 +3,7 @@
 Request-scoped multi-tenant access control (`TenantScopedGuard`, a fail-closed `tenantScope()` query helper). Mechanism only — no Organization/Space/Membership data model — reusable by any multi-tenant app.
 
 ```bash
-npm install @blixis-io/tenancy @blixis-io/http @blixis-io/core @blixis-io/di
+npm install @blixis-io/tenancy @blixis-io/http @blixis-io/core @blixis-io/di zod drizzle-orm
 ```
 
 ```ts

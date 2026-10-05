@@ -31,12 +31,17 @@
     "build": "rolldown -c"
   },
   "dependencies": {
-    "@blixis-io/core": "workspace:*",
-    "@blixis-io/di": "workspace:*",
-    "drizzle-orm": "^0.45.3",
     "pg": "^8.23.0"
   },
   "devDependencies": {
-    "@types/pg": "^8.15.6"
+    "@blixis-io/core": "workspace:*",
+    "@blixis-io/di": "workspace:*",
+    "@types/pg": "^8.15.6",
+    "drizzle-orm": "^0.45.3"
+  },
+  "peerDependencies": {
+    "@blixis-io/core": "workspace:^",
+    "@blixis-io/di": "workspace:^",
+    "drizzle-orm": "^0.45.3"
   }
 }

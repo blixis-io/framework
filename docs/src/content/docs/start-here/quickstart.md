@@ -16,7 +16,7 @@ This walks through the smallest possible Blixis app: one service, one controller
 ```bash
 mkdir hello-quickstart && cd hello-quickstart
 pnpm init
-pnpm add @blixis-io/core @blixis-io/di @blixis-io/http
+pnpm add @blixis-io/core @blixis-io/di @blixis-io/http zod
 pnpm add -D typescript @types/node
 mkdir src
 ```

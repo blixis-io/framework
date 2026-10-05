@@ -1,7 +1,7 @@
 {
   "name": "@blixis-io/logging",
   "version": "0.1.4",
-  "description": "A multi-transport logger, injectable like any other provider. Doesn't depend on @blixis-io/http — usable in any app, HTTP or not.",
+  "description": "A multi-transport logger, injectable like any other provider. Doesn't depend on @blixis-io/http \u2014 usable in any app, HTTP or not.",
   "license": "MIT",
   "author": "Michael Voeten <michael@voeten.online>",
   "homepage": "https://blixis-io.github.io/framework/",
@@ -30,7 +30,11 @@
     "typecheck": "tsc -p tsconfig.json",
     "build": "rolldown -c"
   },
-  "dependencies": {
+  "peerDependencies": {
+    "@blixis-io/core": "workspace:^",
+    "@blixis-io/di": "workspace:^"
+  },
+  "devDependencies": {
     "@blixis-io/core": "workspace:*",
     "@blixis-io/di": "workspace:*"
   }

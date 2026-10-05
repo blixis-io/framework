@@ -30,7 +30,12 @@
     "typecheck": "tsc -p tsconfig.json",
     "build": "rolldown -c"
   },
-  "dependencies": {
+  "peerDependencies": {
+    "@blixis-io/core": "workspace:^",
+    "@blixis-io/di": "workspace:^",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
     "@blixis-io/core": "workspace:*",
     "@blixis-io/di": "workspace:*",
     "zod": "^4.6.5"

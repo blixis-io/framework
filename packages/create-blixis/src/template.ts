@@ -114,7 +114,7 @@ process.on("SIGTERM", () => {
   };
 }
 
-export const RUNTIME_DEPENDENCIES = ["@blixis-io/core", "@blixis-io/di", "@blixis-io/http"] as const;
+export const RUNTIME_DEPENDENCIES = ["@blixis-io/core", "@blixis-io/di", "@blixis-io/http", "zod"] as const;
 /** Added only with --deploy: the CLI and its deploy plugin. */
 export const DEPLOY_DEPENDENCIES = ["@blixis-io/cli", "@blixis-io/deploy"] as const;
 export const DEV_DEPENDENCIES = ["typescript", "@types/node", "concurrently"] as const;

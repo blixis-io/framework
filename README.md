@@ -20,7 +20,7 @@ pnpm create blixis my-app
 Or add the packages to an existing project:
 
 ```bash
-npm install @blixis-io/di @blixis-io/core @blixis-io/http
+npm install @blixis-io/di @blixis-io/core @blixis-io/http zod
 ```
 
 ```ts
