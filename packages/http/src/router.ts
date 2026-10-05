@@ -15,22 +15,18 @@ export interface RouteMethodNotAllowed {
   allowed: HttpMethod[];
 }
 
-export type RouteLookupResult<T> = RouteFound<T> | RouteNotFound | RouteMethodNotAllowed;
+/** A segment of the path has a broken `%` escape (`/a/100%`, `/a/%E0%A4%A`) and can't be decoded, so no route is looked up. */
+export interface RouteMalformedPath {
+  kind: "malformed-path";
+}
+
+export type RouteLookupResult<T> = RouteFound<T> | RouteNotFound | RouteMethodNotAllowed | RouteMalformedPath;
 
 export class DuplicateRouteError extends Error {
   override readonly name = "DuplicateRouteError";
 
   constructor(method: HttpMethod, path: string) {
     super(`Duplicate route: ${method} ${path} is already registered — each method+path pair must be unique.`);
-  }
-}
-
-/** Thrown by `Router.match` for a path containing a broken `%` escape (`/a/100%`, `/a/%E0%A4%A`), which can't be decoded. */
-export class MalformedPathError extends Error {
-  override readonly name = "MalformedPathError";
-
-  constructor(path: string) {
-    super(`Malformed percent-encoding in path: ${path}`);
   }
 }
 
@@ -63,11 +59,11 @@ function splitPath(path: string): string[] {
  * Decodes one path segment, once. `%2F` stays inside the segment as a `/` (the path was already split), `+` is left
  * alone (it only means a space in a query string), and `%2520` becomes the text `%20`, not a space.
  */
-function decodeSegment(segment: string, path: string): string {
+function decodeSegment(segment: string): string | undefined {
   try {
     return decodeURIComponent(segment);
   } catch {
-    throw new MalformedPathError(path);
+    return undefined;
   }
 }
 
@@ -149,9 +145,13 @@ export class Router<T> {
     node.routes.set(method, { handler, paramNames });
   }
 
-  /** Matches the percent-encoded path as it arrives; throws `MalformedPathError` if a segment can't be decoded. */
+  /** Matches the percent-encoded path as it arrives. A segment that can't be decoded gives `malformed-path`. */
   match(method: HttpMethod, path: string): RouteLookupResult<T> {
-    const segments = splitPath(path).map((segment) => decodeSegment(segment, path));
+    const decoded = splitPath(path).map(decodeSegment);
+    const segments = decoded.filter((segment) => segment !== undefined);
+    if (segments.length !== decoded.length) {
+      return { kind: "malformed-path" };
+    }
     const result = walk(this.#root, segments, 0, []);
 
     if (!result) {
@@ -164,7 +164,8 @@ export class Router<T> {
     }
 
     // Names come from the matched route itself, so a path position shared with another method's route can't rename them.
-    const params = Object.fromEntries(route.paramNames.map((name, position) => [name, result.values[position] ?? ""]));
+    // One value was captured per name along this route's own path, so every position is filled.
+    const params = Object.fromEntries(route.paramNames.map((name, position) => [name, result.values[position] as string]));
     return { kind: "found", handler: route.handler, params };
   }
 }
