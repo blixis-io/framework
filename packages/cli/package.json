@@ -1,6 +1,6 @@
 {
   "name": "@blixis-io/cli",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "description": "The blix binary. blix generate <type> <name> scaffolds one controller/service/module/guard/interceptor file from a template. No @blixis-io/* runtime dependency.",
   "license": "MIT",
   "author": "Michael Voeten <michael@voeten.online>",
