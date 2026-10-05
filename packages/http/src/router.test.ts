@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DuplicateRouteError, MalformedPathError, Router } from "./router.js";
+import { DuplicateRouteError, Router } from "./router.js";
 
 describe("Router: static routes", () => {
   it("matches an exact static path", () => {
@@ -240,11 +240,12 @@ describe("Router: percent-encoded paths", () => {
     expect(router.match("GET", "/files/my%20dir/a%20b.txt")).toEqual({ kind: "found", handler: "file", params: { "*": "my dir/a b.txt" } });
   });
 
-  it("throws MalformedPathError for a broken escape sequence, instead of passing it on or matching", () => {
+  it("reports malformed-path for a broken escape sequence, instead of passing it on or matching", () => {
     const router = new Router<string>();
     router.add("GET", "/posts/:id", "post");
 
-    expect(() => router.match("GET", "/posts/%E0%A4%A")).toThrow(MalformedPathError);
-    expect(() => router.match("GET", "/posts/100%")).toThrow(MalformedPathError);
+    expect(router.match("GET", "/posts/%E0%A4%A")).toEqual({ kind: "malformed-path" });
+    expect(router.match("GET", "/posts/100%")).toEqual({ kind: "malformed-path" });
+    expect(router.match("GET", "/%zz/posts/1")).toEqual({ kind: "malformed-path" });
   });
 });
