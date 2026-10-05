@@ -71,6 +71,26 @@ process.on("SIGTERM", () => {
 });
 ```
 
+## A shutdown hook that fails
+
+`close()` runs **every** shutdown hook, even when one throws. Shutdown order is dependents first, so a failing hook early in the list (a metrics flush, say) must not stop the hooks after it, which is where the database pool gets closed. Failures are collected and rethrown once everything has run:
+
+- one failure is rethrown as it is, so `catch (error)` sees what the hook threw;
+- several are rethrown together as an [`AggregateError`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/AggregateError), in the order the hooks ran, with the individual errors in `.errors`.
+
+The application counts as closed either way, so calling `close()` again does not run the hooks a second time.
+
+## When boot fails
+
+If creating the application throws part-way (a provider's constructor, an `onModuleInit` or an `onApplicationBootstrap` fails), the providers that were already built may hold resources: a connection pool opened in a constructor, a timer, a file handle. `createApplication` closes them before it rejects: every provider that was constructed gets its `onApplicationShutdown` called, dependents first, **including the provider whose own `onModuleInit` threw**, and with no `signal` since nothing outside stopped it. A provider that was never constructed has nothing to close.
+
+You still get the error that failed the boot, unchanged. If a shutdown hook also fails during this clean-up, that failure is written to `console.error` rather than replacing the boot error.
+
+Two details that matter in practice:
+
+- When one provider fails while others are still being built (an async factory, say), the clean-up waits for those to finish first, so nothing is left running unnoticed.
+- This is what keeps a failed start from leaking. Without it, a pool left open by a failed boot kept the process alive for the pool's idle timeout, 10 seconds for `pg`, before it could exit; with it the process exits straight away. It also matters for [`createFetchHandler`](/framework/guides/deploying/), which tries to boot again on the next request: each failed attempt now cleans up after itself.
+
 ## Next
 
 - How `app.close()` also has to tear down a listening socket, and stays idempotent there too: [Running in Production](/framework/guides/running-in-production/).

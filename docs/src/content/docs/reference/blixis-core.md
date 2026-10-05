@@ -68,7 +68,7 @@ function createApplication(rootModule: ModuleRef, options?: CreateApplicationOpt
 
 `createApplication` (or `Application.create`, identical) walks the module graph from `rootModule`, flattens every module's providers/controllers into one `Container`, resolves everything, and runs every `OnModuleInit` hook in dependency order. `controllers` is every controller class collected from the graph — `@blixis-io/http`'s `createHttpApplication` uses it to build the router.
 
-`close(signal?)` runs every `OnApplicationShutdown` hook in reverse dependency order, passing `signal` through unchanged. **Idempotent** — a second call is a no-op, not a second run of every hook.
+`close(signal?)` runs every `OnApplicationShutdown` hook in reverse dependency order, passing `signal` through unchanged. A failing hook does not stop the others: one failure is rethrown as it is, several as an `AggregateError`. **Idempotent** — a second call is a no-op, not a second run of every hook. If creating the application fails part-way, `createApplication` first shuts down the providers it had built (see [Lifecycle Hooks](/framework/concepts/lifecycle-hooks/#when-boot-fails)) and rejects with the original error.
 
 If a class listed in `imports` isn't itself `@Module()`-decorated, building the application throws `NotAModuleError` naming that class.
 
