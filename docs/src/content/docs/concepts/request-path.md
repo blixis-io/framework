@@ -28,14 +28,15 @@ With `requestTimeout`, `request.signal` also aborts after that many milliseconds
 
 ## 3. Route match
 
-The path and method pick one route.
+The path is split into segments and each one is percent-decoded once (`hello%20world` becomes `hello world`; see [how a request is matched](/framework/concepts/routing-controllers/#percent-encoding)). The decoded path and the method then pick one route.
 
 | Result | Status |
 | --- | --- |
+| A broken `%` escape in the path (`/posts/100%`) | `400` |
 | No route for this path | `404` |
 | Path matches, method doesn't | `405` with an `Allow` header |
 
-Both are answered right here. **No guard, interceptor or handler runs**, and no `RequestContext` scope is opened.
+All three are answered right here. **No guard, interceptor or handler runs**, and no `RequestContext` scope is opened.
 
 ## 4. A fresh `RequestContext` scope
 
