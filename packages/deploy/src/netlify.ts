@@ -1,3 +1,4 @@
+import { DEFAULT_CLI_VERSIONS } from "./cli-versions.js";
 import type { NetlifyTarget } from "./config.js";
 import { buildStep, gitTag, npxStep, type InitContext, type InitPlan, type TargetAdapter } from "./target-types.js";
 
@@ -43,7 +44,7 @@ export const config = { path: "/*" };
 
 export function initNetlify({ packageManager, options }: InitContext): Promise<InitPlan> {
   return Promise.resolve({
-    target: { type: "netlify" },
+    target: { type: "netlify", cliVersion: DEFAULT_CLI_VERSIONS["netlify-cli"] },
     comments: [],
     files: [
       { path: "netlify/functions/api.mjs", content: netlifyEntry(options.appModule, options.appExport) },

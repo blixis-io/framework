@@ -135,19 +135,19 @@ export default defineConfig({
 
 ```
 $ pnpm run build
-$ npx --yes vercel@latest deploy --yes --prod
+$ npx --yes vercel@62.2.0 deploy --yes --prod
 ```
 
 ```
 $ pnpm run build
-$ npx --yes netlify-cli@latest deploy --dir public --functions netlify/functions --prod
+$ npx --yes netlify-cli@27.11.0 deploy --dir public --functions netlify/functions --prod
 ```
 
 | Option on the target | |
 |---|---|
 | `production` | `false` deploys a preview instead (default `true`) |
 | `build` | Your own build command, run through the shell (default: the package manager's `run build`) |
-| `cliVersion` | The provider CLI version `npx` runs. Pin it for reproducible deploys (default `latest`) |
+| `cliVersion` | The provider CLI version `npx` runs. Defaults to a pinned version (`init` writes it into your config); see [Provider CLI versions](#provider-cli-versions) |
 | `env` | Variables the target needs |
 | Netlify: `site`, `dir`, `functions` | The site id (else `NETLIFY_SITE_ID`), publish directory, functions directory |
 
@@ -185,7 +185,7 @@ The Worker name is derived from your package name (lower-case letters, digits an
 
 ```
 $ pnpm run build
-$ npx --yes wrangler@latest deploy
+$ npx --yes wrangler@4.147.0 deploy
 ```
 
 | Option on the target | |
@@ -199,6 +199,28 @@ $ npx --yes wrangler@latest deploy
 **No bundler to install.** Cloudflare's own bundler (esbuild, inside Wrangler) builds the Worker. That is safe here because it only ever sees compiled JavaScript: the decorator metadata Blixis needs was already emitted by `tsc`. Pointing Wrangler at TypeScript source would drop it.
 
 **What a Worker can't do like a server:** `listen()`, `shutdownTimeout` and `SIGTERM` handling don't apply (see [Running in Production](/framework/guides/running-in-production/#on-a-platform-that-calls-fetch-vercel-netlify-cloudflare-workers)), and connecting to Postgres from a Worker is not covered by `blix deploy` and has not been tested; Cloudflare offers its own routes for databases.
+
+## Provider CLI versions
+
+The Vercel, Netlify and Cloudflare targets run the provider's own CLI through `npx`, **with your deploy token in its environment** (`VERCEL_TOKEN`, `NETLIFY_AUTH_TOKEN`, `CLOUDFLARE_API_TOKEN`). If that were `@latest`, whatever version was published most recently would run with your credentials the moment it was published. So the version is pinned:
+
+- A new target defaults to the version this release of `@blixis-io/deploy` ships: `vercel` 62.2.0, `netlify-cli` 27.11.0, `wrangler` 4.147.0.
+- `blix deploy init` writes that version into your `blix.config.ts` (`cliVersion: "62.2.0"`), so **your repository** decides when the CLI changes, not the next npm publish. To upgrade, edit the number.
+- `blix deploy doctor` shows which version each target runs, and warns if one is set to `"latest"`.
+- You can still opt in to the moving target with `cliVersion: "latest"`. `doctor` will warn about it, and the `ci` workflow runs it as written.
+
+What was and wasn't checked for those three versions: each exists on npm, is not deprecated, supports Node 24 (their `engines`), and the command `blix deploy` builds for it was checked with `--dry-run`. **Not checked: a real deployment with them**, because that needs a provider account. Treat them as a conservative, known-published starting point, not as a tested-against-production claim, and bump them in your config when you have reason to.
+
+## Typos in the config are errors
+
+Every `deploy` section is checked strictly: an option the target doesn't have is an error, with a suggestion when one is close.
+
+```
+Invalid deploy config in blix.config.ts:
+  - deploy.targets.prod: unknown option "pussh" (did you mean "push"?)
+```
+
+Before this check, a misspelt option was ignored and the default stayed in force, so `pussh: false` still pushed the image.
 
 ## If a build fails with `ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION`
 

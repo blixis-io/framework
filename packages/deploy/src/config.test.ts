@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { DEFAULT_CLI_VERSIONS } from "./cli-versions.js";
 import { DeployConfigError, defineDeployConfig, parseDeployConfig, selectTarget } from "./config.js";
 
 const loaded = (config: Record<string, unknown>) => ({ path: "/p/blix.config.ts", config });
@@ -99,5 +100,97 @@ describe("selectTarget: names that are keys of Object.prototype", () => {
     const config = parseDeployConfig(loaded({ deploy: { targets: { constructor: docker } } }));
 
     expect(selectTarget(config, "constructor").name).toBe("constructor");
+  });
+});
+
+const messageFor = (config: Record<string, unknown>): string => {
+  try {
+    parseDeployConfig(loaded(config));
+  } catch (error) {
+    return error instanceof DeployConfigError ? error.message : String(error);
+  }
+  return "";
+};
+
+describe("parseDeployConfig: unknown keys are errors, not silently dropped", () => {
+  it("refuses a misspelt option, which used to be ignored and left the default in force (`pussh: false` still pushed)", () => {
+    const message = messageFor({ deploy: { targets: { prod: { ...docker, pussh: false } } } });
+
+    expect(message).toContain('deploy.targets.prod: unknown option "pussh"');
+    expect(message).toContain('did you mean "push"?');
+  });
+
+  it.each([
+    ["netlify", { type: "netlify", functons: "fns" }, "functons", "functions"],
+    ["cloudflare", { type: "cloudflare", enviroment: "staging" }, "enviroment", "environment"],
+    ["vercel", { type: "vercel", producton: false }, "producton", "production"],
+    ["docker", { type: "docker", image: "a/b", dockerfle: "Other" }, "dockerfle", "dockerfile"],
+  ])("suggests the right key for a typo in a %s target", (_type, target, typo, suggestion) => {
+    const message = messageFor({ deploy: { targets: { t: target } } });
+
+    expect(message).toContain(`unknown option "${typo}"`);
+    expect(message).toContain(`did you mean "${suggestion}"?`);
+  });
+
+  it("checks the registry section and the deploy section too", () => {
+    expect(messageFor({ deploy: { targets: { prod: { ...docker, registry: { host: "ghcr.io", passwordEnvv: "X" } } } } })).toContain('did you mean "passwordEnv"?');
+    expect(messageFor({ deploy: { targest: { prod: docker } } })).toContain('did you mean "targets"?');
+  });
+
+  it("lists the known options when nothing is close enough to suggest", () => {
+    const message = messageFor({ deploy: { targets: { prod: { ...docker, banana: 1 } } } });
+
+    expect(message).toContain('unknown option "banana"');
+    expect(message).not.toContain("did you mean");
+    expect(message).toContain("known options:");
+    expect(message).toContain("image");
+  });
+
+  it("names every unknown option at once", () => {
+    const message = messageFor({ deploy: { targets: { prod: { ...docker, pussh: false, banana: 1 } } } });
+
+    expect(message).toContain('"pussh"');
+    expect(message).toContain('"banana"');
+  });
+
+  it("still accepts every documented option", () => {
+    expect(() =>
+      parseDeployConfig(
+        loaded({
+          deploy: {
+            default: "prod",
+            targets: {
+              prod: { ...docker, registry: { host: "ghcr.io", usernameEnv: "U", passwordEnv: "P" }, dockerfile: "D", context: ".", platform: "linux/amd64", tag: "t", push: false, after: "echo", env: ["A"] },
+              v: { type: "vercel", production: false, build: "b", cliVersion: "1.0.0", env: [] },
+              n: { type: "netlify", dir: "d", functions: "f", site: "s" },
+              c: { type: "cloudflare", environment: "e", config: "wrangler.jsonc" },
+            },
+          },
+        }),
+      ),
+    ).not.toThrow();
+  });
+});
+
+const targetOf = (type: string, extra: Record<string, unknown> = {}) =>
+  parseDeployConfig(loaded({ deploy: { targets: { t: { type, ...extra } } } })).targets["t"];
+
+describe("parseDeployConfig: the provider CLI version", () => {
+  it.each([
+    ["vercel", DEFAULT_CLI_VERSIONS.vercel],
+    ["netlify", DEFAULT_CLI_VERSIONS["netlify-cli"]],
+    ["cloudflare", DEFAULT_CLI_VERSIONS.wrangler],
+  ])("%s defaults to a pinned version, not latest", (type, version) => {
+    const target = targetOf(type);
+
+    expect(target && "cliVersion" in target ? target.cliVersion : undefined).toBe(version);
+  });
+
+  it("keeps whatever the config says, including an explicit latest", () => {
+    for (const cliVersion of ["latest", "1.2.3", "^2.0.0"]) {
+      const target = targetOf("vercel", { cliVersion });
+
+      expect(target && "cliVersion" in target ? target.cliVersion : undefined).toBe(cliVersion);
+    }
   });
 });

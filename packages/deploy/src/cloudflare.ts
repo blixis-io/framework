@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { basename, join } from "node:path";
+import { DEFAULT_CLI_VERSIONS } from "./cli-versions.js";
 import type { CloudflareTarget } from "./config.js";
 import { buildStep, gitTag, npxStep, type InitContext, type InitPlan, type TargetAdapter } from "./target-types.js";
 
@@ -66,7 +67,7 @@ export function initCloudflare({ cwd, options, now }: InitContext): Promise<Init
   ].join("\n");
 
   return Promise.resolve({
-    target: { type: "cloudflare" },
+    target: { type: "cloudflare", cliVersion: DEFAULT_CLI_VERSIONS.wrangler },
     comments: [],
     files: [
       { path: "cloudflare/worker.mjs", content: cloudflareEntry(options.appModule, options.appExport) },

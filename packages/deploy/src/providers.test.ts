@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { cloudflareAdapter, cloudflareEntry, initCloudflare, workerName } from "./cloudflare.js";
+import { DEFAULT_CLI_VERSIONS } from "./cli-versions.js";
 import { parseDeployConfig, type CloudflareTarget, type NetlifyTarget, type VercelTarget } from "./config.js";
 import { netlifyEntry } from "./netlify.js";
+import { renderConfigFile } from "./config-file.js";
 import { adapterFor, initPlanFor, netlifyAdapter, vercelAdapter } from "./targets.js";
 import { fakeRunner } from "./test-helpers.js";
 import { vercelEntry } from "./vercel.js";
@@ -39,14 +41,14 @@ const commands = (steps: { command: string; args: readonly string[] }[]) => step
 
 describe("config defaults", () => {
   it("vercel", () => {
-    expect(vercel()).toEqual({ type: "vercel", production: true, cliVersion: "latest", env: [] });
+    expect(vercel()).toEqual({ type: "vercel", production: true, cliVersion: DEFAULT_CLI_VERSIONS.vercel, env: [] });
   });
 
   it("netlify", () => {
     expect(netlify()).toEqual({
       type: "netlify",
       production: true,
-      cliVersion: "latest",
+      cliVersion: DEFAULT_CLI_VERSIONS["netlify-cli"],
       env: [],
       dir: "public",
       functions: "netlify/functions",
@@ -58,7 +60,7 @@ describe("vercelAdapter.plan", () => {
   it("builds the project, then deploys to production", () => {
     const { steps, missingEnv } = vercelAdapter.plan("prod", vercel(), "deploy", ctx());
 
-    expect(commands(steps)).toEqual(["pnpm run build", "npx --yes vercel@latest deploy --yes --prod"]);
+    expect(commands(steps)).toEqual(["pnpm run build", `npx --yes vercel@${DEFAULT_CLI_VERSIONS.vercel} deploy --yes --prod`]);
     expect(missingEnv).toEqual([]);
   });
 
@@ -105,14 +107,14 @@ describe("netlifyAdapter.plan", () => {
   it("builds, then deploys the publish dir and functions to production", () => {
     const { steps } = netlifyAdapter.plan("prod", netlify(), "deploy", ctx());
 
-    expect(commands(steps)).toEqual(["pnpm run build", "npx --yes netlify-cli@latest deploy --dir public --functions netlify/functions --prod"]);
+    expect(commands(steps)).toEqual(["pnpm run build", `npx --yes netlify-cli@${DEFAULT_CLI_VERSIONS["netlify-cli"]} deploy --dir public --functions netlify/functions --prod`]);
   });
 
   it("passes a configured site, dir and functions directory, and drops --prod for a preview", () => {
     const target = netlify({ site: "abc-123", dir: "static", functions: "fns", production: false });
 
     expect(commands(netlifyAdapter.plan("prod", target, "deploy", ctx()).steps)[1]).toBe(
-      "npx --yes netlify-cli@latest deploy --dir static --functions fns --site abc-123",
+      `npx --yes netlify-cli@${DEFAULT_CLI_VERSIONS["netlify-cli"]} deploy --dir static --functions fns --site abc-123`,
     );
   });
 
@@ -182,7 +184,7 @@ describe("initPlanFor", () => {
   it("vercel writes the entry, vercel.json with a catch-all rewrite, and a public dir", async () => {
     const plan = await init("vercel");
 
-    expect(plan.target).toEqual({ type: "vercel" });
+    expect(plan.target).toEqual({ type: "vercel", cliVersion: DEFAULT_CLI_VERSIONS.vercel });
     expect(plan.files.map((file) => file.path)).toEqual(["api/index.mjs", "vercel.json", "public/.gitkeep"]);
     expect(JSON.parse(plan.files[1]?.content ?? "")).toEqual({ rewrites: [{ source: "/(.*)", destination: "/api" }], outputDirectory: "public" });
     expect(plan.files[2]?.keep).toBe(true);
@@ -201,13 +203,13 @@ describe("initPlanFor", () => {
 
 describe("cloudflare", () => {
   it("config defaults", () => {
-    expect(cloudflare()).toEqual({ type: "cloudflare", cliVersion: "latest", env: [], config: "wrangler.toml" });
+    expect(cloudflare()).toEqual({ type: "cloudflare", cliVersion: DEFAULT_CLI_VERSIONS.wrangler, env: [], config: "wrangler.toml" });
   });
 
   it("builds, then deploys with wrangler; the default config file is not passed", () => {
     const { steps, missingEnv } = cloudflareAdapter.plan("edge", cloudflare(), "deploy", ctx());
 
-    expect(commands(steps)).toEqual(["pnpm run build", "npx --yes wrangler@latest deploy"]);
+    expect(commands(steps)).toEqual(["pnpm run build", `npx --yes wrangler@${DEFAULT_CLI_VERSIONS.wrangler} deploy`]);
     expect(missingEnv).toEqual([]);
   });
 
@@ -269,10 +271,32 @@ main = "cloudflare/worker.mjs"
 compatibility_date = "2026-10-02"
 compatibility_flags = ["nodejs_compat"]
 `);
-    expect(plan.target).toEqual({ type: "cloudflare" });
+    expect(plan.target).toEqual({ type: "cloudflare", cliVersion: DEFAULT_CLI_VERSIONS.wrangler });
   });
 
   it("adapterFor binds it", () => {
     expect(adapterFor("edge", cloudflare()).ci().secrets).toContain("CLOUDFLARE_API_TOKEN");
+  });
+});
+
+const pinnedPlan = (type: "vercel" | "netlify" | "cloudflare") =>
+  initPlanFor(type, { cwd: "/app", packageManager: "pnpm", runner: fakeRunner(), options: { entry: "dist/main.js", appModule: "dist/app.module.js", appExport: "AppModule" } });
+
+describe("initPlanFor: the provider CLI version is written into the config", () => {
+  it.each([
+    ["vercel", DEFAULT_CLI_VERSIONS.vercel],
+    ["netlify", DEFAULT_CLI_VERSIONS["netlify-cli"]],
+    ["cloudflare", DEFAULT_CLI_VERSIONS.wrangler],
+  ] as const)("%s: the generated blix.config.ts pins %s, so the repo, not the next publish, decides when it changes", async (type, version) => {
+    const { target, comments } = await pinnedPlan(type);
+
+    expect(target["cliVersion"]).toBe(version);
+    expect(renderConfigFile("prod", target, comments)).toContain(`cliVersion: "${version}"`);
+  });
+
+  it("does not add one to a docker target, which runs no provider CLI", async () => {
+    const docker = await initPlanFor("docker", { cwd: "/app", packageManager: "pnpm", runner: fakeRunner(), options: { entry: "dist/main.js", appModule: "dist/app.module.js", appExport: "AppModule" } });
+
+    expect(docker.target).not.toHaveProperty("cliVersion");
   });
 });
