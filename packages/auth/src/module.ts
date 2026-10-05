@@ -44,11 +44,34 @@ export interface IssuingOptions<Claims> {
   refreshTokenTtl?: number | undefined;
 }
 
+/** The auth module was configured with something it can't work securely with. Thrown from `forRoot()`, so it fails at boot. */
+export class AuthConfigError extends Error {
+  override readonly name = "AuthConfigError";
+}
+
+/** Minimum HMAC key length in bytes: the size of the hash output (RFC 7518, section 3.2). */
+const MIN_SECRET_BYTES = { HS256: 32, HS384: 48, HS512: 64 } as const;
+
 export interface AuthModuleOptions<Claims = unknown> {
-  /** HMAC secret used to verify the token's signature. */
+  /**
+   * HMAC secret used to sign and verify tokens. At least 32 bytes for HS256, 48 for HS384, 64 for HS512
+   * (counted in bytes of the UTF-8 encoding), or `forRoot()` throws `AuthConfigError`. Use random bytes, for
+   * example `openssl rand -base64 48`.
+   */
   secret: string;
   /** Defaults to `"HS256"`. */
   algorithm?: "HS256" | "HS384" | "HS512";
+  /**
+   * Expected `iss` claim. When set, a token must carry exactly this issuer to be accepted, and tokens issued by
+   * `AUTH_SERVICE` carry it. Set it when more than one app or environment shares a secret, so one's tokens aren't
+   * accepted by another. When unset, `iss` is neither checked nor added.
+   */
+  issuer?: string;
+  /**
+   * Expected `aud` claim: a token must list this audience (any of them, if you give several), and tokens issued by
+   * `AUTH_SERVICE` carry it. When unset, `aud` is neither checked nor added.
+   */
+  audience?: string | readonly string[];
   /** Makes `JwtAuthGuard` (and `AUTH_SERVICE`, if `issuing` is set) visible to every module without each one importing this one directly. Defaults to `false`. */
   global?: boolean;
   /**
@@ -92,6 +115,8 @@ function isStringArray(value: unknown): value is string[] {
 export interface NormalizedAuthOptions {
   key: Uint8Array;
   algorithm: string;
+  issuer?: string | undefined;
+  audience?: string | readonly string[] | undefined;
 }
 
 // One `RequestContext` key per `defineAuthModule()` call, not a fixed
@@ -132,8 +157,8 @@ export function defineAuthModule<Schema extends ZodType>(
 
   /** Verifies the bearer token, validates its claims, and stores them as the current user. Throws `UnauthorizedException`. */
   async function authenticate(request: Request, options: NormalizedAuthOptions, ctx: RequestContext): Promise<Claims> {
-    const header = request.headers.get("authorization") ?? "";
-    const token = header.startsWith("Bearer ") ? header.slice("Bearer ".length) : undefined;
+    // RFC 7235: the scheme is case-insensitive and may be followed by more than one space.
+    const token = /^bearer[ \t]+(\S+)[ \t]*$/i.exec(request.headers.get("authorization") ?? "")?.[1];
     if (!token) {
       // RFC 6750: no credentials at all gets the bare scheme, with no error code.
       throw new UnauthorizedException("Missing or malformed Authorization header", BEARER_CHALLENGE);
@@ -141,7 +166,15 @@ export function defineAuthModule<Schema extends ZodType>(
 
     let payload: unknown;
     try {
-      payload = (await jwtVerify(token, options.key, { algorithms: [options.algorithm] })).payload;
+      payload = (
+        await jwtVerify(token, options.key, {
+          algorithms: [options.algorithm],
+          // A token that never expires is a token that can never be revoked by waiting.
+          requiredClaims: ["exp"],
+          ...(options.issuer === undefined ? {} : { issuer: options.issuer }),
+          ...(options.audience === undefined ? {} : { audience: typeof options.audience === "string" ? options.audience : [...options.audience] }),
+        })
+      ).payload;
     } catch {
       throw new UnauthorizedException("Invalid or expired token", INVALID_TOKEN_CHALLENGE);
     }
@@ -228,9 +261,19 @@ export function defineAuthModule<Schema extends ZodType>(
   @Module()
   class AuthModule {
     static forRoot(options: AuthModuleOptions<Claims>): DynamicModule {
+      const algorithm = options.algorithm ?? "HS256";
+      const key = new TextEncoder().encode(options.secret);
+      if (key.length < MIN_SECRET_BYTES[algorithm]) {
+        // The length, never the value: this message ends up in logs.
+        throw new AuthConfigError(
+          `AuthModule.forRoot(): the secret is ${key.length} bytes, but ${algorithm} needs at least ${MIN_SECRET_BYTES[algorithm]} bytes (RFC 7518, section 3.2). Use a random secret, for example from \`openssl rand -base64 48\` (64 characters, enough for every algorithm).`,
+        );
+      }
       const normalized: NormalizedAuthOptions = {
-        key: new TextEncoder().encode(options.secret),
-        algorithm: options.algorithm ?? "HS256",
+        key,
+        algorithm,
+        issuer: options.issuer,
+        audience: options.audience,
       };
       const imports: ModuleRef[] = [];
       const providers: Provider[] = [{ provide: AUTH_OPTIONS, useValue: normalized }, JwtAuthGuard, AuthGuard];

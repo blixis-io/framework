@@ -17,6 +17,7 @@ export const { AuthModule, JwtAuthGuard, createRolesGuard, getCurrentUser } = de
 ```
 
 ```ts
+// JWT_SECRET: at least 32 random bytes for HS256, e.g. `openssl rand -base64 48`
 @Module({ imports: [AuthModule.forRoot({ secret: process.env.JWT_SECRET! })] })
 class PostsModule {}
 ```
