@@ -26,7 +26,25 @@ import { HttpException } from "@blixis-io/http";
 throw new HttpException(422, "Unprocessable", { field: "email" });
 ```
 
-`status` becomes the response status and the problem body's `status`; `detail` becomes the body's `detail`; the optional third argument is merged directly into the JSON body (used internally for Zod's `issues` array on a `400`). `title` is filled in automatically from a table of standard status-code names, falling back to `"Error"` for a status the table doesn't recognize.
+`status` becomes the response status and the problem body's `status`; `detail` becomes the body's `detail`; the optional third argument is merged directly into the JSON body (used internally for Zod's `issues` array on a `400`). `title` is filled in automatically from the registered reason phrase for the status (`422` is `Unprocessable Entity`, `429` is `Too Many Requests`, `503` is `Service Unavailable`, and so on for every 4xx and 5xx), falling back to `"Error"` for a status that has none.
+
+An optional fourth argument carries **response headers**, for the statuses that need one:
+
+```ts
+throw new HttpException(429, "Try again later", undefined, { "retry-after": "30" });
+```
+
+The response is always `application/problem+json`; a `content-type` in `headers` is ignored.
+
+### 401 and `WWW-Authenticate`
+
+A `401` is meant to tell the client how to authenticate (RFC 9110). `UnauthorizedException` takes the challenge as its second argument, and sends it as `WWW-Authenticate`:
+
+```ts
+throw new UnauthorizedException("Missing API key", 'ApiKey realm="admin"');
+```
+
+Without one, no header is sent: the framework can't know which scheme your app uses. The [bearer-token guards](/framework/concepts/authentication/) in `@blixis-io/auth` send `Bearer` when no token was sent, and `Bearer error="invalid_token"` for a token that fails verification or the claims schema (RFC 6750). A `403` never carries a challenge.
 
 ## Named exception classes
 

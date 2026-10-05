@@ -65,6 +65,28 @@ async generateReport(@Req() req: Request) {
 
 `app.handle(request)` runs the exact same request-handling logic — routing, validation, guards, error mapping — against an in-memory `Request`, with no server, no port, no network stack. This is what `@blixis-io/testing` is built on (see [Testing](/framework/concepts/testing/)), and it's also a reasonable way to invoke the same application logic from a non-HTTP entry point (a CLI command, a queue worker) without spinning up a socket you don't need.
 
+## The origin of `request.url`
+
+`request.url` is a full URL, and its origin (`scheme://host[:port]`) comes from the address the server **listens on**, with the port it actually bound (so `listen(0)` reports the real port, not `0`). Client headers don't influence it by default, because a client can send any `Host` and any `X-Forwarded-*`. Two options let you opt in:
+
+```ts
+// Clients reach the server directly, by its public name:
+const app = await createHttpApplication(AppModule, { trustHostHeader: true });
+
+// The server sits behind a proxy or load balancer you control:
+const app = await createHttpApplication(AppModule, { trustProxy: true });
+```
+
+| Option | `request.url` origin comes from |
+| --- | --- |
+| neither | the listen address |
+| `trustHostHeader` | the `Host` header, over `http` |
+| `trustProxy` | `X-Forwarded-Proto` and `X-Forwarded-Host` (first value of each), else `Host`; implies `trustHostHeader` |
+
+Only a bare `host` or `host:port` is accepted (letters, digits, `-`, `_`, dots, or a bracketed IPv6 literal), and only `http` or `https` for the scheme. Anything else, such as `evil.com/path`, `user@evil.com` or a `javascript:` scheme, is ignored and the listen address is used instead, so a hostile header can't smuggle a path or credentials into the URL. Turn on `trustProxy` only when the proxy **overwrites** those headers; otherwise any client can claim any origin. Even with an option on, build absolute links in emails and redirects from a configured public URL, not from `request.url`. A server bound to an IPv6 address (`listen(3000, "::1")`) is written with brackets (`http://[::1]:3000`), which `new URL` requires.
+
+Under `createFetchHandler` the platform supplies the `Request` and its URL; these options don't apply.
+
 ## What isn't handled for you yet
 
 There's no built-in request logging, rate limiting, CORS, or compression middleware — the framework's HTTP layer is deliberately just routing + validation + guards + error mapping (see [Introduction](/framework/start-here/introduction/)). For now, that means wrapping `app.handle` yourself (a function that calls `app.handle(request)` and does something before/after) or reaching for `node:http`-level middleware ahead of the `createServer` callback if you need it. A first-class middleware/interceptor layer is on the framework's roadmap but doesn't exist yet.

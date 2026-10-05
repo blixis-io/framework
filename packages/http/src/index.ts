@@ -45,7 +45,7 @@ export {
   type ShutdownOptions,
 } from "./http-application.js";
 export { createFetchHandler, type FetchHandler } from "./fetch-handler.js";
-export { sendWebResponse, toWebRequest } from "./node-adapter.js";
+export { sendWebResponse, toWebRequest, type OriginOptions } from "./node-adapter.js";
 export type { ParamResolutionContext } from "./params.js";
 export { resolveHandlerArgs } from "./params.js";
 export { RequestContext, RequestContextError, runInRequestContext } from "./request-context.js";
