@@ -62,3 +62,9 @@ describe("loadPlugin", () => {
     await expect(loadPlugin("bogus", cwd)).resolves.toMatchObject({ kind: "invalid" });
   });
 });
+
+describe("loadPlugin: names that are keys of Object.prototype", () => {
+  it.each(["constructor", "toString", "hasOwnProperty", "__proto__", "valueOf"])("%s is not a known command, not a plugin with no package", async (name) => {
+    await expect(loadPlugin(name, cwd)).resolves.toEqual({ kind: "invalid", packageName: name, reason: "not a known command" });
+  });
+});

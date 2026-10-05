@@ -17,7 +17,7 @@ blix g <type> <name> [--flat] [--force] [--dry-run]
 | Argument | |
 |---|---|
 | `<type>` | `controller` (`c`), `service` (`s`), `module` (`m`), `guard` (`g`), `interceptor` (`i`) |
-| `<name>` | Any casing — normalized to kebab-case (path) and PascalCase (class name) |
+| `<name>` | Any casing — normalized to kebab-case (path) and PascalCase (class name). It must use ASCII letters and digits and start with a letter: `123` (the class would be `123Controller`, not valid TypeScript), a name of only punctuation, and a name with non-ASCII characters such as `café` are refused with a message saying what to change, instead of writing a misnamed file |
 
 | Flag | |
 |---|---|

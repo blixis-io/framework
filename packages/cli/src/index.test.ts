@@ -290,3 +290,36 @@ describe("blix doctor wiring", () => {
     expect(result.stdout).toContain("no readable package.json");
   });
 });
+
+describe("runCli: names that are keys of Object.prototype", () => {
+  it.each(["constructor", "toString", "hasOwnProperty", "__proto__", "valueOf"])("`blix %s` is an unknown command, not a plugin", async (name) => {
+    const result = await runCli([name], cwd);
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain(`Unknown command "${name}"`);
+  });
+
+  it("`blix g constructor users` is an unknown generator type", async () => {
+    const result = await runCli(["g", "constructor", "users"], cwd);
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain('Unknown type "constructor"');
+  });
+});
+
+describe("runCli: generating with an invalid name", () => {
+  it("`blix g c 123` explains the problem instead of writing `export class 123Controller`", async () => {
+    const result = await runCli(["g", "c", "123"], cwd);
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain("start with a letter");
+    expect(existsSync(join(cwd, "src"))).toBe(false);
+  });
+
+  it("`blix g c café` refuses the non-ASCII name", async () => {
+    const result = await runCli(["g", "c", "café"], cwd);
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain("ASCII");
+  });
+});

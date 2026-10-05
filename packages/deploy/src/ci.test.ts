@@ -109,3 +109,9 @@ describe("ciProviderFor", () => {
     expect(ciProviderFor("travis")).toBeUndefined();
   });
 });
+
+describe("ciProviderFor: ids that are keys of Object.prototype", () => {
+  it.each(["constructor", "toString", "hasOwnProperty", "__proto__", "valueOf"])("%s is not a CI provider", (id) => {
+    expect(ciProviderFor(id)).toBeUndefined();
+  });
+});

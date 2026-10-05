@@ -194,5 +194,5 @@ const PROVIDERS: Record<string, CiProvider> = {
 export const CI_PROVIDER_IDS = Object.keys(PROVIDERS);
 
 export function ciProviderFor(id: string): CiProvider | undefined {
-  return PROVIDERS[id];
+  return Object.hasOwn(PROVIDERS, id) ? PROVIDERS[id] : undefined;
 }

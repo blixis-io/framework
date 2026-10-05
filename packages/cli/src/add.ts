@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import { addDevDependencyArgs, detectPackageManager } from "./pm.js";
-import { KNOWN_PLUGINS } from "./plugins.js";
+import { KNOWN_PLUGINS, knownPlugin } from "./plugins.js";
 import type { CliResult } from "./types.js";
 
 /** Runs one package-manager command; resolves with its exit code. Injected so tests never touch the network. */
@@ -18,7 +18,7 @@ export const spawnInstall: InstallRunner = (command, args, cwd) =>
 /** `blix add <plugin>`: installs a plugin package as a dev dependency with the project's own package manager. */
 export async function runAdd(args: readonly string[], cwd: string, install: InstallRunner): Promise<CliResult> {
   const name = args[0];
-  const plugin = name ? KNOWN_PLUGINS[name] : undefined;
+  const plugin = name ? knownPlugin(name) : undefined;
 
   if (!name || !plugin) {
     const available = Object.keys(KNOWN_PLUGINS).join(", ");

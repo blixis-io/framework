@@ -89,3 +89,19 @@ describe("spawnInstall", () => {
     await expect(spawnInstall("blix-no-such-command-xyz", [], cwd)).rejects.toThrow("ENOENT");
   });
 });
+
+describe("runAdd: names that are keys of Object.prototype", () => {
+  it.each(["constructor", "toString", "hasOwnProperty", "__proto__", "valueOf"])("`blix add %s` is an unknown plugin and installs nothing", async (name) => {
+    let installed = false;
+
+    const result = await runAdd([name], cwd, () => {
+      installed = true;
+      return Promise.resolve(0);
+    });
+
+    expect(installed).toBe(false);
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain(`Unknown plugin "${name}"`);
+    expect(result.stdout).toBe("");
+  });
+});
