@@ -164,8 +164,21 @@ describe("generateOpenApiDocument", () => {
     it("documents a @Body schema as the JSON request body", () => {
       expect(doc.paths["/posts"]?.post?.requestBody).toEqual({
         required: true,
-        content: { "application/json": { schema: { type: "object", properties: { title: { type: "string" } }, required: ["title"], additionalProperties: false } } },
+        // No `additionalProperties: false`: a plain z.object() accepts a request with extra keys (and strips them).
+        content: { "application/json": { schema: { type: "object", properties: { title: { type: "string" } }, required: ["title"] } } },
       });
+    });
+
+    it("says additionalProperties: false only when the schema is .strict(), which really rejects extra keys", () => {
+      @Controller("strict")
+      class StrictController {
+        @Post()
+        create(@Body(CreatePostSchema.strict()) _input: unknown) {
+          return {};
+        }
+      }
+
+      expect(bodySchemaOf(StrictController)).toMatchObject({ additionalProperties: false });
     });
 
     it("has no requestBody for a route with no @Body", () => {
@@ -333,3 +346,175 @@ describe("generateOpenApiDocument: validate: false", () => {
     });
   });
 });
+
+const bodySchemaOf = (controller: new () => object) => generateOpenApiDocument({ controllers: [controller] }, { title: "t", version: "1" }).paths["/strict"]?.post?.requestBody?.content["application/json"].schema;
+
+const docFor = (...controllers: (new () => object)[]) => generateOpenApiDocument({ controllers }, { title: "t", version: "1" });
+
+/** The schema of a `GET`'s 200 response, or of a `POST`'s request body, at `path`. */
+const okSchema = (document: ReturnType<typeof docFor>, path: string) => document.paths[path]?.get?.responses["200"]?.content?.["application/json"].schema;
+const bodySchema = (document: ReturnType<typeof docFor>, path: string) => document.paths[path]?.post?.requestBody?.content["application/json"].schema;
+
+describe("generateOpenApiDocument: schemas JSON Schema can't represent", () => {
+  const Created = z.object({ id: z.string(), createdAt: z.date() });
+  const Wrapped = z.object({ name: z.string(), length: z.string().transform((value) => value.length) });
+
+  @Controller("events")
+  class EventsController {
+    @Get()
+    @Returns(Created)
+    list() {
+      return {};
+    }
+
+    @Get("wrapped")
+    @Returns(Wrapped)
+    wrapped() {
+      return {};
+    }
+
+    @Post()
+    create(@Body(Wrapped) _body: unknown) {
+      return {};
+    }
+  }
+
+  @Controller("fine")
+  class FineController {
+    @Get()
+    @Returns(PostSchema)
+    list() {
+      return {};
+    }
+  }
+
+  it("documents a z.date() as a date-time string instead of failing the whole document", () => {
+    const document = docFor(EventsController);
+
+    expect(okSchema(document, "/events")).toMatchObject({ properties: { id: { type: "string" }, createdAt: { type: "string", format: "date-time" } } });
+  });
+
+  it("documents a .transform() output as an open schema, not an error", () => {
+    expect(okSchema(docFor(EventsController), "/events/wrapped")).toMatchObject({ properties: { name: { type: "string" }, length: {} } });
+  });
+
+  it("documents a request body's transform by what the client sends (its input), not by what it becomes", () => {
+    expect(bodySchema(docFor(EventsController), "/events")).toMatchObject({ properties: { name: { type: "string" }, length: { type: "string" } } });
+  });
+
+  it("keeps the rest of the document when one schema is awkward", () => {
+    const document = docFor(EventsController, FineController);
+
+    expect(Object.keys(document.paths).toSorted()).toEqual(["/events", "/events/wrapped", "/fine"]);
+    expect(okSchema(document, "/fine")).toMatchObject({ properties: { id: { type: "string" } } });
+  });
+
+  it("still serves the document over HTTP, where it used to answer 500", async () => {
+    @Module({ controllers: [EventsController, FineController] })
+    class EventsModule {}
+    const app = await createHttpApplication(EventsModule);
+    serveOpenApi(app, "/openapi.json", { title: "t", version: "1" });
+
+    const res = await app.handle(new Request("http://localhost/openapi.json"));
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ paths: { "/events": {}, "/fine": {} } });
+    await app.close();
+  });
+
+  it("gives a schema that cannot be converted at all an open schema and says why, without losing the other operations", () => {
+    // A schema whose conversion throws: its definition is computed on demand, and the computation fails.
+    const broken = z.lazy((): z.ZodType => {
+      throw new Error("definition could not be built");
+    });
+
+    @Controller("broken")
+    class BrokenController {
+      @Post()
+      create(@Body(broken) _body: unknown) {
+        return {};
+      }
+    }
+
+    const document = docFor(BrokenController, FineController);
+
+    const schema = bodySchema(document, "/broken");
+    expect(Object.keys(schema ?? {})).toEqual(["description"]);
+    expect(String(schema?.["description"])).toContain("could not be converted");
+    expect(String(schema?.["description"])).toContain("definition could not be built");
+    expect(okSchema(document, "/fine")).toMatchObject({ properties: { id: { type: "string" } } });
+  });
+});
+
+describe("generateOpenApiDocument: request schemas describe what a client sends", () => {
+  const Create = z.object({ title: z.string(), tags: z.array(z.string()).default([]), draft: z.boolean().default(false) });
+
+  @Controller("drafts")
+  class DraftsController {
+    @Post()
+    @Returns(Create)
+    create(@Body(Create) _body: unknown) {
+      return {};
+    }
+  }
+
+  it("does not mark a field with a default as required in the request body", () => {
+    const schema = bodySchema(docFor(DraftsController), "/drafts");
+
+    expect(schema?.["required"]).toEqual(["title"]);
+  });
+
+  it("does mark it required in the response, where the default has been applied", () => {
+    const response = docFor(DraftsController).paths["/drafts"]?.post?.responses["200"]?.content?.["application/json"].schema;
+
+    expect(response?.["required"]).toEqual(expect.arrayContaining(["title", "tags", "draft"]));
+  });
+});
+
+describe("generateOpenApiDocument: @Query schemas of any shape", () => {
+  const Plain = z.object({ page: z.coerce.number().default(1), q: z.string().optional(), sort: z.enum(["asc", "desc"]) });
+  const Refined = Plain.refine((value) => value.page > 0);
+  const Transformed = Plain.transform((value) => ({ ...value, offset: (value.page - 1) * 10 }));
+  const Strict = Plain.strict();
+
+  @Controller("search")
+  class SearchController {
+    @Get("plain")
+    plain(@Query(Plain) _q: unknown) {
+      return {};
+    }
+
+    @Get("refined")
+    refined(@Query(Refined) _q: unknown) {
+      return {};
+    }
+
+    @Get("transformed")
+    transformed(@Query(Transformed) _q: unknown) {
+      return {};
+    }
+
+    @Get("strict")
+    strict(@Query(Strict) _q: unknown) {
+      return {};
+    }
+  }
+
+  const params = (path: string) => docFor(SearchController).paths[path]?.get?.parameters ?? [];
+
+  it.each(["/search/plain", "/search/refined", "/search/transformed", "/search/strict"])("documents every key of %s", (path) => {
+    expect(params(path).map((p) => p.name)).toEqual(["page", "q", "sort"]);
+  });
+
+  it.each(["/search/plain", "/search/refined", "/search/transformed", "/search/strict"])("%s: only a key with neither a default nor optional is required", (path) => {
+    expect(Object.fromEntries(params(path).map((p) => [p.name, p.required]))).toEqual({ page: false, q: false, sort: true });
+  });
+
+  it("documents the type of each key, an enum included", () => {
+    const sort = params("/search/refined").find((p) => p.name === "sort");
+
+    expect(sort?.schema).toMatchObject({ enum: ["asc", "desc"] });
+    expect(params("/search/plain").find((p) => p.name === "page")?.schema).toMatchObject({ type: "number" });
+  });
+});
+

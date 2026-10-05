@@ -69,7 +69,7 @@ interface OpenApiResponse {
   content?: { "application/json": { schema: JsonSchema } };
 }
 
-type JsonSchema = Record<string, unknown>; // z.toJSONSchema() output, minus its $schema key
+type JsonSchema = Record<string, unknown>; // z.toJSONSchema() output, minus its $schema key; never throws (see below)
 ```
 
 ## How it reads your routes
@@ -77,3 +77,5 @@ type JsonSchema = Record<string, unknown>; // z.toJSONSchema() output, minus its
 Walks `app.controllers` using the same public metadata readers `@blixis-io/http`'s own `buildRouter` uses internally (`getControllerPrefix`, `getRoutes`, `getParamSources`, `getHttpCode`, `getReturnsSchema`), plus [`getApiOperation`/`getClassApiTags`/`getMethodApiTags`](/framework/reference/blixis-http/#api-documentation-metadata). See [API Documentation](/framework/concepts/api-documentation/#what-gets-documented-and-what-deliberately-doesnt) for exactly what each decorator maps to, and the documented limitations (schema-less `@Query`/`@Body`, wildcard routes, undeclared response shapes).
 
 `:param` path segments become OpenAPI's `{param}` syntax; `*` wildcard routes are excluded from `paths` entirely.
+
+Requests are described by a schema's **input** side and responses by its **output** side; a `z.date()` is a `date-time` string, other unrepresentable types are open schemas, and a schema that can't be converted becomes an open schema whose `description` says why. See [API Documentation](/framework/concepts/api-documentation/#which-side-of-a-schema-is-documented).

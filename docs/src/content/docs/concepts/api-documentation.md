@@ -60,12 +60,35 @@ Both are entirely optional — a route with neither still gets a valid, unique `
 ## What gets documented, and what deliberately doesn't
 
 - **Path params** (`@Param`) → required path parameters, typed from the schema if given, `{type: "string"}` otherwise.
-- **Query params** (`@Query`) → one parameter per key, **only when the schema is a `ZodObject`** — there's nothing to enumerate for a schema-less `@Query()` or a non-object schema, so nothing is documented for those. Give your query schemas a real shape; it's good practice regardless.
+- **Query params** (`@Query`) → one parameter per key of the schema's shape, whatever wrapped the object (`.refine()`, `.transform()`, `.strict()`). A key is `required` only when it has neither a default nor `.optional()`. There's nothing to enumerate for a schema-less `@Query()` or a schema that isn't an object (a `z.record()`, say), so nothing is documented for those.
 - **Headers** (`@Headers(name)`) → one parameter, only when `name` is given — `@Headers()` (all headers) has nothing specific to document either.
-- **Body** (`@Body(schema)`) → the JSON request body, only with a schema.
+- **Body** (`@Body(schema)`) → the JSON request body, only with a schema. `additionalProperties: false` appears only when the schema is `.strict()`: a plain `z.object()` accepts extra keys and strips them.
 - **Responses**: the `@Returns` schema (if present) at `@HttpCode`'s status (or `200`). Without `@Returns`, the status is still documented but with no schema — the generator can't statically know whether a handler returns `undefined` (→ `204` at runtime) without one, so give routes that return nothing an explicit `@HttpCode(204)` if you want the document to say so accurately.
 - Every operation also gets a `default` response referencing one shared `components.schemas.Problem` object — matching this framework's actual `application/problem+json` error shape — rather than guessing which specific 4xx/5xx codes apply to which route.
 - **Wildcard (`*`) routes are excluded entirely** — OpenAPI has no path construct for them.
+
+## Which side of a schema is documented
+
+A Zod schema has two sides: what goes in and what comes out. The document describes the side a reader needs:
+
+| Where | Side | Effect |
+| --- | --- | --- |
+| Request body, query, path params | **input**: what the client sends | a field with `.default()` is **not** required; a `.transform()` is documented by its input type |
+| `@Returns` response | **output**: what the server returns | the default has been applied, so the field **is** required |
+
+```ts
+const Create = z.object({ title: z.string(), tags: z.array(z.string()).default([]) });
+// request body: required: ["title"]            (the client may omit tags)
+// @Returns(Create) response: required: ["title", "tags"]
+```
+
+## Schemas JSON Schema can't express
+
+The document is always generated; one awkward schema never takes it down. (Before, a `z.date()` or any `.transform()` made `serveOpenApi` answer `500` and `generateOpenApiDocument` throw.)
+
+- A `z.date()` is documented as `{ type: "string", format: "date-time" }`, which is what JSON serialization makes of it.
+- A type with no JSON Schema equivalent (the output of a `.transform()`, a `z.custom()`) is documented as an open schema, `{}`.
+- A schema that can't be converted at all becomes `{ description: "Schema could not be converted to JSON Schema: <reason>" }`, so the reason is visible in the document and every other operation is unaffected.
 
 ## Next
 

@@ -65,10 +65,58 @@ const PROBLEM_SCHEMA: JsonSchema = {
   required: ["type", "title", "status", "detail"],
 };
 
-/** `z.toJSONSchema()`'s output, minus the top-level `$schema` key — OpenAPI Schema Objects don't carry that. */
-function toSchema(schema: ZodType): JsonSchema {
-  const { $schema: _unused, ...rest } = z.toJSONSchema(schema);
-  return rest;
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/**
+ * `z.toJSONSchema()`'s output, minus the top-level `$schema` key (OpenAPI Schema Objects don't carry it).
+ *
+ * `io` says which side of the schema to describe. A request is described by what the client **sends** (`"input"`:
+ * a field with a `.default()` is optional, a `.transform()` is its input type), a response by what the server
+ * **returns** (`"output"`: the default has been applied, so the field is always there).
+ *
+ * Nothing here may fail the whole document. Types JSON Schema has no equivalent for (`.transform()` output,
+ * `z.custom()`) become an open schema (`{}`), a `z.date()` becomes a `date-time` string (what JSON serialization
+ * makes of it), and a schema that can't be converted at all becomes an open schema that says so in its description.
+ */
+function toSchema(schema: ZodType, io: "input" | "output"): JsonSchema {
+  try {
+    const { $schema: _unused, ...rest } = z.toJSONSchema(schema, {
+      io,
+      unrepresentable: "any",
+      override: ({ zodSchema, jsonSchema }) => {
+        // `instanceof` on Zod's own classes checks traits, not identity, so it also holds across two copies of Zod.
+        if (zodSchema instanceof z.ZodDate) {
+          jsonSchema.type = "string";
+          jsonSchema.format = "date-time";
+        }
+      },
+    });
+    return rest;
+  } catch (error) {
+    return { description: `Schema could not be converted to JSON Schema: ${error instanceof Error ? error.message : String(error)}` };
+  }
+}
+
+/**
+ * One query parameter per property of the schema's input shape, whatever wrapped the object (`.refine()`,
+ * `.transform()`, `.strict()`): read from the JSON Schema rather than from the Zod class, so it can't be defeated by
+ * a wrapper or by a second copy of Zod. A key is required only when it has neither a default nor `.optional()`.
+ */
+function queryParameters(schema: ZodType): OpenApiParameter[] {
+  const converted = toSchema(schema, "input");
+  const properties = converted["properties"];
+  if (converted["type"] !== "object" || !isRecord(properties)) {
+    return [];
+  }
+  const required = Array.isArray(converted["required"]) ? converted["required"] : [];
+  return Object.entries(properties).map(([name, property]) => ({
+    name,
+    in: "query",
+    required: required.includes(name),
+    schema: isRecord(property) ? property : {},
+  }));
 }
 
 /**
@@ -100,19 +148,12 @@ function buildParameters(prototype: object, propertyKey: string | symbol): {
           name: source.name,
           in: "path",
           required: true,
-          schema: source.schema ? toSchema(source.schema) : { type: "string" },
+          schema: source.schema ? toSchema(source.schema, "input") : { type: "string" },
         });
         break;
       case "query":
-        if (source.schema instanceof z.ZodObject) {
-          for (const [name, fieldSchema] of Object.entries(source.schema.shape)) {
-            parameters.push({
-              name,
-              in: "query",
-              required: !fieldSchema.isOptional(),
-              schema: toSchema(fieldSchema),
-            });
-          }
+        if (source.schema) {
+          parameters.push(...queryParameters(source.schema));
         }
         break;
       case "headers":
@@ -122,7 +163,7 @@ function buildParameters(prototype: object, propertyKey: string | symbol): {
         break;
       case "body":
         if (source.schema) {
-          requestBody = { required: true, content: { "application/json": { schema: toSchema(source.schema) } } };
+          requestBody = { required: true, content: { "application/json": { schema: toSchema(source.schema, "input") } } };
         }
         break;
       // `req` (the raw Request) has nothing documentable — no case needed.
@@ -138,7 +179,7 @@ function buildResponses(prototype: object, propertyKey: string | symbol): Record
 
   return {
     [status]: returnsSchema
-      ? { description: "Success", content: { "application/json": { schema: toSchema(returnsSchema) } } }
+      ? { description: "Success", content: { "application/json": { schema: toSchema(returnsSchema, "output") } } }
       : { description: "Success" },
     default: {
       description: "Error",
