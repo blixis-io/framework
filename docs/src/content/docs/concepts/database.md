@@ -45,7 +45,22 @@ class PostsModule {}
 
 `forRoot()` opens a `pg.Pool` immediately and registers `DATABASE`, but it doesn't stop there — an internal `OnModuleInit` hook runs `SELECT 1` against the pool before `createApplication()` finishes resolving. A database that's down, or a bad connection string, fails **at boot** with `DbConnectionError`, not three requests into production on whichever handler happens to query first.
 
-`connection` is passed straight through to `pg.Pool` — either a connection string or a full `PoolConfig` object (host/port/user/password/`connectionTimeoutMillis`/etc.).
+`connection` is passed through to `pg.Pool` — either a connection string or a full `PoolConfig` object (host/port/user/password/`max`/`connectionTimeoutMillis`/etc.), with one default added: a request for a connection waits at most **10 seconds** before failing. `pg` on its own waits forever, so an exhausted pool (every connection busy) or an unreachable database would leave requests hanging with no error. Set `connectionTimeoutMillis` yourself to change it, or `0` to wait indefinitely. The pool holds 10 connections by default (`max`); size it to your database's connection limit across all running instances.
+
+## When a connection is lost
+
+An idle connection can die while nothing is using it: the database restarts or fails over, the network drops, an administrator ends the session. `pg` reports that on the pool as an `error` event, and a pool with no listener makes Node throw it, which would crash the process. `forRoot()` always attaches a listener. The pool discards the dead connection and opens a new one the next time a query needs it, so the app keeps running and the next query works.
+
+By default the error is written with `console.error`. Pass `onPoolError` to send it to your logger or an alerting hook:
+
+```ts
+DrizzleModule.forRoot({
+  connection: process.env.DATABASE_URL,
+  onPoolError: (error) => log.warn("idle database connection failed", { message: error.message }),
+});
+```
+
+A handler that throws is caught and reported with `console.error`, so it can't bring the process down either. A connection that fails while a query is running isn't covered by this: that error is returned to the code that ran the query, as before.
 
 ## The pool closes itself too
 

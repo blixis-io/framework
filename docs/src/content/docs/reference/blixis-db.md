@@ -53,10 +53,11 @@ export type Database = NodePgDatabase<typeof schema>;
 interface DrizzleModuleOptions {
   connection: string | PoolConfig; // from "pg"
   global?: boolean; // default false
+  onPoolError?: (error: Error) => void; // default: console.error
 }
 ```
 
-`connection` is passed straight to `pg.Pool` — a connection string, or a full config object (`host`/`port`/`user`/`password`/`connectionTimeoutMillis`/etc.). `global` makes `DATABASE` visible to every module without each one importing `DrizzleModule` directly, same escape hatch as `LoggerModule`/`ConfigModule`; defaults to `false` since most apps only need direct database access from one module.
+`connection` is passed to `pg.Pool` — a connection string, or a full config object (`host`/`port`/`user`/`password`/`max`/`connectionTimeoutMillis`/etc.). One default is added: unless you set `connectionTimeoutMillis` (`0` means no limit), a request for a connection fails after 10 seconds, where `pg` on its own would wait forever when the pool is exhausted or the database is unreachable. `onPoolError` is called when the pool reports an error on an idle connection (see [Connection loss](/framework/concepts/database/#when-a-connection-is-lost)). `global` makes `DATABASE` visible to every module without each one importing `DrizzleModule` directly, same escape hatch as `LoggerModule`/`ConfigModule`; defaults to `false` since most apps only need direct database access from one module.
 
 ## `DrizzleModule.forRoot(options)`
 
