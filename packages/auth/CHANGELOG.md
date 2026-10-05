@@ -1,5 +1,12 @@
 # @blixis-io/auth
 
+## 0.2.1
+
+### Patch Changes
+
+- Updated dependencies [[`6216026`](https://github.com/blixis-io/framework/commit/6216026a68363c4d901509d0116d52e447c95039), [`e1c471e`](https://github.com/blixis-io/framework/commit/e1c471e79715ca18ccfc009a1912e2b20f41eb08)]:
+  - @blixis-io/http@0.5.0
+
 ## 0.2.0
 
 ### Minor Changes

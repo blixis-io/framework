@@ -1,5 +1,15 @@
 # @blixis-io/http
 
+## 0.5.0
+
+### Minor Changes
+
+- [#74](https://github.com/blixis-io/framework/pull/74) [`6216026`](https://github.com/blixis-io/framework/commit/6216026a68363c4d901509d0116d52e447c95039) Thanks [@EmVeeNL](https://github.com/EmVeeNL)! - Export `RequestContextModule`, the global module `createHttpApplication` already used to provide `RequestContext`. Entry points that boot an app without the HTTP layer can now import it, so providers that inject `RequestContext` still resolve there.
+
+### Patch Changes
+
+- [#69](https://github.com/blixis-io/framework/pull/69) [`e1c471e`](https://github.com/blixis-io/framework/commit/e1c471e79715ca18ccfc009a1912e2b20f41eb08) Thanks [@EmVeeNL](https://github.com/EmVeeNL)! - Treat a request body cut off by the client (a disconnect or half-close before the declared length arrived) as `400 Bad Request` instead of an unexpected `500`, and skip writing a response to a client that is already gone. Neither case logs a server error any more; previously each such disconnect logged two stack traces.
+
 ## 0.4.0
 
 ### Minor Changes

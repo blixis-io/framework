@@ -1,5 +1,11 @@
 # @blixis-io/cli
 
+## 0.4.1
+
+### Patch Changes
+
+- [#71](https://github.com/blixis-io/framework/pull/71) [`4e37519`](https://github.com/blixis-io/framework/commit/4e37519afd5a6cb9a13c948c2764f4c59cf8c99a) Thanks [@EmVeeNL](https://github.com/EmVeeNL)! - `blix doctor` no longer reports a duplicate `@blixis-io/core` or `@blixis-io/di` when obsolete folders are left in `node_modules/.pnpm` after a dependency change. It now counts only the copies the installed packages can actually resolve, which matches `pnpm why`, instead of every physical folder.
+
 ## 0.4.0
 
 ### Minor Changes
