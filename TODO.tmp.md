@@ -16,8 +16,8 @@ Finding IDs (REL-1, BUG-2, ...) refer to [`review.md`](./review.md), which has t
 
 ### P1: reliability and correctness (do before new features)
 
-Decide first, because it changes install requirements and release order:
-- [ ] **[decide] peer dependencies (MNT-1).** Published `auth`/`config`/`db`/`events`/`logging`/`openapi`/`tenancy`/`testing` pin `core`, `di` and `http` to exact versions (`npm view @blixis-io/auth dependencies` shows `core 0.3.1`, `di 0.1.2`, `http 0.4.0` at the time of the review), so any patch of core gives apps two copies. Same issue for `zod` and `drizzle-orm`. Recommendation: move `core`, `di`, `http`, `zod`, `drizzle-orm` to `peerDependencies` (`workspace:^`) of the packages that extend them, as `commands` and `deploy` already do. Breaking for installs, fine while 0.x.
+Done first, because it changes install requirements and release order:
+- [x] **peer dependencies (MNT-1): decided yes, done in #76** (open, green): `core`, `di`, `http`, `zod`, `drizzle-orm` are peers of the packages that build on them; create-blixis installs `zod`; docs have a peer table. Verified with packed tarballs in fresh pnpm and npm 11 installs (one copy each; npm auto-installed missing peers); Changesets dry runs: a lone core patch moves only core, a lone core minor gives dependents patch bumps with updated peer ranges, never a major. Not verified: yarn and bun, and the real conflict error with mismatched published versions. Original problem: published `auth`/`config`/`db`/`events`/`logging`/`openapi`/`tenancy`/`testing` pin `core`, `di` and `http` to exact versions (`npm view @blixis-io/auth dependencies` shows `core 0.3.1`, `di 0.1.2`, `http 0.4.0` at the time of the review), so any patch of core gives apps two copies. Same issue for `zod` and `drizzle-orm`. Recommendation: move `core`, `di`, `http`, `zod`, `drizzle-orm` to `peerDependencies` (`workspace:^`) of the packages that extend them, as `commands` and `deploy` already do. Breaking for installs, fine while 0.x.
 
 Fixes, in order:
 - [ ] 1. db: attach `pool.on("error")` that logs through `LOGGER`; default `connectionTimeoutMillis`; test that terminates an idle backend. **High: an idle connection loss currently crashes the process (reproduced).** REL-1, REL-4 [me]
@@ -152,6 +152,7 @@ Still ideas (each can reuse the bootstrap discovery hook):
 Process:
 - [ ] check the EXIT CODE of `pnpm run ci`, not a grep of it (editorconfig step was invisible twice); it failed once more on diagram indentation in markdown (editorconfig wants even left-padding)
 - [ ] use the session scratchpad, never /tmp (slipped again: ci.out, ec.out)
+- [ ] when a release leaves dependents' peer ranges out of date (a core minor, say), add explicit minor changesets for those dependents: by default Changesets only gives them a patch bump with the new range, which is a breaking install change in a patch
 - [ ] probing a suspected bug: write a throwaway `zz-*.test.ts` next to the code (reuses the vitest decorator transform), print with `--reporter=verbose`, delete it after; check `git status` is clean
 - [ ] a merge refused with "head branch is not up to date" means rebase onto `origin/main` and `git push --force-with-lease`, then wait for the three checks
 - [ ] zsh: an unquoted `$VAR` is NOT split into words (use a shell function for `cmd args`), and `--include=*.ts` must be quoted
