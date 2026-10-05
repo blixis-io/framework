@@ -13,7 +13,7 @@ Read `AGENTS.md` before touching Turborepo config.
 ## Current status
 
 - `main` is at `9a73afb` ("Version Packages", #70). All tests pass on `main`: 936 (lint 0 errors, 9 intentional `no-await-in-loop` warnings), coverage 99.1% lines and 95.2% branches.
-- Open PRs: only the docs PR carrying `review.md`, `TODO.tmp.md` and this file.
+- Open PRs: #76 (peer dependencies, MNT-1; green).
 - **Released 2026-10-05 (#70):** commands 0.2.0, http 0.5.0, cli 0.4.1, auth 0.2.1, openapi 0.2.5, tenancy 0.1.6, testing 0.1.6. Verified on the registry, and in two fresh pnpm installs outside the workspace using the published versions with `--config.minimumReleaseAge=0`: an app with `@blixis-io/http` (guard and command both inject `RequestContext`; `blix run`, `blix run ping` and `blix doctor` all fine, one copy of core and di) and an app without http (`blix run hello` fine). 13 packages are on npm, published via Changesets and OIDC Trusted Publishing.
 - **What those releases contain:** `blix run` now provides `RequestContext` when `@blixis-io/http` is importable (http exports `RequestContextModule`; http is an optional peer of commands); `blix doctor` counts only reachable copies of core/di (#71); a truncated request body answers 400 and a client that disconnects mid-body no longer logs two stack traces (#69).
 - Merged since the last handover, not published packages: #72 (RequestContext isolation tests under real sockets), #73 (new docs page "The Request Path"), and hello-api now has a `posts:seed` command and an `@OnEvent` listener (#74).
@@ -33,10 +33,11 @@ Read `AGENTS.md` before touching Turborepo config.
 7. **Do not merge. Do not use `--admin`.** The maintainer merges with `gh pr merge N --rebase`. `main` requires the `ci` check; if a merge is refused with "base branch policy", ci is still running: wait.
 8. After a merge: `git switch main && git pull --ff-only`, update `TODO.tmp.md` (and this file's status), then pick the next task.
 9. Stacked PRs: CI only runs for PRs whose base is `main`. Prefer sequential PRs.
-10. Version Packages PR (opened by the bot): it never gets CI. Push an empty commit to `changeset-release/main` as the maintainer, again every time `main` moves. The maintainer merges it; npm publish happens by OIDC in the Release workflow.
-11. A NEW package needs, before its first release: a `0.0.0` placeholder published by hand (`npm publish --access public` from a temp dir) and `npm trust github <pkg> --repo blixis-io/framework --file release.yml --allow-publish -y`. Both need the maintainer's npm passkey: ask, don't attempt.
-12. Never handle secrets: the maintainer sets `CODECOV_TOKEN` and npm auth themselves. Don't paste or print tokens.
-13. Use a scratch directory outside the repo for temp files, not the repo and not `/tmp` clutter.
+10. If a release leaves dependents' peer ranges out of date (a `core` minor, say), add explicit minor changesets for those dependents: Changesets alone gives them a patch bump with the new range, which is a breaking install change in a patch. (Checked with dry runs of `changeset version` and the changelog switched off.)
+11. Version Packages PR (opened by the bot): it never gets CI. Push an empty commit to `changeset-release/main` as the maintainer, again every time `main` moves. The maintainer merges it; npm publish happens by OIDC in the Release workflow.
+12. A NEW package needs, before its first release: a `0.0.0` placeholder published by hand (`npm publish --access public` from a temp dir) and `npm trust github <pkg> --repo blixis-io/framework --file release.yml --allow-publish -y`. Both need the maintainer's npm passkey: ask, don't attempt.
+13. Never handle secrets: the maintainer sets `CODECOV_TOKEN` and npm auth themselves. Don't paste or print tokens.
+14. Use a scratch directory outside the repo for temp files, not the repo and not `/tmp` clutter.
 
 ## Verification discipline
 
