@@ -1,5 +1,5 @@
 import { DuplicateProviderError, Inject, Injectable, InjectionToken, Optional } from "@blixis-io/di";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createApplication } from "./application.js";
 import type { BootstrapContext } from "./lifecycle.js";
 import { NotAModuleError, ProviderNotVisibleError } from "./errors.js";
@@ -712,5 +712,257 @@ describe("createApplication: errors", () => {
     class NotAModule {}
 
     await expect(createApplication(NotAModule)).rejects.toThrow(NotAModuleError);
+  });
+});
+
+/** `Pool` is the dependency (closes last), `Flusher` depends on it (closes first). */
+function fixture(flusherFails: boolean, poolFails = false) {
+  const calls: string[] = [];
+
+  @Injectable()
+  class Pool {
+    onApplicationShutdown(): void {
+      calls.push("Pool");
+      if (poolFails) {
+        throw new Error("pool close failed");
+      }
+    }
+  }
+
+  @Injectable()
+  class Flusher {
+    constructor(@Inject(Pool) public pool: Pool) {}
+    onApplicationShutdown(): void {
+      calls.push("Flusher");
+      if (flusherFails) {
+        throw new Error("flush failed");
+      }
+    }
+  }
+
+  @Module({ providers: [Pool, Flusher] })
+  class AppModule {}
+
+  return { calls, AppModule };
+}
+
+describe("createApplication: a shutdown hook that fails", () => {
+  it("still runs the hooks that come after it, so a failing flush cannot leave the pool open", async () => {
+    const { calls, AppModule } = fixture(true);
+    const app = await createApplication(AppModule);
+
+    await expect(app.close()).rejects.toThrow("flush failed");
+
+    expect(calls).toEqual(["Flusher", "Pool"]);
+  });
+
+  it("rethrows a single failure as it is, not wrapped", async () => {
+    const { AppModule } = fixture(true);
+    const app = await createApplication(AppModule);
+
+    await expect(app.close()).rejects.not.toBeInstanceOf(AggregateError);
+  });
+
+  it("reports every failure in an AggregateError, in the order the hooks ran", async () => {
+    const { calls, AppModule } = fixture(true, true);
+    const app = await createApplication(AppModule);
+
+    const error = await app.close().catch((caught: unknown) => caught);
+
+    if (!(error instanceof AggregateError)) {
+      throw new Error("expected close() to reject with an AggregateError");
+    }
+    expect(error.errors.map((inner: Error) => inner.message)).toEqual(["flush failed", "pool close failed"]);
+    expect(calls).toEqual(["Flusher", "Pool"]);
+  });
+
+  it("is still closed afterwards: a second close() does not run the hooks again", async () => {
+    const { calls, AppModule } = fixture(true);
+    const app = await createApplication(AppModule);
+    await app.close().catch(() => {});
+
+    await app.close();
+
+    expect(calls).toEqual(["Flusher", "Pool"]);
+  });
+});
+
+describe("createApplication: a boot that fails", () => {
+  it("shuts down the providers it had already built, in reverse order, when onModuleInit throws", async () => {
+    const calls: string[] = [];
+
+    @Injectable()
+    class Pool {
+      onApplicationShutdown(): void {
+        calls.push("Pool");
+      }
+    }
+
+    @Injectable()
+    class Cache {
+      constructor(@Inject(Pool) public pool: Pool) {}
+      onApplicationShutdown(): void {
+        calls.push("Cache");
+      }
+    }
+
+    @Injectable()
+    class Migrator {
+      constructor(@Inject(Cache) public cache: Cache) {}
+      onModuleInit(): void {
+        throw new Error("migration failed");
+      }
+      onApplicationShutdown(): void {
+        calls.push("Migrator");
+      }
+    }
+
+    @Module({ providers: [Pool, Cache, Migrator] })
+    class AppModule {}
+
+    await expect(createApplication(AppModule)).rejects.toThrow("migration failed");
+
+    // Everything that was constructed is closed, dependents first, including the provider whose init threw.
+    expect(calls).toEqual(["Migrator", "Cache", "Pool"]);
+  });
+
+  it("shuts down what was built when a later provider's constructor throws", async () => {
+    const calls: string[] = [];
+
+    @Injectable()
+    class Pool {
+      onApplicationShutdown(): void {
+        calls.push("Pool");
+      }
+    }
+
+    @Injectable()
+    class Broken {
+      constructor(@Inject(Pool) public pool: Pool) {
+        throw new Error("constructor failed");
+      }
+      onApplicationShutdown(): void {
+        calls.push("Broken");
+      }
+    }
+
+    @Module({ providers: [Pool, Broken] })
+    class AppModule {}
+
+    await expect(createApplication(AppModule)).rejects.toThrow("constructor failed");
+
+    // `Broken` was never constructed, so it has nothing to close; `Pool` was.
+    expect(calls).toEqual(["Pool"]);
+  });
+
+  it("waits for providers still being built when another fails, then shuts those down too", async () => {
+    const calls: string[] = [];
+    const SLOW = new InjectionToken<{ onApplicationShutdown(): void }>("slow");
+
+    @Injectable()
+    class Broken {
+      constructor() {
+        throw new Error("fails immediately");
+      }
+    }
+
+    @Module({
+      providers: [
+        Broken,
+        {
+          provide: SLOW,
+          useFactory: async () => {
+            await new Promise((resolve) => setTimeout(resolve, 40));
+            return {
+              onApplicationShutdown: () => {
+                calls.push("Slow");
+              },
+            };
+          },
+        },
+      ],
+    })
+    class AppModule {}
+
+    await expect(createApplication(AppModule)).rejects.toThrow("fails immediately");
+
+    expect(calls).toEqual(["Slow"]);
+  });
+
+  it("shuts down when onApplicationBootstrap throws", async () => {
+    const calls: string[] = [];
+
+    @Injectable()
+    class Resource {
+      onApplicationShutdown(): void {
+        calls.push("Resource");
+      }
+    }
+
+    @Injectable()
+    class Discoverer {
+      onApplicationBootstrap(): void {
+        throw new Error("bootstrap failed");
+      }
+    }
+
+    @Module({ providers: [Resource, Discoverer] })
+    class AppModule {}
+
+    await expect(createApplication(AppModule)).rejects.toThrow("bootstrap failed");
+
+    expect(calls).toEqual(["Resource"]);
+  });
+
+  it("rejects with the original error even when a shutdown hook also fails, and reports that failure", async () => {
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    @Injectable()
+    class Resource {
+      onApplicationShutdown(): void {
+        throw new Error("close failed too");
+      }
+    }
+
+    @Injectable()
+    class Broken {
+      onModuleInit(): void {
+        throw new Error("init failed");
+      }
+    }
+
+    @Module({ providers: [Resource, Broken] })
+    class AppModule {}
+
+    await expect(createApplication(AppModule)).rejects.toThrow("init failed");
+
+    expect(logged).toHaveBeenCalledOnce();
+    expect(String(logged.mock.calls[0]?.[0])).toContain("while rolling back a failed boot");
+    logged.mockRestore();
+  });
+
+  it("calls shutdown hooks with no signal, as it was not a signal that stopped it", async () => {
+    const seen: unknown[] = [];
+
+    @Injectable()
+    class Resource {
+      onApplicationShutdown(signal?: string): void {
+        seen.push(signal);
+      }
+    }
+
+    @Injectable()
+    class Broken {
+      onModuleInit(): void {
+        throw new Error("init failed");
+      }
+    }
+
+    @Module({ providers: [Resource, Broken] })
+    class AppModule {}
+
+    await createApplication(AppModule).catch(() => {});
+
+    expect(seen).toEqual([undefined]);
   });
 });

@@ -214,26 +214,31 @@ export class Application {
     const container = new Container();
     const controllers = buildApplicationGraph(graph, container, overridesByToken);
 
-    await container.resolveAll();
+    try {
+      await container.resolveAll();
 
-    // Sequential and order-dependent: dependencies must finish initializing
-    // before their dependents, so this can't become a Promise.all().
-    for (const [, instance] of container.getResolvedEntries()) {
-      if (hasOnModuleInit(instance)) {
-        await instance.onModuleInit();
+      // Sequential and order-dependent: dependencies must finish initializing
+      // before their dependents, so this can't become a Promise.all().
+      for (const [, instance] of container.getResolvedEntries()) {
+        if (hasOnModuleInit(instance)) {
+          await instance.onModuleInit();
+        }
       }
-    }
 
-    const app = new Application(container, controllers);
+      const app = new Application(container, controllers);
 
-    // After every onModuleInit has finished, so a discovering provider can rely on all others being ready.
-    for (const [, instance] of container.getResolvedEntries()) {
-      if (hasOnApplicationBootstrap(instance)) {
-        await instance.onApplicationBootstrap(app);
+      // After every onModuleInit has finished, so a discovering provider can rely on all others being ready.
+      for (const [, instance] of container.getResolvedEntries()) {
+        if (hasOnApplicationBootstrap(instance)) {
+          await instance.onApplicationBootstrap(app);
+        }
       }
-    }
 
-    return app;
+      return app;
+    } catch (error) {
+      await rollBack(container);
+      throw error;
+    }
   }
 
   /** Every singleton provider instance resolved at boot, with its token, in dependency order. Transient providers are never cached, so they don't appear. */
@@ -245,6 +250,11 @@ export class Application {
     return this.#container.get(token);
   }
 
+  /**
+   * Runs every `onApplicationShutdown` hook, dependents before their dependencies, even if one fails: a failing
+   * flush must not leave the database pool open. One failure is rethrown as it is; several are reported together
+   * in an `AggregateError`. Idempotent: the application counts as closed from the first call.
+   */
   async close(signal?: string): Promise<void> {
     if (this.#closed) {
       return;
@@ -253,12 +263,40 @@ export class Application {
 
     // Same ordering constraint as create(), reversed: dependents shut down
     // before what they depend on.
-    const entries = this.#container.getResolvedEntries().toReversed();
-    for (const [, instance] of entries) {
-      if (hasOnApplicationShutdown(instance)) {
+    const failures = await runShutdownHooks(this.#container.getResolvedEntries().toReversed(), signal);
+    if (failures.length === 1) {
+      throw failures[0];
+    }
+    if (failures.length > 1) {
+      throw new AggregateError(failures, `${failures.length} onApplicationShutdown hooks failed`);
+    }
+  }
+}
+
+/** Runs each `onApplicationShutdown` in `entries` order, one at a time, collecting failures instead of stopping at the first. */
+async function runShutdownHooks(entries: ReadonlyArray<readonly [Token, unknown]>, signal: string | undefined): Promise<unknown[]> {
+  const failures: unknown[] = [];
+  for (const [, instance] of entries) {
+    if (hasOnApplicationShutdown(instance)) {
+      try {
         await instance.onApplicationShutdown(signal);
+      } catch (error) {
+        failures.push(error);
       }
     }
+  }
+  return failures;
+}
+
+/**
+ * A boot that fails part-way has already built providers, and those may hold resources (a connection pool opened in
+ * a constructor). Closes everything that was constructed, dependents first, with no signal since nothing stopped
+ * it from outside. The boot's own error is what the caller needs to see, so failures here are logged, not thrown.
+ */
+async function rollBack(container: Container): Promise<void> {
+  const failures = await runShutdownHooks(container.getResolvedEntries().toReversed(), undefined);
+  for (const failure of failures) {
+    console.error("[@blixis-io/core] an onApplicationShutdown hook failed while rolling back a failed boot:", failure);
   }
 }
 

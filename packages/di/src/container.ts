@@ -125,7 +125,14 @@ export class Container {
   async resolveAll(): Promise<void> {
     // Safe to run concurrently: #resolveInternal memoizes in-flight
     // singleton resolutions, so shared dependencies are still built once.
-    await Promise.all([...this.#providers.keys()].map((token) => this.resolve(token)));
+    // Waits for every resolution to settle before rejecting with the first failure: providers still being
+    // built when one fails would otherwise finish unnoticed, after the caller has already seen the
+    // rejection, and could never be cleaned up.
+    const results = await Promise.allSettled([...this.#providers.keys()].map((token) => this.resolve(token)));
+    const failed = results.find((result): result is PromiseRejectedResult => result.status === "rejected");
+    if (failed) {
+      throw failed.reason;
+    }
   }
 
   async #resolveInternal(token: Token, chain: readonly Token[]): Promise<unknown> {

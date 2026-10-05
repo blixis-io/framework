@@ -366,6 +366,37 @@ describe("Container: get()", () => {
   });
 });
 
+describe("Container: resolveAll when a provider fails", () => {
+  it("rejects with the error of the failing provider only after every other resolution has settled", async () => {
+    const built: string[] = [];
+    const SLOW = new InjectionToken<string>("slow");
+
+    @Injectable()
+    class Broken {
+      constructor() {
+        throw new Error("construction failed");
+      }
+    }
+
+    const container = new Container();
+    container.register(Broken);
+    container.register({
+      provide: SLOW,
+      useFactory: async () => {
+        await new Promise((resolve) => setTimeout(resolve, 30));
+        built.push("slow");
+        return "done";
+      },
+    });
+
+    await expect(container.resolveAll()).rejects.toThrow("construction failed");
+
+    // The slow one had not finished when Broken failed; by the time resolveAll rejects, it has.
+    expect(built).toEqual(["slow"]);
+    expect(container.getResolvedEntries().map(([, instance]) => instance)).toContain("done");
+  });
+});
+
 describe("Container: resolveAll", () => {
   it("resolves every registered provider", async () => {
     @Injectable()
