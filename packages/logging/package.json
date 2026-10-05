@@ -1,6 +1,6 @@
 {
   "name": "@blixis-io/logging",
-  "version": "0.1.4",
+  "version": "0.2.0",
   "description": "A multi-transport logger, injectable like any other provider. Doesn't depend on @blixis-io/http \u2014 usable in any app, HTTP or not.",
   "license": "MIT",
   "author": "Michael Voeten <michael@voeten.online>",

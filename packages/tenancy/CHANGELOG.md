@@ -1,5 +1,29 @@
 # @blixis-io/tenancy
 
+## 0.2.0
+
+### Minor Changes
+
+- [#76](https://github.com/blixis-io/framework/pull/76) [`9746012`](https://github.com/blixis-io/framework/commit/9746012b8513e6039a27978946ea4d07abb65f69) Thanks [@EmVeeNL](https://github.com/EmVeeNL)! - `@blixis-io/core`, `@blixis-io/di`, `@blixis-io/http`, `zod` and `drizzle-orm` are now **peer dependencies** of the packages that build on them, instead of exact-version dependencies. Before, the libraries pinned exact versions (for example `auth` required `core 0.3.1`), so upgrading `core` by a patch left every library on its own older copy and the app ended up with two. Now your project installs each once and every package shares it; a version that doesn't fit is reported by the package manager at install time.
+  
+  **What you need to do:** make sure your project depends on what the packages you use build on. pnpm and npm 7+ install missing peers automatically; with yarn or bun, or to be explicit, add them. Per package:
+  
+  - `core`: `di`
+  - `http`: `core`, `di`, `zod`
+  - `auth`, `tenancy`, `testing`: `http` (and so `core`, `di`, `zod`); `tenancy` also `drizzle-orm`
+  - `openapi`: `http`, `di`, `zod`
+  - `config`: `core`, `di`, `zod`
+  - `events`, `logging`: `core`, `di`
+  - `db`: `core`, `di`, `drizzle-orm` (`pg` is still installed for you)
+  
+  `create-blixis` now installs `zod`, which `@blixis-io/http` needs. See Installation in the docs for the full table.
+
+### Patch Changes
+
+- Updated dependencies [[`9746012`](https://github.com/blixis-io/framework/commit/9746012b8513e6039a27978946ea4d07abb65f69)]:
+  - @blixis-io/core@0.4.0
+  - @blixis-io/http@0.6.0
+
 ## 0.1.6
 
 ### Patch Changes

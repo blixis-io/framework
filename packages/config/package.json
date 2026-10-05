@@ -1,6 +1,6 @@
 {
   "name": "@blixis-io/config",
-  "version": "0.1.4",
+  "version": "0.2.0",
   "description": "Zod-validated environment config, built on @blixis-io/core, HTTP-independent.",
   "license": "MIT",
   "author": "Michael Voeten <michael@voeten.online>",
