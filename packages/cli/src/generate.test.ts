@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { generateFile, resolveOutputPath } from "./generate.js";
+import { InvalidNameError } from "./names.js";
 
 let cwd: string;
 
@@ -66,5 +67,13 @@ describe("generateFile", () => {
     generateFile(cwd, "guard", "posts");
 
     expect(() => generateFile(cwd, "guard", "posts", { dryRun: true })).not.toThrow();
+  });
+});
+
+describe("generateFile: invalid names", () => {
+  it.each(["123", "---", "café"])("refuses %s and writes nothing, even on a dry run", (name) => {
+    expect(() => generateFile(cwd, "controller", name)).toThrow(InvalidNameError);
+    expect(() => generateFile(cwd, "controller", name, { dryRun: true })).toThrow(InvalidNameError);
+    expect(existsSync(join(cwd, "src"))).toBe(false);
   });
 });

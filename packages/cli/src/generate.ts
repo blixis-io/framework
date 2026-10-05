@@ -1,6 +1,6 @@
 import { mkdirSync, existsSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { toKebabCase } from "./names.js";
+import { parseName } from "./names.js";
 import { renderTemplate, type GeneratorType } from "./templates.js";
 
 export interface GenerateOptions {
@@ -17,7 +17,7 @@ export interface GenerateResult {
 
 /** `--flat` → `src/<kebab>.<type>.ts`; default → `src/<kebab>/<kebab>.<type>.ts`. */
 export function resolveOutputPath(cwd: string, type: GeneratorType, name: string, options: GenerateOptions = {}): string {
-  const kebab = toKebabCase(name);
+  const { kebab } = parseName(name);
   const fileName = `${kebab}.${type}.ts`;
   return options.flat ? join(cwd, "src", fileName) : join(cwd, "src", kebab, fileName);
 }

@@ -59,3 +59,9 @@ describe("renderTemplate", () => {
     expect(output).toContain("export class PostTagsController {");
   });
 });
+
+describe("resolveGeneratorType: names that are keys of Object.prototype", () => {
+  it.each(["constructor", "toString", "hasOwnProperty", "__proto__", "valueOf"])("%s is not a generator type", (name) => {
+    expect(resolveGeneratorType(name)).toBeUndefined();
+  });
+});

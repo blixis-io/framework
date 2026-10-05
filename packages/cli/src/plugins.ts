@@ -25,6 +25,14 @@ export const KNOWN_PLUGINS: Readonly<Record<string, { package: string; descripti
   run: { package: "@blixis-io/commands", description: "run an app command written with @Command" },
 };
 
+/**
+ * The registry entry for `name`, or undefined. An own-property check: `registry["constructor"]` or `["toString"]`
+ * on a plain object finds something inherited from `Object.prototype`, which is not a plugin.
+ */
+export function knownPlugin(name: string, registry: typeof KNOWN_PLUGINS = KNOWN_PLUGINS): { package: string; description: string } | undefined {
+  return Object.hasOwn(registry, name) ? registry[name] : undefined;
+}
+
 export type PluginLookup =
   | { kind: "loaded"; command: BlixCommand }
   | { kind: "not-installed"; packageName: string }
@@ -41,7 +49,7 @@ function isBlixCommand(value: unknown): value is BlixCommand {
 
 /** Finds the plugin in the *project's* node_modules (resolved from `cwd`, not from wherever this CLI is installed). `registry` exists so tests can name a package that is guaranteed not to exist. */
 export async function loadPlugin(commandName: string, cwd: string, registry: typeof KNOWN_PLUGINS = KNOWN_PLUGINS): Promise<PluginLookup> {
-  const known = registry[commandName];
+  const known = knownPlugin(commandName, registry);
   if (!known) {
     return { kind: "invalid", packageName: commandName, reason: "not a known command" };
   }

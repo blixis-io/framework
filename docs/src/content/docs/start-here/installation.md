@@ -42,7 +42,11 @@ The framework packages share state (decorator metadata, the DI container, `Reque
 | `@blixis-io/db`, `@blixis-io/tenancy` | `drizzle-orm` (plus `pg` for db) |
 | `@blixis-io/commands`, `@blixis-io/deploy` | `@blixis-io/cli`; commands also `@blixis-io/core` and `@blixis-io/di` |
 
-pnpm and npm 7+ install missing peers for you; yarn and bun may only warn, so add them yourself (each package's README has the exact install line). `pnpm create blixis` installs them for you. If a peer range doesn't fit what you have, the install fails with a message naming the conflict, instead of the app failing later at runtime. Upgrade the framework packages together (`pnpm update "@blixis-io/*" --latest`) and the ranges line up.
+pnpm and npm 7+ install missing peers for you; yarn and bun may only warn, so add them yourself (each package's README has the exact install line). `pnpm create blixis` installs them for you.
+
+One thing to know about pnpm: a peer it installs for you is available to the package that needs it, not to **your own code**. If your app imports `@blixis-io/http`, `@blixis-io/core` or `zod` directly (it almost certainly does), add them to your own `dependencies`; otherwise the import fails with `Cannot find package`.
+
+If a peer range doesn't fit what you have, for example `@blixis-io/auth` 0.4 next to `@blixis-io/core` 0.3: npm refuses with `ERESOLVE` and names the conflict. **pnpm 11 only warns** ("Issues with peer dependencies found") and installs anyway; `pnpm peers check` lists what doesn't match. Upgrade the framework packages together (`pnpm update "@blixis-io/*" --latest`) and the ranges line up.
 
 ## pnpm 11 skips versions younger than 24 hours
 

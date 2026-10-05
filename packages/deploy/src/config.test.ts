@@ -86,3 +86,18 @@ describe("defineDeployConfig", () => {
     expect(defineDeployConfig(input)).toBe(input);
   });
 });
+
+describe("selectTarget: names that are keys of Object.prototype", () => {
+  it.each(["constructor", "toString", "hasOwnProperty", "__proto__", "valueOf"])("%s is an unknown target, not a target made of Object.prototype", (name) => {
+    const config = parseDeployConfig(loaded({ deploy: { targets: { prod: docker } } }));
+
+    expect(() => selectTarget(config, name)).toThrow(DeployConfigError);
+    expect(() => selectTarget(config, name)).toThrow(`Unknown target "${name}"`);
+  });
+
+  it("still selects a target that is really called that", () => {
+    const config = parseDeployConfig(loaded({ deploy: { targets: { constructor: docker } } }));
+
+    expect(selectTarget(config, "constructor").name).toBe("constructor");
+  });
+});

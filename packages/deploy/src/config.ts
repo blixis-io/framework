@@ -135,7 +135,7 @@ export function selectTarget(config: DeployConfig, name: string | undefined): { 
   if (chosen === undefined) {
     throw new DeployConfigError(`Which target? Pass one of: ${names.join(", ")} (or set deploy.default).`);
   }
-  const target = config.targets[chosen];
+  const target = Object.hasOwn(config.targets, chosen) ? config.targets[chosen] : undefined;
   if (!target) {
     throw new DeployConfigError(`Unknown target "${chosen}". Targets: ${names.join(", ")}.`);
   }

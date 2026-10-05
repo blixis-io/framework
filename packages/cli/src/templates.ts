@@ -1,4 +1,4 @@
-import { toKebabCase, toPascalCase } from "./names.js";
+import { parseName } from "./names.js";
 
 export const GENERATOR_TYPES = ["controller", "service", "module", "guard", "interceptor"] as const;
 export type GeneratorType = (typeof GENERATOR_TYPES)[number];
@@ -20,7 +20,7 @@ export function resolveGeneratorType(input: string): GeneratorType | undefined {
   if (isGeneratorType(input)) {
     return input;
   }
-  return ALIASES[input];
+  return Object.hasOwn(ALIASES, input) ? ALIASES[input] : undefined;
 }
 
 function renderController(pascal: string, kebab: string): string {
@@ -80,8 +80,7 @@ export class ${pascal}Interceptor implements Interceptor {
 
 /** Renders one generator type's template for `name` (any casing accepted). */
 export function renderTemplate(type: GeneratorType, name: string): string {
-  const pascal = toPascalCase(name);
-  const kebab = toKebabCase(name);
+  const { kebab, pascal } = parseName(name);
 
   switch (type) {
     case "controller":

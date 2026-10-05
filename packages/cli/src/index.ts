@@ -4,7 +4,7 @@ import { runAdd, spawnInstall, type InstallRunner } from "./add.js";
 import { ConfigError, loadConfig } from "./config.js";
 import { runDoctor } from "./doctor.js";
 import { generateFile, type GenerateOptions } from "./generate.js";
-import { KNOWN_PLUGINS, loadPlugin } from "./plugins.js";
+import { KNOWN_PLUGINS, knownPlugin, loadPlugin } from "./plugins.js";
 import { GENERATOR_TYPES, resolveGeneratorType } from "./templates.js";
 import type { CliResult } from "./types.js";
 
@@ -133,7 +133,7 @@ export async function runCli(argv: readonly string[], cwd: string, options: RunC
   if (!command || command === "--help" || command === "-h") {
     return { exitCode: 0, stdout: usage(), stderr: "" };
   }
-  if (command in KNOWN_PLUGINS) {
+  if (knownPlugin(command)) {
     return runPlugin(command, rest, cwd);
   }
   return { exitCode: 1, stdout: "", stderr: `Unknown command "${command}"\n\n${usage()}` };
