@@ -2,7 +2,7 @@ import { EventEmitter } from "node:events";
 import { IncomingMessage, ServerResponse } from "node:http";
 import { Socket } from "node:net";
 import { describe, expect, it } from "vitest";
-import { sendWebResponse, toWebRequest } from "./node-adapter.js";
+import { listenOrigin, resolveOrigin, sendWebResponse, toWebRequest } from "./node-adapter.js";
 
 function mockIncomingMessage(overrides: Partial<IncomingMessage> = {}): IncomingMessage {
   return {
@@ -114,5 +114,81 @@ describe("sendWebResponse", () => {
     await expect(sendWebResponse(new Response(body), res)).resolves.toBeUndefined();
 
     expect(cancelled).toBe(true);
+  });
+});
+
+const withHeaders = (headers: Record<string, string | string[]>) => mockIncomingMessage({ headers });
+
+describe("resolveOrigin", () => {
+  const listen = "http://127.0.0.1:3000";
+
+  it("uses the listen address and ignores every client header by default", () => {
+    const req = withHeaders({ host: "evil.example.com", "x-forwarded-host": "evil.example.com", "x-forwarded-proto": "https" });
+
+    expect(resolveOrigin(req, listen, {})).toBe(listen);
+  });
+
+  describe("with trustHostHeader", () => {
+    it("takes the origin from the Host header, over http", () => {
+      expect(resolveOrigin(withHeaders({ host: "api.example.com" }), listen, { trustHostHeader: true })).toBe("http://api.example.com");
+      expect(resolveOrigin(withHeaders({ host: "api.example.com:8080" }), listen, { trustHostHeader: true })).toBe("http://api.example.com:8080");
+      expect(resolveOrigin(withHeaders({ host: "[::1]:3000" }), listen, { trustHostHeader: true })).toBe("http://[::1]:3000");
+    });
+
+    it("still ignores the forwarded headers", () => {
+      const req = withHeaders({ host: "api.example.com", "x-forwarded-host": "other.example.com", "x-forwarded-proto": "https" });
+
+      expect(resolveOrigin(req, listen, { trustHostHeader: true })).toBe("http://api.example.com");
+    });
+
+    it("falls back to the listen address when Host is missing", () => {
+      expect(resolveOrigin(withHeaders({}), listen, { trustHostHeader: true })).toBe(listen);
+    });
+
+    it.each(["evil.com/path", "user@evil.com", "evil.com?x=1", "a b", "evil.com#frag", "", "evil.com:port", "-", "evil..com\\x", "http://evil.com"])(
+      "ignores a Host value that is not a bare host[:port]: %j",
+      (host) => {
+        expect(resolveOrigin(withHeaders({ host }), listen, { trustHostHeader: true })).toBe(listen);
+      },
+    );
+  });
+
+  describe("with trustProxy", () => {
+    it("takes scheme and host from X-Forwarded-Proto and X-Forwarded-Host", () => {
+      const req = withHeaders({ host: "internal:3000", "x-forwarded-host": "shop.example.com", "x-forwarded-proto": "https" });
+
+      expect(resolveOrigin(req, listen, { trustProxy: true })).toBe("https://shop.example.com");
+    });
+
+    it("uses the first value when a chain of proxies appended several", () => {
+      const req = withHeaders({ "x-forwarded-host": "shop.example.com, internal.lb", "x-forwarded-proto": "https, http" });
+
+      expect(resolveOrigin(req, listen, { trustProxy: true })).toBe("https://shop.example.com");
+    });
+
+    it("falls back to the Host header when no forwarded host is sent", () => {
+      expect(resolveOrigin(withHeaders({ host: "api.example.com", "x-forwarded-proto": "https" }), listen, { trustProxy: true })).toBe("https://api.example.com");
+    });
+
+    it("ignores a scheme that is not http or https", () => {
+      expect(resolveOrigin(withHeaders({ host: "api.example.com", "x-forwarded-proto": "javascript" }), listen, { trustProxy: true })).toBe("http://api.example.com");
+    });
+
+    it("falls back to the listen address when neither header is usable", () => {
+      expect(resolveOrigin(withHeaders({ "x-forwarded-host": "evil.com/x" }), listen, { trustProxy: true })).toBe(listen);
+    });
+  });
+});
+
+describe("listenOrigin", () => {
+  it("joins host and port", () => {
+    expect(listenOrigin("127.0.0.1", 3000)).toBe("http://127.0.0.1:3000");
+    expect(listenOrigin("localhost", 8080)).toBe("http://localhost:8080");
+  });
+
+  it("brackets an IPv6 host, which `new URL` needs: http://::1:3000 is not a URL", () => {
+    expect(listenOrigin("::1", 3000)).toBe("http://[::1]:3000");
+    expect(new URL("/x", listenOrigin("::1", 3000)).href).toBe("http://[::1]:3000/x");
+    expect(listenOrigin("[::1]", 3000)).toBe("http://[::1]:3000");
   });
 });

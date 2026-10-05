@@ -19,6 +19,10 @@ import {
   type RefreshTokenStore,
 } from "./issuing.js";
 
+/** `WWW-Authenticate` values for a 401 from the bearer-token guards (RFC 6750). */
+const BEARER_CHALLENGE = "Bearer";
+const INVALID_TOKEN_CHALLENGE = 'Bearer error="invalid_token"';
+
 const DEFAULT_ACCESS_TOKEN_TTL_SECONDS = 900; // 15 minutes
 const DEFAULT_REFRESH_TOKEN_TTL_SECONDS = 2_592_000; // 30 days
 
@@ -131,19 +135,20 @@ export function defineAuthModule<Schema extends ZodType>(
     const header = request.headers.get("authorization") ?? "";
     const token = header.startsWith("Bearer ") ? header.slice("Bearer ".length) : undefined;
     if (!token) {
-      throw new UnauthorizedException("Missing or malformed Authorization header");
+      // RFC 6750: no credentials at all gets the bare scheme, with no error code.
+      throw new UnauthorizedException("Missing or malformed Authorization header", BEARER_CHALLENGE);
     }
 
     let payload: unknown;
     try {
       payload = (await jwtVerify(token, options.key, { algorithms: [options.algorithm] })).payload;
     } catch {
-      throw new UnauthorizedException("Invalid or expired token");
+      throw new UnauthorizedException("Invalid or expired token", INVALID_TOKEN_CHALLENGE);
     }
 
     const parsed = await claimsSchema.safeParseAsync(payload);
     if (!parsed.success) {
-      throw new UnauthorizedException("Token payload failed validation");
+      throw new UnauthorizedException("Token payload failed validation", INVALID_TOKEN_CHALLENGE);
     }
 
     ctx.set(CURRENT_USER_KEY, parsed.data);

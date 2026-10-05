@@ -2,6 +2,59 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 
+/** What the client may tell the server about its own address. Everything is off by default: headers are client input. */
+export interface OriginOptions {
+  /**
+   * Build `request.url`'s origin from the `Host` header (over `http`, since that is what this server speaks).
+   * Without it the origin is the address the server listens on. Turn it on when clients reach the server directly
+   * by its public name. Don't use `request.url` for security decisions or absolute links (password reset mails,
+   * redirects) unless this is on and the header is trustworthy: a client can send any `Host`.
+   */
+  trustHostHeader?: boolean;
+  /**
+   * The server sits behind a reverse proxy or load balancer you control: take the scheme from `X-Forwarded-Proto` and
+   * the host from `X-Forwarded-Host`, else `Host`. Implies `trustHostHeader`. Only enable it if the proxy overwrites
+   * those headers, or any client can claim any origin.
+   */
+  trustProxy?: boolean;
+}
+
+/** A bare `host` or `host:port`: letters, digits, `-`, `_` and dots, or a bracketed IPv6 literal. No userinfo, path, query or scheme. */
+const HOST_PATTERN = /^(?:[a-z0-9_](?:[a-z0-9_-]*[a-z0-9_])?(?:\.[a-z0-9_](?:[a-z0-9_-]*[a-z0-9_])?)*|\[[0-9a-f:.]+\])(?::\d{1,5})?$/i;
+
+/** The first value of a possibly repeated, possibly comma-separated header: what the proxy nearest the client appended. */
+function firstHeaderValue(value: string | string[] | undefined): string | undefined {
+  const first = (Array.isArray(value) ? value[0] : value)?.split(",")[0]?.trim();
+  return first === undefined || first === "" ? undefined : first;
+}
+
+/** `http://host:port` for the address the server listens on, with an IPv6 host in brackets as a URL needs. */
+export function listenOrigin(hostname: string, port: number): string {
+  const host = hostname.includes(":") && !hostname.startsWith("[") ? `[${hostname}]` : hostname;
+  return `http://${host}:${port}`;
+}
+
+/**
+ * The origin (`scheme://host[:port]`) to build `request.url` from: `listen` unless an option says client headers may
+ * be trusted, and then only values that look like a bare host (and `http`/`https` for the scheme). Anything else
+ * falls back to `listen`, so a hostile header can't inject a path, userinfo or another scheme into the URL.
+ */
+export function resolveOrigin(req: IncomingMessage, listen: string, options: OriginOptions): string {
+  const trustProxy = options.trustProxy === true;
+  if (!trustProxy && options.trustHostHeader !== true) {
+    return listen;
+  }
+
+  const forwardedHost = trustProxy ? firstHeaderValue(req.headers["x-forwarded-host"]) : undefined;
+  const candidate = forwardedHost !== undefined && HOST_PATTERN.test(forwardedHost) ? forwardedHost : firstHeaderValue(req.headers.host);
+  if (candidate === undefined || !HOST_PATTERN.test(candidate)) {
+    return listen;
+  }
+
+  const forwardedProto = trustProxy ? firstHeaderValue(req.headers["x-forwarded-proto"])?.toLowerCase() : undefined;
+  return `${forwardedProto === "https" ? "https" : "http"}://${candidate}`;
+}
+
 /**
  * Builds a Web-standard `Request` from a Node `IncomingMessage`, including a body stream and abort signal.
  * Pass the matching `ServerResponse` so the signal also fires when the client disconnects before the

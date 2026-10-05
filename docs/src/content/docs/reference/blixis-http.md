@@ -14,7 +14,12 @@ Routing, controller/param/guard decorators, Zod-backed validation, RFC 9457 erro
 ```ts
 function createHttpApplication(rootModule: ModuleRef, options?: HttpApplicationOptions): Promise<HttpApplication>;
 
-type HttpApplicationOptions = HandlerOptions & CreateApplicationOptions & ShutdownOptions; // bodyLimit + requestTimeout + overrides + shutdownTimeout
+type HttpApplicationOptions = HandlerOptions & CreateApplicationOptions & ShutdownOptions & OriginOptions; // bodyLimit + requestTimeout + overrides + shutdownTimeout + trustHostHeader/trustProxy
+
+interface OriginOptions {
+  trustHostHeader?: boolean; // request.url's origin from the Host header; default false (the listen address)
+  trustProxy?: boolean; // ... from X-Forwarded-Proto/-Host, else Host; implies trustHostHeader; default false
+}
 
 interface ShutdownOptions {
   shutdownTimeout?: number; // ms close() waits for in-flight requests, default 10000; Infinity = wait forever
@@ -233,14 +238,17 @@ The trie router itself, generic over an opaque handler type — `@blixis-io/http
 
 ```ts
 class HttpException extends Error {
-  constructor(status: number, detail: string, extra?: Record<string, unknown>);
+  constructor(status: number, detail: string, extra?: Record<string, unknown>, headers?: Readonly<Record<string, string>>);
   readonly status: number;
   readonly detail: string;
-  readonly extra?: Record<string, unknown>;
+  readonly extra?: Record<string, unknown>; // merged into the problem+json body
+  readonly headers?: Readonly<Record<string, string>>; // sent with the response
 }
 
 class BadRequestException extends HttpException {}          // 400, "Bad Request"
-class UnauthorizedException extends HttpException {}         // 401, "Unauthorized"
+class UnauthorizedException extends HttpException {            // 401, "Unauthorized"
+  constructor(detail?: string, challenge?: string);            // challenge is sent as WWW-Authenticate
+}
 class ForbiddenException extends HttpException {}             // 403, "Forbidden"
 class NotFoundException extends HttpException {}               // 404, "Not Found"
 class ConflictException extends HttpException {}               // 409, "Conflict"

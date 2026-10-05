@@ -1,9 +1,13 @@
-/** Thrown from a guard or handler to short-circuit the response with a specific status. */
+/**
+ * Thrown from a guard or handler to short-circuit the response with a specific status. `extra` fields are merged
+ * into the problem+json body; `headers` are sent with the response (`retry-after` on a 429, for example).
+ */
 export class HttpException extends Error {
   constructor(
     public readonly status: number,
     public readonly detail: string,
     public readonly extra?: Record<string, unknown>,
+    public readonly headers?: Readonly<Record<string, string>>,
   ) {
     super(detail);
     this.name = "HttpException";
@@ -18,8 +22,12 @@ export class BadRequestException extends HttpException {
 }
 
 export class UnauthorizedException extends HttpException {
-  constructor(detail = "Unauthorized") {
-    super(401, detail);
+  /**
+   * `challenge` is the `WWW-Authenticate` value (`Bearer`, `Basic realm="api"`): RFC 9110 requires a 401 to name
+   * a scheme. The framework can't know which one your app uses, so none is sent unless you pass one.
+   */
+  constructor(detail = "Unauthorized", challenge?: string) {
+    super(401, detail, undefined, challenge === undefined ? undefined : { "www-authenticate": challenge });
     this.name = "UnauthorizedException";
   }
 }

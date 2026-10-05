@@ -41,7 +41,7 @@ me() {
 }
 ```
 
-`JwtAuthGuard` reads the `Authorization` header, verifies the token (HMAC — `HS256` by default, or `HS384`/`HS512`) against the `secret` from `forRoot()`, and validates the decoded payload against your claims schema. Any failure — missing header, bad signature, expired token, a payload that fails the schema — throws `UnauthorizedException` (a real `401`), never a plain `false`: a bad token is a client authentication failure, not a generic "denied," so it gets its own status rather than folding into a guard's usual `403`.
+`JwtAuthGuard` reads the `Authorization` header, verifies the token (HMAC — `HS256` by default, or `HS384`/`HS512`) against the `secret` from `forRoot()`, and validates the decoded payload against your claims schema. Any failure — missing header, bad signature, expired token, a payload that fails the schema — throws `UnauthorizedException` (a real `401`), never a plain `false`: a bad token is a client authentication failure, not a generic "denied," so it gets its own status rather than folding into a guard's usual `403`. The response carries a `WWW-Authenticate` challenge as RFC 9110 requires: `Bearer` when no token was sent, `Bearer error="invalid_token"` when one was sent and failed (RFC 6750). Sign-in (`AuthService.signIn`) returns a plain `401` with no challenge, since its credentials travel in the request body rather than an `Authorization` header.
 
 On success, the verified claims are stored in [`RequestContext`](/framework/concepts/request-context/) for the rest of the request. Read them back with `getCurrentUser`:
 

@@ -18,6 +18,7 @@ import { resolveHandlerArgs } from "./params.js";
 import { runInRequestContext } from "./request-context.js";
 import { validateResponse } from "./response.js";
 import { Router } from "./router.js";
+import { statusTitle } from "./status-titles.js";
 import type { HttpMethod } from "./types.js";
 
 const DEFAULT_BODY_LIMIT = 1024 * 1024; // 1 MiB
@@ -139,15 +140,32 @@ async function readBodyText(body: ReadableStream<Uint8Array>, limit: number): Pr
   }
 }
 
+/**
+ * Accepts `application/json` and structured-syntax JSON types (`application/vnd.api+json`), compared as whole media
+ * types: `application/jsonp` and `application/json5` are not JSON for this purpose. A `charset` other than UTF-8 is
+ * refused, since the body is always decoded as UTF-8 and would otherwise be silently misread.
+ */
+function assertJsonContentType(contentType: string): void {
+  const [mediaType = "", ...parameters] = contentType.split(";");
+  const type = mediaType.trim().toLowerCase();
+  const isJson = type === "application/json" || (/^application\/[^/\s]+\+json$/.test(type));
+  if (!isJson) {
+    throw new UnsupportedMediaTypeException();
+  }
+  for (const parameter of parameters) {
+    const charset = /^\s*charset\s*=\s*"?([^";\s]+)"?\s*$/i.exec(parameter)?.[1]?.toLowerCase();
+    if (charset !== undefined && charset !== "utf-8" && charset !== "utf8") {
+      throw new UnsupportedMediaTypeException("JSON request bodies must be UTF-8");
+    }
+  }
+}
+
 async function readJsonBody(request: Request, bodyLimit: number): Promise<unknown> {
   if (request.body === null) {
     return undefined;
   }
 
-  const contentType = request.headers.get("content-type") ?? "";
-  if (!contentType.toLowerCase().startsWith("application/json")) {
-    throw new UnsupportedMediaTypeException();
-  }
+  assertJsonContentType(request.headers.get("content-type") ?? "");
 
   const contentLength = request.headers.get("content-length");
   if (contentLength !== null && Number(contentLength) > bodyLimit) {
@@ -166,33 +184,21 @@ async function readJsonBody(request: Request, bodyLimit: number): Promise<unknow
   }
 }
 
-const STATUS_TITLES: Record<number, string> = {
-  400: "Bad Request",
-  401: "Unauthorized",
-  403: "Forbidden",
-  404: "Not Found",
-  405: "Method Not Allowed",
-  409: "Conflict",
-  413: "Payload Too Large",
-  415: "Unsupported Media Type",
-  500: "Internal Server Error",
-  504: "Gateway Timeout",
-};
-
-function problemResponse(status: number, detail: string, extra?: Record<string, unknown>): Response {
+function problemResponse(status: number, detail: string, extra?: Record<string, unknown>, headers?: Readonly<Record<string, string>>): Response {
   const body = {
     type: "about:blank",
-    title: STATUS_TITLES[status] ?? "Error",
+    title: statusTitle(status),
     status,
     detail,
     ...extra,
   };
-  return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/problem+json" } });
+  // The content type goes last so an exception's own headers can't turn the problem document into something else.
+  return new Response(JSON.stringify(body), { status, headers: { ...headers, "content-type": "application/problem+json" } });
 }
 
 function exceptionToResponse(error: unknown): Response {
   if (error instanceof HttpException) {
-    return problemResponse(error.status, error.detail, error.extra);
+    return problemResponse(error.status, error.detail, error.extra, error.headers);
   }
   // Internal errors are logged but never surfaced to the client.
   console.error(error);

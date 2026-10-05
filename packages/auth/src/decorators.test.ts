@@ -194,3 +194,33 @@ describe("protectAllRoutes off (the default)", () => {
     expect((await call(app, "/guarded/open")).status).toBe(200);
   });
 });
+
+describe("401 responses carry a WWW-Authenticate challenge", () => {
+  it("names the Bearer scheme when no token was sent", async () => {
+    const res = await call(await appWith({ protectAllRoutes: true }), "/things/plain");
+
+    expect(res.status).toBe(401);
+    expect(res.headers.get("www-authenticate")).toBe("Bearer");
+  });
+
+  it('adds error="invalid_token" for a token that fails verification or the claims schema (RFC 6750)', async () => {
+    const app = await appWith({ protectAllRoutes: true });
+
+    const tokens = [await sign({ sub: "u1" }, "another-secret-that-is-long-enough!!!"), await sign({ nope: true }), "not.a.jwt"];
+    const responses = await Promise.all(tokens.map((token) => call(app, "/things/plain", token)));
+
+    for (const res of responses) {
+      expect(res.status).toBe(401);
+      expect(res.headers.get("www-authenticate")).toBe('Bearer error="invalid_token"');
+    }
+  });
+
+  it("is sent for a 401 from @Roles too, but not for the 403 of a missing role", async () => {
+    const app = await appWith({ protectAllRoutes: true });
+
+    expect((await call(app, "/things/admin")).headers.get("www-authenticate")).toBe("Bearer");
+    const forbidden = await call(app, "/things/admin", await sign({ sub: "u1", roles: ["user"] }));
+    expect(forbidden.status).toBe(403);
+    expect(forbidden.headers.has("www-authenticate")).toBe(false);
+  });
+});

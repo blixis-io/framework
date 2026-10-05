@@ -21,6 +21,7 @@ exceptions thrown anywhere inside the scope become responses
 - Node's parser rejects a malformed request before any of your code runs: a bad request line, oversized headers (`431`), or a bad or conflicting `Content-Length` (`400`). See [Running in Production](/framework/guides/running-in-production/).
 - A body is only attached when the request says it carries one (`Content-Length` above 0, or `Transfer-Encoding`). It stays an unread stream; nothing is buffered yet.
 - `request.signal` aborts if the client disconnects.
+- `request.url`'s origin is the address the server listens on, unless you opt in to trusting the `Host` or `X-Forwarded-*` headers; see [The origin of `request.url`](/framework/guides/running-in-production/#the-origin-of-requesturl).
 
 ## 2. The timeout, if you set one
 
@@ -60,7 +61,7 @@ The body is read lazily, **only if some parameter asks for it**, and at most onc
 
 | Problem | Status |
 | --- | --- |
-| Body isn't `application/json` | `415` |
+| Body isn't JSON (`application/json` or a `+json` type, in UTF-8) | `415` |
 | Larger than `bodyLimit` (declared or counted while streaming) | `413` |
 | Cut off before it was fully received | `400` |
 | Not valid JSON | `400` |

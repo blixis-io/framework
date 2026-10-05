@@ -47,3 +47,29 @@ describe("named HTTP exceptions", () => {
     expect(error.detail).toBe("Post 42 not found");
   });
 });
+
+describe("HttpException headers", () => {
+  it("carries response headers when given", () => {
+    const error = new HttpException(429, "Slow down", undefined, { "retry-after": "30" });
+
+    expect(error.headers).toEqual({ "retry-after": "30" });
+  });
+
+  it("has none by default", () => {
+    expect(new HttpException(400, "x").headers).toBeUndefined();
+  });
+});
+
+describe("UnauthorizedException challenge", () => {
+  it("sends the challenge as a WWW-Authenticate header", () => {
+    const error = new UnauthorizedException("Invalid or expired token", 'Bearer error="invalid_token"');
+
+    expect(error.status).toBe(401);
+    expect(error.headers).toEqual({ "www-authenticate": 'Bearer error="invalid_token"' });
+  });
+
+  it("sends no header when no challenge is given: the framework can't know which scheme the app uses", () => {
+    expect(new UnauthorizedException().headers).toBeUndefined();
+    expect(new UnauthorizedException("nope").headers).toBeUndefined();
+  });
+});

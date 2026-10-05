@@ -9,7 +9,7 @@ import type { CanActivate, ExecutionContext } from "./decorators/guards.js";
 import { UseGuards } from "./decorators/guards.js";
 import type { Interceptor } from "./decorators/interceptors.js";
 import { UseInterceptors } from "./decorators/interceptors.js";
-import { HttpException, NotFoundException } from "./exceptions.js";
+import { HttpException, NotFoundException, UnauthorizedException } from "./exceptions.js";
 import { createHandler, NotAControllerError } from "./handler.js";
 
 const CreatePost = z.object({ title: z.string().min(1) });
@@ -520,12 +520,12 @@ describe("createHandler: errors", () => {
     expect(((await res.json()) as { detail: string }).detail).toBe("Post 999 not found");
   });
 
-  it("falls back to a generic title for a status code with no named mapping", async () => {
+  it("falls back to a generic title for a status code with no registered reason phrase", async () => {
     @Controller("weird")
     class WeirdController {
       @Get()
       boom(): never {
-        throw new HttpException(422, "Custom status");
+        throw new HttpException(499, "Custom status");
       }
     }
 
@@ -536,7 +536,7 @@ describe("createHandler: errors", () => {
 
     const res = await handle(new Request("http://localhost/weird"));
 
-    expect(res.status).toBe(422);
+    expect(res.status).toBe(499);
     const problem = (await res.json()) as { title: string; detail: string };
     expect(problem.title).toBe("Error");
     expect(problem.detail).toBe("Custom status");
@@ -934,5 +934,123 @@ describe("createHandler: path params", () => {
     expect(res.status).toBe(400);
     expect(res.headers.get("content-type")).toBe("application/problem+json");
     expect(((await res.json()) as { detail: string }).detail).toBe("Malformed percent-encoding in the request path");
+  });
+});
+
+describe("createHandler: problem responses from exceptions", () => {
+  @Controller("fail")
+  class FailController {
+    @Get("slow-down")
+    slowDown(): never {
+      throw new HttpException(429, "Try again later", undefined, { "retry-after": "30" });
+    }
+
+    @Get("unprocessable")
+    unprocessable(): never {
+      throw new HttpException(422, "Cannot process this");
+    }
+
+    @Get("unavailable")
+    unavailable(): never {
+      throw new HttpException(503, "Down for maintenance");
+    }
+
+    @Get("challenge")
+    challenge(): never {
+      throw new UnauthorizedException("Missing token", "Bearer");
+    }
+
+    @Get("no-challenge")
+    noChallenge(): never {
+      throw new UnauthorizedException("Missing token");
+    }
+  }
+
+  @Module({ controllers: [FailController] })
+  class FailModule {}
+
+  async function handler() {
+    const app = await createApplication(FailModule);
+    return createHandler(app.controllers, app);
+  }
+
+  it.each([
+    ["/fail/slow-down", 429, "Too Many Requests"],
+    ["/fail/unprocessable", 422, "Unprocessable Entity"],
+    ["/fail/unavailable", 503, "Service Unavailable"],
+  ])("titles %s as %s", async (path, status, title) => {
+    const res = await (await handler())(new Request(`http://localhost${path}`));
+
+    expect(res.status).toBe(status);
+    expect(((await res.json()) as { title: string }).title).toBe(title);
+  });
+
+  it("sends the exception's headers with the problem response", async () => {
+    const res = await (await handler())(new Request("http://localhost/fail/slow-down"));
+
+    expect(res.headers.get("retry-after")).toBe("30");
+    expect(res.headers.get("content-type")).toBe("application/problem+json");
+  });
+
+  it("sends WWW-Authenticate with a 401 that names a challenge", async () => {
+    const res = await (await handler())(new Request("http://localhost/fail/challenge"));
+
+    expect(res.status).toBe(401);
+    expect(res.headers.get("www-authenticate")).toBe("Bearer");
+  });
+
+  it("sends none when the exception names no challenge", async () => {
+    const res = await (await handler())(new Request("http://localhost/fail/no-challenge"));
+
+    expect(res.status).toBe(401);
+    expect(res.headers.has("www-authenticate")).toBe(false);
+  });
+});
+
+describe("createHandler: the request's JSON media type", () => {
+  @Controller("echo")
+  class EchoController {
+    @Post()
+    echo(@Body() body: unknown) {
+      return { body };
+    }
+  }
+
+  @Module({ controllers: [EchoController] })
+  class EchoModule {}
+
+  async function post(contentType: string): Promise<Response> {
+    const app = await createApplication(EchoModule);
+    const handle = createHandler(app.controllers, app);
+    return handle(new Request("http://localhost/echo", { method: "POST", headers: { "content-type": contentType }, body: '{"a":1}' }));
+  }
+
+  it.each([
+    "application/json",
+    "application/json; charset=utf-8",
+    "application/json;charset=UTF-8",
+    'application/json; charset="utf-8"',
+    "APPLICATION/JSON",
+    "application/vnd.api+json",
+    "application/merge-patch+json",
+  ])("accepts %s", async (contentType) => {
+    const res = await post(contentType);
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ body: { a: 1 } });
+  });
+
+  it.each(["application/jsonp", "application/json5", "application/jsonl", "text/json", "application/x-www-form-urlencoded", "application/jsonx; charset=utf-8"])(
+    "rejects %s with 415",
+    async (contentType) => {
+      expect((await post(contentType)).status).toBe(415);
+    },
+  );
+
+  it("rejects a JSON body declared in another charset, since it is always read as UTF-8", async () => {
+    const res = await post("application/json; charset=iso-8859-1");
+
+    expect(res.status).toBe(415);
+    expect(((await res.json()) as { detail: string }).detail).toContain("UTF-8");
   });
 });

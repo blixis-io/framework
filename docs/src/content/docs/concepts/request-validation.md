@@ -71,7 +71,7 @@ Every decorator works with no schema at all — you get the unvalidated value as
 
 A request body is only read when a route actually has a `@Body()` parameter. When it does:
 
-- **Content-Type must be `application/json`** (case-insensitive prefix match) — anything else is `415 Unsupported Media Type`, checked *before* the body is read at all.
+- **Content-Type must be JSON** — `application/json`, or a structured-syntax type such as `application/vnd.api+json` or `application/merge-patch+json`, compared case-insensitively as a whole media type, so `application/jsonp`, `application/json5`, `text/json` and a missing header are `415 Unsupported Media Type`. A `charset` parameter other than UTF-8 (`application/json; charset=iso-8859-1`) is a `415` too, because the body is always decoded as UTF-8 and would be misread. Checked *before* the body is read at all.
 - **Size is checked twice** — first cheaply, against a declared `Content-Length` header, then against the actual decoded byte length — either one over the configured limit (1 MiB by default) gives `413 Payload Too Large`.
 - **No body sent, or an empty body** — `undefined`, not an error (so a schema requiring the field will correctly reject it with a normal `400`, rather than the framework guessing).
 - **Malformed JSON** — `400 Bad Request`, distinct from a schema validation failure.

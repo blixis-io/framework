@@ -3,7 +3,7 @@ import { connect } from "node:net";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Controller } from "./decorators/controller.js";
 import { Get, Post } from "./decorators/routes.js";
-import { Body } from "./decorators/params.js";
+import { Body, Req } from "./decorators/params.js";
 import { createHttpApplication } from "./http-application.js";
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -344,6 +344,63 @@ describe("malformed HTTP over a real socket", () => {
     expect(uploads).toEqual([]);
     expect(error).not.toHaveBeenCalled();
     await expectStillServing(port);
+    await app.close();
+  });
+});
+
+@Controller("whoami")
+class WhoamiController {
+  @Get()
+  whoami(@Req() request: Request) {
+    return { url: request.url };
+  }
+}
+
+@Module({ controllers: [WhoamiController] })
+class WhoamiModule {}
+
+/** Sends one request with exactly these headers and returns the `url` the handler saw. */
+async function urlSeenBy(port: number, headers: string[]): Promise<string> {
+  const response = await rawExchange(port, `GET /whoami HTTP/1.1\r\n${[...headers, "connection: close"].join("\r\n")}\r\n\r\n`);
+  const parsed: unknown = JSON.parse(/\{.*\}/s.exec(response)?.[0] ?? "{}");
+  const url: unknown = typeof parsed === "object" && parsed !== null ? Reflect.get(parsed, "url") : undefined;
+  if (typeof url !== "string") {
+    throw new Error(`no url in the response: ${response}`);
+  }
+  return url;
+}
+
+describe("the origin of request.url over a real socket", () => {
+  it("is the address actually bound, and ignores client headers by default", async () => {
+    const app = await createHttpApplication(WhoamiModule);
+    const { port } = await app.listen(0, "127.0.0.1");
+
+    expect(await urlSeenBy(port, ["host: api.example.com", "x-forwarded-host: other.example.com", "x-forwarded-proto: https"])).toBe(
+      `http://127.0.0.1:${port}/whoami`,
+    );
+
+    await app.close();
+  });
+
+  it("follows the Host header with trustHostHeader", async () => {
+    const app = await createHttpApplication(WhoamiModule, { trustHostHeader: true });
+    const { port } = await app.listen(0, "127.0.0.1");
+
+    expect(await urlSeenBy(port, ["host: api.example.com", "x-forwarded-host: other.example.com"])).toBe("http://api.example.com/whoami");
+    // A Host that is not a bare host[:port] can't inject a path or credentials into the URL.
+    expect(await urlSeenBy(port, ["host: evil.com/admin?x="])).toBe(`http://127.0.0.1:${port}/whoami`);
+
+    await app.close();
+  });
+
+  it("follows the forwarded headers with trustProxy", async () => {
+    const app = await createHttpApplication(WhoamiModule, { trustProxy: true });
+    const { port } = await app.listen(0, "127.0.0.1");
+
+    expect(await urlSeenBy(port, ["host: internal:3000", "x-forwarded-host: shop.example.com", "x-forwarded-proto: https"])).toBe(
+      "https://shop.example.com/whoami",
+    );
+
     await app.close();
   });
 });

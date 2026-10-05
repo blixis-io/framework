@@ -2,7 +2,7 @@ import { createApplication, Module, type Application, type CreateApplicationOpti
 import type { Class, Token } from "@blixis-io/di";
 import { createServer, type Server } from "node:http";
 import { createHandler, type HandlerOptions } from "./handler.js";
-import { sendWebResponse, toWebRequest } from "./node-adapter.js";
+import { listenOrigin, resolveOrigin, sendWebResponse, toWebRequest, type OriginOptions } from "./node-adapter.js";
 import { RequestContext } from "./request-context.js";
 
 const DEFAULT_SHUTDOWN_TIMEOUT = 10_000;
@@ -15,7 +15,7 @@ export interface ShutdownOptions {
   shutdownTimeout?: number;
 }
 
-export type HttpApplicationOptions = HandlerOptions & CreateApplicationOptions & ShutdownOptions;
+export type HttpApplicationOptions = HandlerOptions & CreateApplicationOptions & ShutdownOptions & OriginOptions;
 
 /**
  * Provides `RequestContext` app-wide, without the user needing to import anything — every `createHttpApplication` root gets wrapped with this.
@@ -39,20 +39,25 @@ export class HttpApplication {
   readonly #app: Application;
   readonly #handle: (request: Request) => Promise<Response>;
   readonly #shutdownTimeout: number;
+  readonly #origin: OriginOptions;
   readonly #mounted = new Map<string, MountedHandler>();
   #server: Server | undefined;
 
-  private constructor(app: Application, handle: (request: Request) => Promise<Response>, shutdownTimeout: number) {
+  private constructor(app: Application, handle: (request: Request) => Promise<Response>, shutdownTimeout: number, origin: OriginOptions) {
     this.#app = app;
     this.#handle = handle;
     this.#shutdownTimeout = shutdownTimeout;
+    this.#origin = origin;
   }
 
   static async create(rootModule: ModuleRef, options: HttpApplicationOptions = {}): Promise<HttpApplication> {
     const wrappedRoot = { module: HttpRootModule, imports: [rootModule, RequestContextModule] };
     const app = await createApplication(wrappedRoot, { overrides: options.overrides });
     const handle = createHandler(app.controllers, app, options);
-    return new HttpApplication(app, handle, options.shutdownTimeout ?? DEFAULT_SHUTDOWN_TIMEOUT);
+    return new HttpApplication(app, handle, options.shutdownTimeout ?? DEFAULT_SHUTDOWN_TIMEOUT, {
+      ...(options.trustHostHeader === undefined ? {} : { trustHostHeader: options.trustHostHeader }),
+      ...(options.trustProxy === undefined ? {} : { trustProxy: options.trustProxy }),
+    });
   }
 
   /** Fetches an already-resolved provider directly, bypassing HTTP entirely. */
@@ -93,7 +98,10 @@ export class HttpApplication {
   listen(port: number, hostname = "0.0.0.0"): Promise<ListenHandle> {
     return new Promise((resolve, reject) => {
       const server = createServer((req, res) => {
-        const request = toWebRequest(req, `http://${hostname}:${port}`, res);
+        // The port actually bound, not the one asked for: listen(0) picks a free one.
+        const bound = server.address();
+        const boundPort = typeof bound === "object" && bound !== null ? bound.port : port;
+        const request = toWebRequest(req, resolveOrigin(req, listenOrigin(hostname, boundPort), this.#origin), res);
         this.handle(request)
           .then((response) => sendWebResponse(response, res))
           /* v8 ignore start -- @preserve: safety net for a write failure
