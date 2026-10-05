@@ -1,5 +1,17 @@
 # @blixis-io/commands
 
+## 0.2.0
+
+### Minor Changes
+
+- [#74](https://github.com/blixis-io/framework/pull/74) [`6216026`](https://github.com/blixis-io/framework/commit/6216026a68363c4d901509d0116d52e447c95039) Thanks [@EmVeeNL](https://github.com/EmVeeNL)! - `blix run` now provides `RequestContext` when `@blixis-io/http` is installed. Before, any app with a guard or service injecting `RequestContext` failed the whole boot with `No provider for "RequestContext"`, so none of its commands could run. It reads empty outside a request (`get` is `undefined`, `set` throws). `@blixis-io/http` is now an optional peer dependency, resolved like core and di so the app and `blix run` share one copy; apps without it boot as before.
+
+### Patch Changes
+
+- Updated dependencies [[`4e37519`](https://github.com/blixis-io/framework/commit/4e37519afd5a6cb9a13c948c2764f4c59cf8c99a), [`6216026`](https://github.com/blixis-io/framework/commit/6216026a68363c4d901509d0116d52e447c95039), [`e1c471e`](https://github.com/blixis-io/framework/commit/e1c471e79715ca18ccfc009a1912e2b20f41eb08)]:
+  - @blixis-io/cli@0.4.1
+  - @blixis-io/http@0.5.0
+
 ## 0.1.2
 
 ### Patch Changes
