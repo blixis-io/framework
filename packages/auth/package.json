@@ -31,10 +31,18 @@
     "build": "rolldown -c"
   },
   "dependencies": {
+    "jose": "^6.2.12"
+  },
+  "peerDependencies": {
+    "@blixis-io/core": "workspace:^",
+    "@blixis-io/di": "workspace:^",
+    "@blixis-io/http": "workspace:^",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
     "@blixis-io/core": "workspace:*",
     "@blixis-io/di": "workspace:*",
     "@blixis-io/http": "workspace:*",
-    "jose": "^6.2.12",
     "zod": "^4.6.5"
   }
 }

@@ -1,7 +1,7 @@
 {
   "name": "@blixis-io/tenancy",
   "version": "0.1.6",
-  "description": "Request-scoped multi-tenant access control (TenantScopedGuard, a fail-closed tenantScope() query helper). Mechanism only — no Organization/Space/Membership data model — reusable by any multi-tenant app.",
+  "description": "Request-scoped multi-tenant access control (TenantScopedGuard, a fail-closed tenantScope() query helper). Mechanism only \u2014 no Organization/Space/Membership data model \u2014 reusable by any multi-tenant app.",
   "license": "MIT",
   "author": "Michael Voeten <michael@voeten.online>",
   "homepage": "https://blixis-io.github.io/framework/",
@@ -30,14 +30,18 @@
     "typecheck": "tsc -p tsconfig.json",
     "build": "rolldown -c"
   },
-  "dependencies": {
+  "devDependencies": {
     "@blixis-io/core": "workspace:*",
     "@blixis-io/di": "workspace:*",
     "@blixis-io/http": "workspace:*",
-    "drizzle-orm": "^0.45.3"
-  },
-  "devDependencies": {
     "@types/pg": "^8.15.6",
+    "drizzle-orm": "^0.45.3",
     "pg": "^8.23.0"
+  },
+  "peerDependencies": {
+    "@blixis-io/core": "workspace:^",
+    "@blixis-io/di": "workspace:^",
+    "@blixis-io/http": "workspace:^",
+    "drizzle-orm": "^0.45.3"
   }
 }

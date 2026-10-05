@@ -17,7 +17,7 @@ sidebar:
 pnpm create blixis my-app
 ```
 
-This writes a runnable app (service, controller, module, `main.ts`, and a `tsconfig.json` with the settings below), installs `@blixis-io/core`, `@blixis-io/di`, `@blixis-io/http`, `typescript`, `@types/node` and `concurrently`, and tells you how to run it. `pnpm dev` compiles with `tsc` and then recompiles on every change while Node restarts on the new output (no `tsx`: it can't emit decorator metadata). It detects pnpm, npm, yarn or bun from how you invoked it (`npm create blixis@latest my-app` works too); pass `--no-install` to only write the files. The [Quickstart](/framework/start-here/quickstart/) builds the same app by hand.
+This writes a runnable app (service, controller, module, `main.ts`, and a `tsconfig.json` with the settings below), installs `@blixis-io/core`, `@blixis-io/di`, `@blixis-io/http`, `zod`, `typescript`, `@types/node` and `concurrently`, and tells you how to run it. `pnpm dev` compiles with `tsc` and then recompiles on every change while Node restarts on the new output (no `tsx`: it can't emit decorator metadata). It detects pnpm, npm, yarn or bun from how you invoked it (`npm create blixis@latest my-app` works too); pass `--no-install` to only write the files. The [Quickstart](/framework/start-here/quickstart/) builds the same app by hand.
 
 To set up deployment at the same time, add `--deploy <target>` (`docker`, `vercel`, `netlify` or `cloudflare`) and, optionally, `--ci <provider>` (`github`, `gitlab` or `bitbucket`):
 
@@ -26,6 +26,23 @@ pnpm create blixis my-app --deploy docker --ci github
 ```
 
 That also installs `@blixis-io/cli` and `@blixis-io/deploy` and runs [`blix deploy init`](/framework/guides/deploying/) for you, so the project comes with its deploy config, the files that target needs, and the pipeline. If that last step fails the app is still created, and you can run `blix deploy init` yourself.
+
+## Peer dependencies: install what you build on
+
+The framework packages share state (decorator metadata, the DI container, `RequestContext`, Zod schemas), so a second copy of any of them breaks things. To guarantee one copy, the packages that build on another one declare it as a **peer dependency** instead of bundling their own: your project installs it once, and every package uses that one.
+
+| Package | Install these alongside it |
+| --- | --- |
+| `@blixis-io/core` | `@blixis-io/di` |
+| `@blixis-io/http` | `@blixis-io/core`, `@blixis-io/di`, `zod` |
+| `@blixis-io/auth`, `@blixis-io/tenancy`, `@blixis-io/testing` | `@blixis-io/http` (so also core, di, zod) |
+| `@blixis-io/openapi` | `@blixis-io/http`, `@blixis-io/di`, `zod` |
+| `@blixis-io/config` | `@blixis-io/core`, `@blixis-io/di`, `zod` |
+| `@blixis-io/events`, `@blixis-io/logging` | `@blixis-io/core`, `@blixis-io/di` |
+| `@blixis-io/db`, `@blixis-io/tenancy` | `drizzle-orm` (plus `pg` for db) |
+| `@blixis-io/commands`, `@blixis-io/deploy` | `@blixis-io/cli`; commands also `@blixis-io/core` and `@blixis-io/di` |
+
+pnpm and npm 7+ install missing peers for you; yarn and bun may only warn, so add them yourself (each package's README has the exact install line). `pnpm create blixis` installs them for you. If a peer range doesn't fit what you have, the install fails with a message naming the conflict, instead of the app failing later at runtime. Upgrade the framework packages together (`pnpm update "@blixis-io/*" --latest`) and the ranges line up.
 
 ## pnpm 11 skips versions younger than 24 hours
 
@@ -48,7 +65,7 @@ minimumReleaseAgeExclude:
 
 This was checked with pnpm 11.25.0: with the line present, the lockfile passes the default policy and a `vercel build` that runs its own `pnpm install` succeeds. For a single command, `pnpm --config.minimumReleaseAge=0 add ...` turns the gate off for that run. npm, yarn and bun have no such default.
 
-Mixed versions are the real hazard when this bites: if `@blixis-io/http` updates but `@blixis-io/core` stays behind, you can end up with two copies of core. Current releases fail loudly in that case. See [Two copies of core or di](/framework/architecture/toolchain-notes/#two-copies-of-blixis-iocore-or-blixis-iodi).
+Mixed versions are the real hazard when this bites: if `@blixis-io/http` updates but `@blixis-io/core` stays behind, the peer range no longer fits and the install reports the conflict. Before peer dependencies (releases up to and including http 0.5.0 and its siblings), the same mix silently produced two copies of core, which fail loudly at import. See [Two copies of core or di](/framework/architecture/toolchain-notes/#two-copies-of-blixis-iocore-or-blixis-iodi).
 
 ## The one non-negotiable compiler setting
 

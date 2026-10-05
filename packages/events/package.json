@@ -1,7 +1,7 @@
 {
   "name": "@blixis-io/events",
   "version": "0.2.1",
-  "description": "An in-process domain event bus (defineEventsModule, EventBus.emit/on). Depends only on @blixis-io/core — usable in any app, HTTP or not.",
+  "description": "An in-process domain event bus (defineEventsModule, EventBus.emit/on). Depends only on @blixis-io/core \u2014 usable in any app, HTTP or not.",
   "license": "MIT",
   "author": "Michael Voeten <michael@voeten.online>",
   "homepage": "https://blixis-io.github.io/framework/",
@@ -30,7 +30,11 @@
     "typecheck": "tsc -p tsconfig.json",
     "build": "rolldown -c"
   },
-  "dependencies": {
+  "peerDependencies": {
+    "@blixis-io/core": "workspace:^",
+    "@blixis-io/di": "workspace:^"
+  },
+  "devDependencies": {
     "@blixis-io/core": "workspace:*",
     "@blixis-io/di": "workspace:*"
   }

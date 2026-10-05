@@ -1,7 +1,7 @@
 {
   "name": "@blixis-io/http",
   "version": "0.5.0",
-  "description": "The HTTP layer built on @blixis-io/core — routing, controllers, request validation with Zod, guards, RFC 9457 error responses.",
+  "description": "The HTTP layer built on @blixis-io/core \u2014 routing, controllers, request validation with Zod, guards, RFC 9457 error responses.",
   "license": "MIT",
   "author": "Michael Voeten <michael@voeten.online>",
   "homepage": "https://blixis-io.github.io/framework/",
@@ -30,7 +30,12 @@
     "typecheck": "tsc -p tsconfig.json",
     "build": "rolldown -c"
   },
-  "dependencies": {
+  "peerDependencies": {
+    "@blixis-io/core": "workspace:^",
+    "@blixis-io/di": "workspace:^",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
     "@blixis-io/core": "workspace:*",
     "@blixis-io/di": "workspace:*",
     "zod": "^4.6.5"

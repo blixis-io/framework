@@ -3,7 +3,7 @@
 A thin testing layer on top of `@blixis-io/http`. Build a real application in a test, override providers with fakes, hit it with real requests.
 
 ```bash
-npm install -D @blixis-io/testing
+npm install -D @blixis-io/testing @blixis-io/http @blixis-io/core @blixis-io/di zod
 ```
 
 ```ts

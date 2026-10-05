@@ -109,7 +109,7 @@ describe("runCreate", () => {
     });
     expect(readFileSync(join(cwd, "my-app", "tsconfig.json"), "utf8")).toContain('"emitDecoratorMetadata": true');
     expect(calls).toEqual([
-      { command: "pnpm", args: ["add", "@blixis-io/core", "@blixis-io/di", "@blixis-io/http"], cwd: join(cwd, "my-app") },
+      { command: "pnpm", args: ["add", "@blixis-io/core", "@blixis-io/di", "@blixis-io/http", "zod"], cwd: join(cwd, "my-app") },
       { command: "pnpm", args: ["add", "-D", "typescript", "@types/node", "concurrently"], cwd: join(cwd, "my-app") },
     ]);
     expect(result.stdout).toContain("pnpm dev");
@@ -135,7 +135,7 @@ describe("runCreate", () => {
       },
     });
 
-    expect(calls[0]).toEqual(["install", "@blixis-io/core", "@blixis-io/di", "@blixis-io/http"]);
+    expect(calls[0]).toEqual(["install", "@blixis-io/core", "@blixis-io/di", "@blixis-io/http", "zod"]);
     expect(calls[1]).toEqual(["install", "-D", "typescript", "@types/node", "concurrently"]);
     expect(result.stdout).toContain("npm run dev");
   });
@@ -153,7 +153,7 @@ describe("runCreate", () => {
     });
 
     expect(calls).toEqual([]);
-    expect(result.stdout).toContain("pnpm add @blixis-io/core @blixis-io/di @blixis-io/http");
+    expect(result.stdout).toContain("pnpm add @blixis-io/core @blixis-io/di @blixis-io/http zod");
     expect(result.stdout).toContain("pnpm add -D typescript @types/node concurrently");
   });
 
@@ -204,7 +204,7 @@ describe("runCreate --deploy", () => {
 
     expect(result.exitCode).toBe(0);
     expect(calls.map((call) => `${call.command} ${call.args.join(" ")}`)).toEqual([
-      "pnpm add @blixis-io/core @blixis-io/di @blixis-io/http",
+      "pnpm add @blixis-io/core @blixis-io/di @blixis-io/http zod",
       "pnpm add -D typescript @types/node concurrently",
       "pnpm add -D @blixis-io/cli @blixis-io/deploy",
       "pnpm exec blix deploy init --target docker --ci github",

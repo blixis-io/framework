@@ -1,7 +1,7 @@
 {
   "name": "@blixis-io/core",
   "version": "0.3.1",
-  "description": "The module system built on @blixis-io/di — @Module, lifecycle hooks, application bootstrapping.",
+  "description": "The module system built on @blixis-io/di \u2014 @Module, lifecycle hooks, application bootstrapping.",
   "license": "MIT",
   "author": "Michael Voeten <michael@voeten.online>",
   "homepage": "https://blixis-io.github.io/framework/",
@@ -30,7 +30,10 @@
     "typecheck": "tsc -p tsconfig.json",
     "build": "rolldown -c"
   },
-  "dependencies": {
+  "peerDependencies": {
+    "@blixis-io/di": "workspace:^"
+  },
+  "devDependencies": {
     "@blixis-io/di": "workspace:*"
   }
 }

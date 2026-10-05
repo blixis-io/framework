@@ -52,7 +52,7 @@ Covered in depth in [Decorators & Metadata](/framework/concepts/decorators-and-m
 
 Each copy of these packages keeps its own private metadata keys. If two copies end up in one process, a class decorated by one is invisible to the other, and the failure surfaces far from its cause, typically as `NotAModuleError: AppModule is not a module — did you forget @Module()?` on a module that plainly has `@Module()`.
 
-The usual cause is upgrading one `@blixis-io/*` package without the others, so the new `@blixis-io/http` brings its own, newer `@blixis-io/core` next to the one your app depends on. A duplicated install in a workspace does the same.
+Before peer dependencies, the usual cause was upgrading one `@blixis-io/*` package without the others: the libraries pinned exact versions of core and di, so the new `@blixis-io/http` brought its own, newer `@blixis-io/core` next to the one your app depends on. The packages now declare core, di, http, `zod` and `drizzle-orm` as peer dependencies, so the package manager installs one copy or reports the conflict (see [Installation](/framework/start-here/installation/#peer-dependencies-install-what-you-build-on)). A duplicated install in a workspace, or an older release, can still do it.
 
 From the release that introduced it, both packages check on import and fail immediately with a `DuplicatePackageError` that names both copies (version and location) and what to do:
 
