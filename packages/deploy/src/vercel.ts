@@ -1,3 +1,4 @@
+import { DEFAULT_CLI_VERSIONS } from "./cli-versions.js";
 import type { VercelTarget } from "./config.js";
 import { buildStep, gitTag, npxStep, type InitContext, type InitPlan, type TargetAdapter } from "./target-types.js";
 
@@ -31,7 +32,8 @@ export default createFetchHandler(${appExport});
 
 export function initVercel({ options }: InitContext): Promise<InitPlan> {
   return Promise.resolve({
-    target: { type: "vercel" },
+    // The version is written out so the repo, not the next npm publish, decides when the CLI that holds your token changes.
+    target: { type: "vercel", cliVersion: DEFAULT_CLI_VERSIONS.vercel },
     comments: [],
     files: [
       { path: "api/index.mjs", content: vercelEntry(options.appModule, options.appExport) },

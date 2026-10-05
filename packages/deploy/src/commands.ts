@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { detectPackageManager, type CliResult, type CommandContext, type LoadedConfig } from "@blixis-io/cli";
 import { CI_PROVIDER_IDS, ciProviderFor } from "./ci.js";
+import { CLI_PACKAGE_FOR_TARGET, DEFAULT_CLI_VERSIONS } from "./cli-versions.js";
 import { DeployConfigError, RESERVED_TARGET_NAMES, TargetSchema, parseDeployConfig, selectTarget, type DeployConfig } from "./config.js";
 import { renderConfigFile, renderTarget } from "./config-file.js";
 import { DockerfileError } from "./dockerfile.js";
@@ -326,6 +327,14 @@ async function runDoctor(context: CommandContext, targetName: string | undefined
   }
 
   for (const { name, target } of selected) {
+    if (target.type !== "docker") {
+      const cli = CLI_PACKAGE_FOR_TARGET[target.type];
+      lines.push(
+        target.cliVersion === "latest"
+          ? `warn    ${name}: cliVersion is "latest": ${cli} runs with your deploy credentials in its environment, so whatever is published next runs with them. Pin it, for example cliVersion: "${DEFAULT_CLI_VERSIONS[cli]}".`
+          : `ok      ${name}: ${cli}@${target.cliVersion}`,
+      );
+    }
     const { secrets, registry } = adapterFor(name, target).ci();
     for (const variable of [...secrets, ...(registry ? [registry.usernameEnv, registry.passwordEnv] : [])]) {
       lines.push(

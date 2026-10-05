@@ -1,10 +1,11 @@
 import type { LoadedConfig } from "@blixis-io/cli";
 import { z } from "zod";
+import { DEFAULT_CLI_VERSIONS, type CliPackage } from "./cli-versions.js";
 
 /** Words `blix deploy <word>` already means, so a target can't be named any of them. */
 export const RESERVED_TARGET_NAMES = ["init", "build", "ci", "doctor", "help"] as const;
 
-const RegistrySchema = z.object({
+const RegistrySchema = z.strictObject({
   host: z.string().min(1),
   /** Environment variable holding the registry username. */
   usernameEnv: z.string().min(1).default("REGISTRY_USERNAME"),
@@ -12,7 +13,7 @@ const RegistrySchema = z.object({
   passwordEnv: z.string().min(1).default("REGISTRY_PASSWORD"),
 });
 
-const DockerTargetSchema = z.object({
+const DockerTargetSchema = z.strictObject({
   type: z.literal("docker"),
   /** Image name without a tag, e.g. `ghcr.io/acme/api`. */
   image: z.string().min(1),
@@ -30,11 +31,12 @@ const DockerTargetSchema = z.object({
   env: z.array(z.string().min(1)).default([]),
 });
 
+/** The provider CLI `npx` runs, pinned by default: it runs with your deploy credentials in its environment, so `latest` would run whatever is published next. Say `"latest"` here to opt in anyway. */
+const cliVersionOf = (cli: CliPackage) => z.string().min(1).default(DEFAULT_CLI_VERSIONS[cli]);
+
 const ToolBase = {
   /** Your build command. Defaults to the package manager's `run build`. */
   build: z.string().min(1).optional(),
-  /** Version of the provider's CLI that `npx` runs. Pin it for reproducible deploys. */
-  cliVersion: z.string().min(1).default("latest"),
   /** Environment variable names this target needs; `doctor` checks them and generated CI files pass them through as secrets. */
   env: z.array(z.string().min(1)).default([]),
 };
@@ -45,11 +47,12 @@ const ProviderBase = {
   ...ToolBase,
 };
 
-const VercelTargetSchema = z.object({ type: z.literal("vercel"), ...ProviderBase });
+const VercelTargetSchema = z.strictObject({ type: z.literal("vercel"), ...ProviderBase, cliVersion: cliVersionOf("vercel") });
 
-const NetlifyTargetSchema = z.object({
+const NetlifyTargetSchema = z.strictObject({
   type: z.literal("netlify"),
   ...ProviderBase,
+  cliVersion: cliVersionOf("netlify-cli"),
   /** Static publish directory. Netlify wants one even for a functions-only site. */
   dir: z.string().min(1).default("public"),
   functions: z.string().min(1).default("netlify/functions"),
@@ -57,9 +60,10 @@ const NetlifyTargetSchema = z.object({
   site: z.string().min(1).optional(),
 });
 
-const CloudflareTargetSchema = z.object({
+const CloudflareTargetSchema = z.strictObject({
   type: z.literal("cloudflare"),
   ...ToolBase,
+  cliVersion: cliVersionOf("wrangler"),
   /** A named Wrangler environment (`wrangler deploy --env <name>`). Omit for the default one. */
   environment: z.string().min(1).optional(),
   /** Wrangler config file. Only passed to Wrangler when it isn't the default `wrangler.toml`. */
@@ -68,7 +72,7 @@ const CloudflareTargetSchema = z.object({
 
 export const TargetSchema = z.discriminatedUnion("type", [DockerTargetSchema, VercelTargetSchema, NetlifyTargetSchema, CloudflareTargetSchema]);
 
-const DeploySchema = z.object({
+const DeploySchema = z.strictObject({
   targets: z.record(z.string().min(1), TargetSchema),
   /** Used when `blix deploy` is run without a target. Optional when there is exactly one target. */
   default: z.string().min(1).optional(),
@@ -105,7 +109,14 @@ export function parseDeployConfig(loaded: LoadedConfig | undefined): DeployConfi
 
   const parsed = DeploySchema.safeParse(section);
   if (!parsed.success) {
-    const problems = parsed.error.issues.map((issue) => `  - deploy.${issue.path.join(".") || "(root)"}: ${issue.message}`);
+    const problems = parsed.error.issues.flatMap((issue) => {
+      const where = `deploy.${issue.path.join(".") || "(root)"}`;
+      if (issue.code !== "unrecognized_keys") {
+        return [`  - ${where}: ${issue.message}`];
+      }
+      const known = knownOptionsAt(issue.path, section);
+      return issue.keys.map((key) => `  - ${where}: unknown option "${key}" (${hintFor(key, known)})`);
+    });
     throw new DeployConfigError(`Invalid deploy config in ${relativeName(loaded.path)}:\n${problems.join("\n")}`);
   }
 
@@ -122,6 +133,64 @@ export function parseDeployConfig(loaded: LoadedConfig | undefined): DeployConfi
     throw new DeployConfigError(`deploy.default is "${config.default}", but the targets are: ${names.join(", ")}.`);
   }
   return config;
+}
+
+const TARGET_SCHEMAS = { docker: DockerTargetSchema, vercel: VercelTargetSchema, netlify: NetlifyTargetSchema, cloudflare: CloudflareTargetSchema } as const;
+
+function isSchemaType(value: string): value is keyof typeof TARGET_SCHEMAS {
+  return Object.hasOwn(TARGET_SCHEMAS, value);
+}
+
+/** The option names valid where an unknown one was found: the deploy section, a target of its own type, or a registry. */
+function knownOptionsAt(path: readonly PropertyKey[], section: unknown): string[] {
+  if (path.length === 0) {
+    return Object.keys(DeploySchema.shape);
+  }
+  if (path.length === 3 && path[2] === "registry") {
+    return Object.keys(RegistrySchema.shape);
+  }
+  if (path.length === 2 && path[0] === "targets") {
+    const targets = typeof section === "object" && section !== null ? Reflect.get(section, "targets") : undefined;
+    const target = typeof targets === "object" && targets !== null ? Reflect.get(targets, String(path[1])) : undefined;
+    const type = typeof target === "object" && target !== null ? Reflect.get(target, "type") : undefined;
+    if (typeof type === "string" && isSchemaType(type)) {
+      return Object.keys(TARGET_SCHEMAS[type].shape);
+    }
+  }
+  return [];
+}
+
+/** Plain Levenshtein distance: how many single-character edits turn `a` into `b`. */
+function editDistance(a: string, b: string): number {
+  let previous = Array.from({ length: b.length + 1 }, (_, index) => index);
+  for (let row = 1; row <= a.length; row++) {
+    const current = [row];
+    for (let column = 1; column <= b.length; column++) {
+      current[column] = Math.min(
+        (previous[column] ?? 0) + 1,
+        (current[column - 1] ?? 0) + 1,
+        (previous[column - 1] ?? 0) + (a[row - 1] === b[column - 1] ? 0 : 1),
+      );
+    }
+    previous = current;
+  }
+  return previous[b.length] ?? 0;
+}
+
+/** `did you mean "push"?` for a close match, else the list of valid options. */
+function hintFor(key: string, known: readonly string[]): string {
+  const limit = Math.max(1, Math.floor(key.length / 3));
+  let best: { name: string; distance: number } | undefined;
+  for (const name of known) {
+    const distance = editDistance(key.toLowerCase(), name.toLowerCase());
+    if (distance <= limit && (best === undefined || distance < best.distance)) {
+      best = { name, distance };
+    }
+  }
+  if (best) {
+    return `did you mean "${best.name}"?`;
+  }
+  return known.length > 0 ? `known options: ${known.join(", ")}` : "no option of that name";
 }
 
 function relativeName(path: string): string {

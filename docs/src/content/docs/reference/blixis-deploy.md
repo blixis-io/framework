@@ -66,7 +66,7 @@ interface VercelTarget {
   type: "vercel";
   production?: boolean; // default true; false = preview
   build?: string; // default: "<package manager> run build"
-  cliVersion?: string; // default "latest"
+  cliVersion?: string; // default "62.2.0" (the vercel CLI), written by init; "latest" is allowed
   env?: string[];
 }
 
@@ -74,7 +74,7 @@ interface NetlifyTarget {
   type: "netlify";
   production?: boolean;
   build?: string;
-  cliVersion?: string;
+  cliVersion?: string; // default "27.11.0" (netlify-cli)
   env?: string[];
   dir?: string; // publish directory, default "public"
   functions?: string; // default "netlify/functions"
@@ -88,12 +88,12 @@ interface CloudflareTarget {
   environment?: string; // wrangler deploy --env <name>
   config?: string; // default "wrangler.toml"; passed with --config only when different
   build?: string;
-  cliVersion?: string; // default "latest"
+  cliVersion?: string; // default "4.147.0" (wrangler)
   env?: string[];
 }
 ```
 
-The config is validated with Zod; an invalid one fails with every problem and its path (`deploy.targets.prod.image: ...`). `defineDeployConfig(config)` is an identity helper for autocomplete.
+The config is validated with Zod, strictly: an unknown option is an error with a "did you mean" suggestion, not silently ignored. An invalid config fails with every problem and its path (`deploy.targets.prod.image: ...`). The provider CLI versions are pinned by default; see [Provider CLI versions](/framework/guides/deploying/#provider-cli-versions). `defineDeployConfig(config)` is an identity helper for autocomplete.
 
 ## Programmatic API
 

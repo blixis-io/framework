@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { LoadedConfig } from "@blixis-io/cli";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { DEFAULT_CLI_VERSIONS } from "./cli-versions.js";
 import { runDeploy, USAGE, type DeployDeps } from "./commands.js";
 import { imageFromRemote, registryHostOf } from "./docker.js";
 import { fakeRunner, type FakeRunner } from "./test-helpers.js";
@@ -391,7 +392,7 @@ describe("blix deploy init for Cloudflare", () => {
 
     const result = await run(["--dry-run"], config(cf), deps(fakeRunner()));
 
-    expect(result.stdout).toBe("# deploy edge (cloudflare), tag latest\n$ npm run build\n$ npx --yes wrangler@latest deploy --config wrangler.jsonc --env staging\n");
+    expect(result.stdout).toBe(`# deploy edge (cloudflare), tag latest\n$ npm run build\n$ npx --yes wrangler@${DEFAULT_CLI_VERSIONS.wrangler} deploy --config wrangler.jsonc --env staging\n`);
   });
 
   it("GitLab and Bitbucket jobs for Cloudflare have no Docker part and list the credentials", async () => {
@@ -418,8 +419,8 @@ describe("blix deploy for Vercel and Netlify (planning)", () => {
     const vercel = await run(["v", "--dry-run"], config(providers), deps(fakeRunner()));
     const netlify = await run(["n", "--dry-run"], config(providers), deps(fakeRunner()));
 
-    expect(vercel.stdout).toBe("# deploy v (vercel), tag latest\n$ pnpm run build\n$ npx --yes vercel@latest deploy --yes --prod\n");
-    expect(netlify.stdout).toContain("$ npx --yes netlify-cli@latest deploy --dir public --functions netlify/functions --site site-1\n");
+    expect(vercel.stdout).toBe(`# deploy v (vercel), tag latest\n$ pnpm run build\n$ npx --yes vercel@${DEFAULT_CLI_VERSIONS.vercel} deploy --yes --prod\n`);
+    expect(netlify.stdout).toContain(`$ npx --yes netlify-cli@${DEFAULT_CLI_VERSIONS["netlify-cli"]} deploy --dir public --functions netlify/functions --site site-1\n`);
     expect(netlify.stdout).toContain("# would need these environment variables: API_KEY");
   });
 
@@ -587,5 +588,36 @@ describe("the init output for a fresh project is deployable end to end (dry run)
   it("init then deploy --dry-run agree", async () => {
     await run(["init", "--image", "ghcr.io/acme/api"], undefined, deps(fakeRunner()));
     expect(existsSync(join(cwd, "blix.config.ts"))).toBe(true);
+  });
+});
+
+const withVersion = (cliVersion?: string) => ({
+  targets: { v: { type: "vercel", ...(cliVersion === undefined ? {} : { cliVersion }) }, d: { type: "docker", image: "ghcr.io/acme/api" } },
+});
+
+describe("blix deploy doctor: the provider CLI version", () => {
+  const npx = fakeRunner({ captures: { "npx --version": { code: 0, stdout: "11.0.0\n" }, "docker version --format {{.Server.Version}}": { code: 0, stdout: "29\n" } } });
+
+  it("warns when a target runs latest, because the CLI runs with deploy credentials in its environment", async () => {
+    const result = await run(["doctor", "v"], config(withVersion("latest")), deps(npx));
+
+    expect(result.stdout).toContain('warn    v: cliVersion is "latest"');
+    expect(result.stdout).toContain(DEFAULT_CLI_VERSIONS.vercel);
+    expect(result.exitCode).toBe(0);
+  });
+
+  it("says which version runs when it is pinned, whether by default or in the config", async () => {
+    const byDefault = await run(["doctor", "v"], config(withVersion()), deps(npx));
+    const explicit = await run(["doctor", "v"], config(withVersion("61.0.0")), deps(npx));
+
+    expect(byDefault.stdout).toContain(`ok      v: vercel@${DEFAULT_CLI_VERSIONS.vercel}`);
+    expect(explicit.stdout).toContain("ok      v: vercel@61.0.0");
+    expect(`${byDefault.stdout}${explicit.stdout}`).not.toContain("is \"latest\"");
+  });
+
+  it("says nothing about a docker target, which has no provider CLI", async () => {
+    const result = await run(["doctor", "d"], config(withVersion("latest")), deps(npx));
+
+    expect(result.stdout).not.toContain("cliVersion");
   });
 });
