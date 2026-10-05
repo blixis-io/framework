@@ -20,7 +20,7 @@ No Critical findings. The core is in good shape: strict TypeScript, 99% line cov
 
 ## Status since the review
 
-Updated 2026-10-05, after the release. One finding is fixed (MNT-1, in #76); the rest are scheduled in [`TODO.tmp.md`](./TODO.tmp.md) section 0 (P1 onwards), in the order of the agenda at the end of this file.
+Updated 2026-10-05, after the release. One finding is fixed (MNT-1, in #76 and released in #77); the rest are scheduled in [`TODO.tmp.md`](./TODO.tmp.md) section 0 (P1 onwards), in the order of the agenda at the end of this file.
 
 | Item | Status |
 | --- | --- |
@@ -29,7 +29,7 @@ Updated 2026-10-05, after the release. One finding is fixed (MNT-1, in #76); the
 | Release #70 | Merged and published: commands 0.2.0, http 0.5.0, cli 0.4.1, auth 0.2.1, openapi 0.2.5, tenancy 0.1.6, testing 0.1.6. All seven confirmed on the registry. |
 | Fresh install, published versions, with `@blixis-io/http` | Built and ran: `blix run`, `blix run ping` (a command injecting `RequestContext`, which read empty), `blix doctor` clean, one copy each of core and di. Closes the "not verified" caveat on #74. |
 | Fresh install, published versions, without `@blixis-io/http` | Built and ran `blix run hello`. The optional peer import fails quietly as designed. |
-| MNT-1 (peer dependencies) | **Fixed in #76** (open, green): `core`, `di`, `http`, `zod`, `drizzle-orm` are now peers; verified with packed tarballs in fresh pnpm and npm installs (one copy each), and Changesets bump behaviour dry-run. One correction to the finding as written: the DI/core `DuplicatePackageError` import-time guard already turned the two-copies case into a loud failure when both copies include it, so the bug was less silent than "breaks at runtime" suggests; the pins still forced every user to upgrade in lockstep. |
+| MNT-1 (peer dependencies) | **Fixed in #76, released in #77** (core 0.4.0, http 0.6.0, auth 0.3.0 and others; confirmed on the registry): `core`, `di`, `http`, `zod`, `drizzle-orm` are now peers; verified with packed tarballs and then against the real registry in fresh pnpm and npm installs (missing peers auto-installed, one copy each), plus a Changesets dry run. A real mismatch (auth 0.3.0 with core 0.3.1) is refused by npm (`ERESOLVE`) but only warned about by pnpm 11, so a `blix doctor` check for unmet peer ranges was added to the agenda (TODO P1 item 12). One correction to the finding as written: the DI/core `DuplicatePackageError` import-time guard already turned the two-copies case into a loud failure when both copies include it, so the bug was less silent than "breaks at runtime" suggests; the pins still forced every user to upgrade in lockstep. |
 | New observation for MNT-1 (before the fix) | `commands@0.2.0` declares its peers with caret ranges (`@blixis-io/http ^0.5.0`, optional), the right shape; `auth` and its siblings still pin exact versions (`core 0.3.1`, `di 0.1.2`, `http 0.4.0` seen on the registry before this release). |
 | Known friction | Within 24 h of a release, `pnpm exec` also fails the `minimumReleaseAge` check, not just `install`, so users adding the new versions need `minimumReleaseAgeExclude: ["@blixis-io/*"]`. Already documented; recorded as a lesson in the TODO. |
 
