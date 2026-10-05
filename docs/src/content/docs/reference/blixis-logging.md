@@ -28,8 +28,12 @@ interface CreateLoggerOptions {
   minLevel?: LogLevel;
   /** Bound context merged into every entry; extend per call-site with each method's second argument, or scope it with `child()`. */
   context?: Record<string, unknown>;
+  /** Keys whose values become "[REDACTED]" at any depth, by whole name, ignoring case. Opt-in. */
+  redact?: readonly string[];
 }
 ```
+
+`redact` is covered under [Keeping secrets out of the logs](/framework/concepts/logging/#keeping-secrets-out-of-the-logs). With it set, a transport receives each context as plain data (an `Error` as `{ name, message, stack, ... }`); without it, the context is passed as given.
 
 ## `Logger`
 
@@ -66,6 +70,17 @@ interface LogRecord {
 ```
 
 `log()` may be async — a transport shipping to Sentry/Slack/Logstash makes a network call — but `createLogger()` never awaits it. A transport that throws synchronously or returns a rejected promise is caught and reported via `console.error`, never propagated to the caller and never allowed to block or skip the other transports.
+
+## Serialization helpers
+
+```ts
+function safeStringify(value: unknown, redact?: readonly string[]): string; // never throws
+function toJsonSafe(value: unknown, redact?: readonly string[]): unknown; // a JSON-safe copy; the input is not changed
+const COMMON_SECRET_KEYS: readonly string[]; // password, token, authorization, cookie, ...
+const REDACTED = "[REDACTED]";
+```
+
+What they do with errors, cycles, `BigInt`, `Map`/`Set` and the rest is in the [Logging concept page](/framework/concepts/logging/#errors-cycles-and-other-awkward-values). `consoleTransport` uses them, so an `Error` in the context is written with its message and stack and a circular context no longer drops the line.
 
 ## `consoleTransport`
 

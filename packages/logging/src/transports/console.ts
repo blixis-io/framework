@@ -1,4 +1,5 @@
 import type { LogLevel } from "../levels.js";
+import { safeStringify } from "../serialize.js";
 import type { LogRecord, Transport } from "../types.js";
 
 export interface ConsoleTransportOptions {
@@ -18,7 +19,7 @@ const CONSOLE_METHOD = {
 
 function formatHuman(record: LogRecord): string {
   const base = `${record.timestamp} ${record.level.toUpperCase()} ${record.message}`;
-  return Object.keys(record.context).length > 0 ? `${base} ${JSON.stringify(record.context)}` : base;
+  return Object.keys(record.context).length > 0 ? `${base} ${safeStringify(record.context)}` : base;
 }
 
 /** The default transport: writes to `console`, routed by level (`fatal` also goes to `console.error`, there's no more-severe console method). */
@@ -26,7 +27,7 @@ export function consoleTransport(options: ConsoleTransportOptions = {}): Transpo
   return {
     minLevel: options.minLevel,
     log(record) {
-      const line = options.json ? JSON.stringify(record) : formatHuman(record);
+      const line = options.json ? safeStringify(record) : formatHuman(record);
       console[CONSOLE_METHOD[record.level]](line);
     },
   };
