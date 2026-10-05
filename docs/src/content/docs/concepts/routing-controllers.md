@@ -63,6 +63,28 @@ get() {}
 
 `GET /posts/new` matches the static route even though `:id` would also structurally match `"new"`; `GET /posts/42` falls through to the param route since there's no static `"42"`.
 
+### Param names belong to the route
+
+Each route keeps its own param names, so two methods may call the same position different things: `@Get(":id")` and `@Delete(":postId")` on `/posts/42` hand `"42"` to `@Param("id")` and `@Param("postId")` respectively. (Registering the same method on the same path twice is still a `DuplicateRouteError`, whatever the param is called.)
+
+### Percent-encoding
+
+The router matches the path **after decoding each segment once**, so what your handler receives is the decoded text:
+
+| Request path | `@Param("id")` |
+| --- | --- |
+| `/posts/hello%20world` | `hello world` |
+| `/posts/caf%C3%A9` | `café` |
+| `/posts/a%2Fb` | `a/b` (one segment, so the slash stays inside the param) |
+| `/posts/100%2520` | `100%20` (decoded once, not twice) |
+| `/posts/a+b` | `a+b` (`+` is a space only in a query string) |
+
+A static segment is matched against the decoded form too, so `@Get("café")` matches `/caf%C3%A9`. Don't decode params again in your handler: a literal `%` in the value would make a second `decodeURIComponent` throw. A path with a broken escape (`/posts/100%`, `/posts/%E0%A4%A`) is answered `400` with `Malformed percent-encoding in the request path`, before any guard or handler runs.
+
+Because `%2F` decodes to a `/` *inside* the param, a handler that uses a param as a file path or a lookup key must still validate it; decoding doesn't make a value safe.
+
+Empty segments are ignored, so `/posts/`, `//posts` and `/posts//42` reach the same routes as their tidy forms. That is deliberate leniency, not canonicalisation: a guard attached to a route sees the same request whichever spelling was used.
+
 ## What you get back
 
 - **No route matches the path at all** → `404` (`application/problem+json`).

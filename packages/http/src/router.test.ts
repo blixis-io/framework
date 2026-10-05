@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DuplicateRouteError, Router } from "./router.js";
+import { DuplicateRouteError, MalformedPathError, Router } from "./router.js";
 
 describe("Router: static routes", () => {
   it("matches an exact static path", () => {
@@ -149,5 +149,102 @@ describe("Router: not found", () => {
     router.add("GET", "/files/*/extra", "get-extra");
 
     expect(router.match("GET", "/files/onlyone")).toEqual({ kind: "not-found" });
+  });
+});
+
+describe("Router: param names belong to the route, not the path position", () => {
+  it("gives each method its own param name when two routes share a path position", () => {
+    const router = new Router<string>();
+    router.add("GET", "/posts/:id", "get");
+    router.add("DELETE", "/posts/:postId", "delete");
+
+    expect(router.match("GET", "/posts/5")).toEqual({ kind: "found", handler: "get", params: { id: "5" } });
+    expect(router.match("DELETE", "/posts/5")).toEqual({ kind: "found", handler: "delete", params: { postId: "5" } });
+  });
+
+  it("keeps the names apart for routes that diverge deeper in the path", () => {
+    const router = new Router<string>();
+    router.add("GET", "/orgs/:orgId/members", "members");
+    router.add("GET", "/orgs/:slug/settings", "settings");
+
+    expect(router.match("GET", "/orgs/acme/members")).toEqual({ kind: "found", handler: "members", params: { orgId: "acme" } });
+    expect(router.match("GET", "/orgs/acme/settings")).toEqual({ kind: "found", handler: "settings", params: { slug: "acme" } });
+  });
+
+  it("names several params and a wildcard per route", () => {
+    const router = new Router<string>();
+    router.add("GET", "/files/:bucket/:key/*", "get-file");
+    router.add("PUT", "/files/:b/:k/*", "put-file");
+
+    expect(router.match("PUT", "/files/media/cover/a/b.png")).toEqual({
+      kind: "found",
+      handler: "put-file",
+      params: { b: "media", k: "cover", "*": "a/b.png" },
+    });
+    expect(router.match("GET", "/files/media/cover/a/b.png")).toEqual({
+      kind: "found",
+      handler: "get-file",
+      params: { bucket: "media", key: "cover", "*": "a/b.png" },
+    });
+  });
+
+  it("still rejects the same method on the same path, whatever the param is called", () => {
+    const router = new Router<string>();
+    router.add("GET", "/posts/:id", "a");
+
+    expect(() => router.add("GET", "/posts/:postId", "b")).toThrow(DuplicateRouteError);
+  });
+});
+
+describe("Router: percent-encoded paths", () => {
+  it("decodes a param value", () => {
+    const router = new Router<string>();
+    router.add("GET", "/posts/:id", "post");
+
+    expect(router.match("GET", "/posts/hello%20world")).toEqual({ kind: "found", handler: "post", params: { id: "hello world" } });
+    expect(router.match("GET", "/posts/caf%C3%A9")).toEqual({ kind: "found", handler: "post", params: { id: "café" } });
+  });
+
+  it("keeps an encoded slash inside one param instead of splitting the segment", () => {
+    const router = new Router<string>();
+    router.add("GET", "/posts/:id", "post");
+
+    expect(router.match("GET", "/posts/a%2Fb")).toEqual({ kind: "found", handler: "post", params: { id: "a/b" } });
+  });
+
+  it("decodes once: %2520 is the text %20, not a space", () => {
+    const router = new Router<string>();
+    router.add("GET", "/posts/:id", "post");
+
+    expect(router.match("GET", "/posts/100%2520")).toEqual({ kind: "found", handler: "post", params: { id: "100%20" } });
+  });
+
+  it("leaves + alone: it is only a space in a query string", () => {
+    const router = new Router<string>();
+    router.add("GET", "/posts/:id", "post");
+
+    expect(router.match("GET", "/posts/a+b")).toEqual({ kind: "found", handler: "post", params: { id: "a+b" } });
+  });
+
+  it("matches a static segment written with non-ASCII characters against its encoded form", () => {
+    const router = new Router<string>();
+    router.add("GET", "/café/menu", "menu");
+
+    expect(router.match("GET", "/caf%C3%A9/menu")).toEqual({ kind: "found", handler: "menu", params: {} });
+  });
+
+  it("decodes each segment of a wildcard capture", () => {
+    const router = new Router<string>();
+    router.add("GET", "/files/*", "file");
+
+    expect(router.match("GET", "/files/my%20dir/a%20b.txt")).toEqual({ kind: "found", handler: "file", params: { "*": "my dir/a b.txt" } });
+  });
+
+  it("throws MalformedPathError for a broken escape sequence, instead of passing it on or matching", () => {
+    const router = new Router<string>();
+    router.add("GET", "/posts/:id", "post");
+
+    expect(() => router.match("GET", "/posts/%E0%A4%A")).toThrow(MalformedPathError);
+    expect(() => router.match("GET", "/posts/100%")).toThrow(MalformedPathError);
   });
 });

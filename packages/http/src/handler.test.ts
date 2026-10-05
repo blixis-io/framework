@@ -885,3 +885,54 @@ describe("createHandler: @Returns response validation", () => {
     expect(res.status).toBe(200);
   });
 });
+
+describe("createHandler: path params", () => {
+  @Controller("things")
+  class ThingController {
+    @Get(":id")
+    one(@Param("id") id: string) {
+      return { id: id ?? null };
+    }
+
+    @Delete(":thingId")
+    remove(@Param("thingId") thingId: string) {
+      return { removed: thingId ?? null };
+    }
+  }
+
+  @Module({ controllers: [ThingController] })
+  class ThingModule {}
+
+  async function handler() {
+    const app = await createApplication(ThingModule);
+    return createHandler(app.controllers, app);
+  }
+
+  it("hands each method the param under the name its own route declared", async () => {
+    const handle = await handler();
+
+    const get = await handle(new Request("http://localhost/things/5"));
+    const del = await handle(new Request("http://localhost/things/5", { method: "DELETE" }));
+
+    expect(await get.json()).toEqual({ id: "5" });
+    expect(await del.json()).toEqual({ removed: "5" });
+  });
+
+  it("decodes percent-encoded params before the handler sees them", async () => {
+    const handle = await handler();
+
+    const res = await handle(new Request("http://localhost/things/hello%20world%2Fcafé"));
+
+    expect(await res.json()).toEqual({ id: "hello world/café" });
+  });
+
+  it("answers 400 problem+json for a malformed escape, without running a guard or handler", async () => {
+    const handle = await handler();
+
+    const res = await handle(new Request("http://localhost/things/100%25%E0%A4%A"));
+
+    expect(res.status).toBe(400);
+    expect(res.headers.get("content-type")).toBe("application/problem+json");
+    expect(((await res.json()) as { detail: string }).detail).toBe("Malformed percent-encoding in the request path");
+  });
+});

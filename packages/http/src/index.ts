@@ -51,5 +51,5 @@ export { resolveHandlerArgs } from "./params.js";
 export { RequestContext, RequestContextError, runInRequestContext } from "./request-context.js";
 export { ResponseValidationError, validateResponse } from "./response.js";
 export type { RouteFound, RouteLookupResult, RouteMethodNotAllowed, RouteNotFound } from "./router.js";
-export { Router } from "./router.js";
+export { MalformedPathError, Router } from "./router.js";
 export { HTTP_METHODS, type HttpMethod } from "./types.js";

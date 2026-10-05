@@ -25,24 +25,56 @@ export class DuplicateRouteError extends Error {
   }
 }
 
+/** Thrown by `Router.match` for a path containing a broken `%` escape (`/a/100%`, `/a/%E0%A4%A`), which can't be decoded. */
+export class MalformedPathError extends Error {
+  override readonly name = "MalformedPathError";
+
+  constructor(path: string) {
+    super(`Malformed percent-encoding in path: ${path}`);
+  }
+}
+
+/**
+ * A route's handler together with the names of its own `:param` segments (and `*`), in path order. Names belong
+ * to the route, not to the trie node: `GET /posts/:id` and `DELETE /posts/:postId` share a node for the segment
+ * but each handler must see its value under its own name.
+ */
+interface RouteEntry<T> {
+  handler: T;
+  paramNames: readonly string[];
+}
+
 interface TrieNode<T> {
   staticChildren: Map<string, TrieNode<T>>;
-  paramChild?: { name: string; node: TrieNode<T> };
-  wildcardChild?: { name: string; node: TrieNode<T> };
-  handlers: Map<HttpMethod, T>;
+  paramChild?: TrieNode<T>;
+  wildcardChild?: TrieNode<T>;
+  routes: Map<HttpMethod, RouteEntry<T>>;
 }
 
 function createNode<T>(): TrieNode<T> {
-  return { staticChildren: new Map(), handlers: new Map() };
+  return { staticChildren: new Map(), routes: new Map() };
 }
 
 function splitPath(path: string): string[] {
   return path.split("/").filter((segment) => segment.length > 0);
 }
 
+/**
+ * Decodes one path segment, once. `%2F` stays inside the segment as a `/` (the path was already split), `+` is left
+ * alone (it only means a space in a query string), and `%2520` becomes the text `%20`, not a space.
+ */
+function decodeSegment(segment: string, path: string): string {
+  try {
+    return decodeURIComponent(segment);
+  } catch {
+    throw new MalformedPathError(path);
+  }
+}
+
 interface WalkResult<T> {
   node: TrieNode<T>;
-  params: Record<string, string>;
+  /** The captured values in path order: one per `:param` segment, then the wildcard's rest if there is one. */
+  values: string[];
 }
 
 /**
@@ -51,39 +83,30 @@ interface WalkResult<T> {
  * `/posts/new` (static, POST only) must not swallow `/posts/:id` (GET) when
  * someone requests GET /posts/new.
  */
-function walk<T>(
-  node: TrieNode<T>,
-  segments: readonly string[],
-  index: number,
-  params: Record<string, string>,
-): WalkResult<T> | undefined {
+function walk<T>(node: TrieNode<T>, segments: readonly string[], index: number, values: readonly string[]): WalkResult<T> | undefined {
   if (index === segments.length) {
-    return node.handlers.size > 0 ? { node, params } : undefined;
+    return node.routes.size > 0 ? { node, values: [...values] } : undefined;
   }
 
   const segment = segments[index] as string;
 
   const staticChild = node.staticChildren.get(segment);
   if (staticChild) {
-    const result = walk(staticChild, segments, index + 1, params);
+    const result = walk(staticChild, segments, index + 1, values);
     if (result) {
       return result;
     }
   }
 
   if (node.paramChild) {
-    const { name, node: paramNode } = node.paramChild;
-    const result = walk(paramNode, segments, index + 1, { ...params, [name]: segment });
+    const result = walk(node.paramChild, segments, index + 1, [...values, segment]);
     if (result) {
       return result;
     }
   }
 
-  if (node.wildcardChild) {
-    const { name, node: wildcardNode } = node.wildcardChild;
-    if (wildcardNode.handlers.size > 0) {
-      return { node: wildcardNode, params: { ...params, [name]: segments.slice(index).join("/") } };
-    }
+  if (node.wildcardChild && node.wildcardChild.routes.size > 0) {
+    return { node: node.wildcardChild, values: [...values, segments.slice(index).join("/")] };
   }
 
   return undefined;
@@ -98,16 +121,18 @@ export class Router<T> {
 
   add(method: HttpMethod, path: string, handler: T): void {
     const segments = splitPath(path);
+    const paramNames: string[] = [];
     let node = this.#root;
 
     for (const segment of segments) {
       if (segment.startsWith(":")) {
-        const name = segment.slice(1);
-        node.paramChild ??= { name, node: createNode() };
-        node = node.paramChild.node;
+        paramNames.push(segment.slice(1));
+        node.paramChild ??= createNode();
+        node = node.paramChild;
       } else if (segment === "*") {
-        node.wildcardChild ??= { name: "*", node: createNode() };
-        node = node.wildcardChild.node;
+        paramNames.push("*");
+        node.wildcardChild ??= createNode();
+        node = node.wildcardChild;
       } else {
         let child = node.staticChildren.get(segment);
         if (!child) {
@@ -118,25 +143,28 @@ export class Router<T> {
       }
     }
 
-    if (node.handlers.has(method)) {
+    if (node.routes.has(method)) {
       throw new DuplicateRouteError(method, path);
     }
-    node.handlers.set(method, handler);
+    node.routes.set(method, { handler, paramNames });
   }
 
+  /** Matches the percent-encoded path as it arrives; throws `MalformedPathError` if a segment can't be decoded. */
   match(method: HttpMethod, path: string): RouteLookupResult<T> {
-    const segments = splitPath(path);
-    const result = walk(this.#root, segments, 0, {});
+    const segments = splitPath(path).map((segment) => decodeSegment(segment, path));
+    const result = walk(this.#root, segments, 0, []);
 
     if (!result) {
       return { kind: "not-found" };
     }
 
-    const handler = result.node.handlers.get(method);
-    if (!handler) {
-      return { kind: "method-not-allowed", allowed: [...result.node.handlers.keys()] };
+    const route = result.node.routes.get(method);
+    if (!route) {
+      return { kind: "method-not-allowed", allowed: [...result.node.routes.keys()] };
     }
 
-    return { kind: "found", handler, params: result.params };
+    // Names come from the matched route itself, so a path position shared with another method's route can't rename them.
+    const params = Object.fromEntries(route.paramNames.map((name, position) => [name, result.values[position] ?? ""]));
+    return { kind: "found", handler: route.handler, params };
   }
 }

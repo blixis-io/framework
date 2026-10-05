@@ -17,7 +17,7 @@ import {
 import { resolveHandlerArgs } from "./params.js";
 import { runInRequestContext } from "./request-context.js";
 import { validateResponse } from "./response.js";
-import { Router } from "./router.js";
+import { MalformedPathError, Router } from "./router.js";
 import type { HttpMethod } from "./types.js";
 
 const DEFAULT_BODY_LIMIT = 1024 * 1024; // 1 MiB
@@ -262,7 +262,15 @@ export function createHandler(
   return async function handle(incoming: Request): Promise<Response> {
     const request = requestTimeout === undefined ? incoming : withTimeout(incoming, requestTimeout);
     const url = new URL(request.url);
-    const match = router.match(request.method as HttpMethod, url.pathname);
+    let match: ReturnType<typeof router.match>;
+    try {
+      match = router.match(request.method as HttpMethod, url.pathname);
+    } catch (error) {
+      if (error instanceof MalformedPathError) {
+        return problemResponse(400, "Malformed percent-encoding in the request path");
+      }
+      throw error;
+    }
 
     if (match.kind === "not-found") {
       return problemResponse(404, "No route matches this path");
