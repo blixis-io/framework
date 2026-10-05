@@ -166,3 +166,123 @@ describe("createLogger: transport failure isolation", () => {
     consoleError.mockRestore();
   });
 });
+
+describe("createLogger: redact", () => {
+  it("hands every transport a context with the listed keys redacted", () => {
+    const first = recordingTransport();
+    const second = recordingTransport();
+    const logger = createLogger({ transports: [first.transport, second.transport], redact: ["password", "authorization"] });
+
+    logger.info("login", { user: "ada", password: "hunter2", headers: { Authorization: "Bearer abc", accept: "json" } });
+
+    for (const { records } of [first, second]) {
+      expect(records[0]?.context).toEqual({ user: "ada", password: "[REDACTED]", headers: { Authorization: "[REDACTED]", accept: "json" } });
+    }
+  });
+
+  it("redacts what a child logger bound, as well as what each call adds", () => {
+    const { transport, records } = recordingTransport();
+    const logger = createLogger({ transports: [transport], redact: ["token"] }).child({ token: "bound-secret", service: "api" });
+
+    logger.info("x", { requestId: "r1" });
+
+    expect(records[0]?.context).toEqual({ token: "[REDACTED]", service: "api", requestId: "r1" });
+  });
+
+  it("redacts inside an attached error, which is written out as plain data when redaction is on", () => {
+    const { transport, records } = recordingTransport();
+    const logger = createLogger({ transports: [transport], redact: ["password"] });
+
+    logger.error("failed", { error: Object.assign(new Error("db rejected"), { password: "p" }) });
+
+    expect(records[0]?.context).toMatchObject({ error: { message: "db rejected", password: "[REDACTED]" } });
+  });
+
+  it("leaves the caller's own object untouched", () => {
+    const { transport } = recordingTransport();
+    const logger = createLogger({ transports: [transport], redact: ["password"] });
+    const context = { password: "hunter2" };
+
+    logger.info("x", context);
+
+    expect(context.password).toBe("hunter2");
+  });
+
+  it("passes the context through as given when no redact list is set, errors included", () => {
+    const { transport, records } = recordingTransport();
+    const logger = createLogger({ transports: [transport] });
+    const error = new Error("kept as an Error");
+
+    logger.error("x", { error });
+
+    expect(records[0]?.context["error"]).toBe(error);
+  });
+});
+
+/** An object whose property reads are counted: spreading it into a merged context reads every one. */
+function watched() {
+  const reads = { count: 0 };
+  const context = {
+    get expensive(): string {
+      reads.count += 1;
+      return "value";
+    },
+  };
+  return { context, reads };
+}
+
+describe("createLogger: no work for a level nothing will receive", () => {
+  it("does not touch the context of a call below the logger's minLevel", () => {
+    const { transport } = recordingTransport();
+    const { context, reads } = watched();
+    const logger = createLogger({ transports: [transport], minLevel: "info" });
+
+    logger.debug("skipped", context);
+    logger.trace("skipped", context);
+
+    expect(reads.count).toBe(0);
+  });
+
+  it("does not touch it when every transport's own minLevel is above the call", () => {
+    const { transport } = recordingTransport("error");
+    const { context, reads } = watched();
+    const logger = createLogger({ transports: [transport] });
+
+    logger.info("skipped", context);
+    logger.warn("skipped", context);
+
+    expect(reads.count).toBe(0);
+  });
+
+  it("does not touch the bound context of a child either", () => {
+    const { transport } = recordingTransport();
+    const { context, reads } = watched();
+    const child = createLogger({ transports: [transport], minLevel: "error" }).child(context);
+    // child() merges its context once, when it is created; what matters is that logging below the level doesn't redo it.
+    reads.count = 0;
+
+    child.info("skipped");
+
+    expect(reads.count).toBe(0);
+  });
+
+  it("still delivers a call at or above the level, and to the transport that wants it", () => {
+    const quiet = recordingTransport("error");
+    const loud = recordingTransport();
+    const logger = createLogger({ transports: [quiet.transport, loud.transport] });
+
+    logger.info("hello");
+    logger.error("boom");
+
+    expect(quiet.records.map((r) => r.message)).toEqual(["boom"]);
+    expect(loud.records.map((r) => r.message)).toEqual(["hello", "boom"]);
+  });
+
+  it("with no transports there is nothing to do at any level", () => {
+    const { context, reads } = watched();
+
+    createLogger({ transports: [] }).error("x", context);
+
+    expect(reads.count).toBe(0);
+  });
+});

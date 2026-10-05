@@ -56,3 +56,18 @@ describe("LoggerModule.forRoot", () => {
     expect(records.map((r) => r.message)).toEqual(["configured via forRoot"]);
   });
 });
+
+describe("LoggerModule.forRoot: redact", () => {
+  it("passes the redact list to the logger it builds", async () => {
+    const { transport, records } = recordingTransport();
+
+    @Module({ imports: [LoggerModule.forRoot({ transports: [transport], redact: ["password"] })] })
+    class AppModule {}
+
+    const app = await createApplication(AppModule);
+    app.get(LOGGER).info("login", { user: "ada", password: "hunter2" });
+
+    expect(records[0]?.context).toEqual({ user: "ada", password: "[REDACTED]" });
+    await app.close();
+  });
+});

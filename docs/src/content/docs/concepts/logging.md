@@ -26,7 +26,7 @@ Right now only `consoleTransport` ships — see the [reference](/framework/refer
 
 ## Levels
 
-`trace` < `debug` < `info` < `warn` < `error` < `fatal`, same ordering as most logging libraries. `createLogger({ minLevel })` sets a global floor below which nothing reaches *any* transport; each transport can also set its own `minLevel` on top of that, filtering independently (the console gets everything, an error-tracking transport only fires on `error`+).
+`trace` < `debug` < `info` < `warn` < `error` < `fatal`, same ordering as most logging libraries. A call that nothing would receive (below the logger's floor, or below every transport's own floor) returns immediately, **before** its context is merged or copied, so leaving `debug` calls in hot code costs a couple of comparisons when they are off. `createLogger({ minLevel })` sets a global floor below which nothing reaches *any* transport; each transport can also set its own `minLevel` on top of that, filtering independently (the console gets everything, an error-tracking transport only fires on `error`+).
 
 ## Calling it
 
@@ -36,6 +36,39 @@ logger.error("save failed", { error: err, postId: post.id });
 ```
 
 Every level method has the same `(message, context?)` shape — there's no special-cased error parameter. Attach an `Error` under the conventional `error` context key instead; a transport that cares (Sentry) knows to look for it there.
+
+### Errors, cycles and other awkward values
+
+The console transport writes a context as JSON, and plain `JSON.stringify` loses an `Error` (it writes `{}`), throws on a circular object or a `BigInt`, and silently drops functions. The transport uses a safe serializer instead, so the log line is always written and nothing useful is lost:
+
+| In the context | Written as |
+| --- | --- |
+| an `Error` | `{ name, message, stack, cause, ...its own properties }` (a `code` such as `ECONNREFUSED` stays), recursively for the cause chain; an `AggregateError` lists its `errors` |
+| a circular reference | `"[Circular]"` (only for an ancestor; the same object used twice is written twice) |
+| a `BigInt` | its digits as text |
+| a function or symbol | `"[Function: name]"`, `"Symbol(name)"` |
+| a `Map` or `Set` | an array |
+| a `Date` or anything with `toJSON()` | what `toJSON()` returns |
+| a getter that throws | `"[Unreadable: <message>]"` |
+| nesting deeper than 8 levels | `"[Object]"` / `"[Array]"` |
+
+`safeStringify(value)` and `toJsonSafe(value)` are exported, so your own transport (a file, a network service) can do the same.
+
+## Keeping secrets out of the logs
+
+```ts
+const logger = createLogger({
+  transports: [consoleTransport()],
+  redact: ["password", "authorization", "token", "cookie"],
+});
+
+logger.info("login", { user: "ada", password: "hunter2", headers: { Authorization: "Bearer abc" } });
+// context reaching every transport: { user: "ada", password: "[REDACTED]", headers: { Authorization: "[REDACTED]" } }
+```
+
+A key in `redact` has its value replaced with `"[REDACTED]"` wherever it appears in the context, at any depth and whatever its type (a whole object is replaced too). Keys are matched by **whole name, ignoring case**: `password` catches `Password` and `PASSWORD` but not `passwordHint` or `tokens`. It also applies to what a `child()` bound, and reaches inside an attached `Error`'s own properties and cause. `COMMON_SECRET_KEYS` is a ready-made starting list (`password`, `token`, `authorization`, `cookie`, `set-cookie`, `api-key`, ...).
+
+Two things to know. It is **opt-in**: with no `redact` list nothing is hidden, and an `Error` in the context reaches your transports as the real `Error` object. With a list, each entry's context is first written out as plain data, so an `Error` arrives as an object with its name, message and stack instead. And it covers the **context only**: a secret interpolated into the message string (`` `token ${token}` ``) is not found, so keep secrets out of messages.
 
 ## Bound context and `child()`
 

@@ -89,3 +89,51 @@ describe("consoleTransport: minLevel", () => {
     expect(consoleTransport().minLevel).toBeUndefined();
   });
 });
+
+const lineOf = (spy: ReturnType<typeof vi.spyOn>): string => String(spy.mock.calls[0]?.[0]);
+
+describe("consoleTransport: values JSON.stringify can't handle", () => {
+  it("writes an Error's message and stack, not {}", () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    void consoleTransport().log(record({ level: "error", message: "failed", context: { error: new Error("connection refused") } }));
+
+    expect(lineOf(spy)).toContain("connection refused");
+    expect(lineOf(spy)).toContain("Error: connection refused");
+    expect(lineOf(spy)).not.toContain('"error":{}');
+    spy.mockRestore();
+  });
+
+  it("does the same in json mode", () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    void consoleTransport({ json: true }).log(record({ level: "error", message: "failed", context: { error: new Error("connection refused") } }));
+
+    const parsed = JSON.parse(lineOf(spy)) as { message: string; context: { error: { message: string; name: string } } };
+    expect(parsed.message).toBe("failed");
+    expect(parsed.context.error).toMatchObject({ name: "Error", message: "connection refused" });
+    spy.mockRestore();
+  });
+
+  it("still writes the line when the context is circular, instead of dropping it", () => {
+    const spy = vi.spyOn(console, "info").mockImplementation(() => {});
+    const context: Record<string, unknown> = { id: 7 };
+    context["self"] = context;
+
+    void consoleTransport().log(record({ message: "cyclic", context }));
+
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(lineOf(spy)).toContain("cyclic");
+    expect(lineOf(spy)).toContain("[Circular]");
+    spy.mockRestore();
+  });
+
+  it("writes a BigInt", () => {
+    const spy = vi.spyOn(console, "info").mockImplementation(() => {});
+
+    void consoleTransport().log(record({ context: { id: 9007199254740993n } }));
+
+    expect(lineOf(spy)).toContain('"id":"9007199254740993"');
+    spy.mockRestore();
+  });
+});
