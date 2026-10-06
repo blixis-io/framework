@@ -137,6 +137,7 @@ interface IssuingOptions<Claims> {
   refreshTokenStore: Class<RefreshTokenStore>;
   accessTokenTtl?: number; // seconds, default 900 (15 minutes)
   refreshTokenTtl?: number; // seconds, default 2,592,000 (30 days)
+  refreshReuseGraceSeconds?: number; // default 0 (off); a just-rotated token is refused without revoking anything for this long
 }
 ```
 
@@ -161,18 +162,30 @@ interface RefreshTokenRecord {
   expiresAt: Date;
   rotatedAt?: Date | null;
   revokedAt?: Date | null;
+  familyId?: string | null; // the sign-in this token descends from
+}
+
+interface NewRefreshToken {
+  subject: string;
+  expiresAt: Date;
+  familyId: string; // store it if you implement revokeFamily; ignoring it is fine
 }
 
 interface RefreshTokenStore {
-  create(tokenHash: string, record: { subject: string; expiresAt: Date }): Promise<void>;
+  create(tokenHash: string, record: NewRefreshToken): Promise<void>;
   find(tokenHash: string): Promise<RefreshTokenRecord | null | undefined>;
   markRotated(tokenHash: string): Promise<boolean>;
   revoke(tokenHash: string): Promise<void>;
   revokeAllForSubject(subject: string): Promise<void>;
+  // optional:
+  rotate?(oldTokenHash: string, next: NewRefreshToken & { tokenHash: string }): Promise<boolean>;
+  revokeFamily?(familyId: string): Promise<void>;
 }
 ```
 
 `AuthService` only ever passes a SHA-256 hash of the refresh token, never the raw token — your store never needs to hash anything itself. `markRotated` must be an atomic compare-and-set: mark an active (not already rotated or revoked) token as rotated and resolve `true`, or resolve `false` without changing anything if it was already rotated or revoked — this is the signal `AuthService.refresh()` uses to detect reuse (including two concurrent refreshes of the same token racing each other). `revoke` must be safe to call on an unknown or already-revoked hash — `signOut()` relies on it being a no-op, not a throw.
+
+**Optional, and worth implementing.** `rotate(oldTokenHash, next)` marks the old token rotated and stores the successor in **one atomic step** (a transaction), resolving `false`, having changed nothing, if the old token was already rotated or revoked; when it exists `refresh()` calls it instead of `create` plus `markRotated`. `revokeFamily(familyId)` revokes every token of one sign-in. Neither is required: without `rotate`, `refresh()` stores the successor before marking the old token rotated, so a failure leaves the old token usable. See [Making rotation resilient](/framework/guides/issuing-tokens/#making-rotation-resilient).
 
 ### `TokenPair`
 
@@ -202,7 +215,7 @@ Resolve via `@Inject(AUTH_SERVICE)`, typed as `AuthService` (it's not generic ov
 | Method | Behavior |
 |---|---|
 | `signIn(identifier, password)` | Throws `UnauthorizedException("Invalid credentials")` for an unknown identifier, wrong password, or a disabled account — identical message in all three cases, and an unknown identifier still runs a real password verification (against a cached dummy hash) so timing doesn't leak account existence. |
-| `refresh(refreshToken)` | Rotates the token for a new pair. Throws the same `UnauthorizedException` if it's unknown, expired, revoked, or **already rotated** — reuse of an already-rotated token revokes every refresh token for that subject. |
+| `refresh(refreshToken)` | Rotates the token for a new pair. Throws the same `UnauthorizedException` if it's unknown, expired, revoked, or **already rotated** — reuse of an already-rotated token revokes that login (its family when the store implements `revokeFamily`, else every refresh token for the subject), unless it was rotated within `refreshReuseGraceSeconds`, which is a plain refusal. |
 | `signOut(refreshToken)` | Revokes one refresh token. Idempotent. |
 | `issueTokens(subject)` | Issues a fresh pair for a subject already authenticated some other way (e.g. right after sign-up). Throws a plain `Error` if `loadClaims(subject)` returns nothing — the caller's responsibility to ensure the account exists first. |
 | `revokeAllSessions(subject)` | Revokes every refresh token for `subject` — for a password change or disabling an account. |

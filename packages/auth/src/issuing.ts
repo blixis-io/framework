@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { Inject, Injectable, type Class, type Token } from "@blixis-io/di";
 import { UnauthorizedException } from "@blixis-io/http";
 import { SignJWT, type JWTPayload } from "jose";
@@ -23,10 +23,23 @@ export interface RefreshTokenRecord {
   expiresAt: Date;
   rotatedAt?: Date | null | undefined;
   revokedAt?: Date | null | undefined;
+  /**
+   * The login this token belongs to: signing in starts a family, every rotation keeps it. Optional, and only used if
+   * the store also implements `revokeFamily`; a record without one (or a store without that method) is revoked per subject.
+   */
+  familyId?: string | null | undefined;
+}
+
+/** What a store is asked to persist for a new refresh token (besides the hash). */
+export interface NewRefreshToken {
+  subject: string;
+  expiresAt: Date;
+  /** Store it with the token if you implement `revokeFamily`; ignoring it is fine. */
+  familyId: string;
 }
 
 export interface RefreshTokenStore {
-  create(tokenHash: string, record: { subject: string; expiresAt: Date }): Promise<void>;
+  create(tokenHash: string, record: NewRefreshToken): Promise<void>;
   find(tokenHash: string): Promise<RefreshTokenRecord | null | undefined>;
   /**
    * Atomically marks an active (not already rotated or revoked) token as
@@ -36,9 +49,19 @@ export interface RefreshTokenStore {
    * of the same token racing each other, treated the same as reuse.
    */
   markRotated(tokenHash: string): Promise<boolean>;
+  /**
+   * Optional, and the way to make rotation safe against a failure part-way: marks `oldTokenHash` rotated **and** stores
+   * the successor in one atomic step (a transaction), resolving `true`; resolves `false`, having changed nothing, if the
+   * old token was already rotated or revoked. When this is implemented `refresh()` calls it instead of `create` +
+   * `markRotated`. Without it `refresh()` stores the successor first and marks the old token rotated second, so a failure
+   * leaves the client's old token usable (and at worst an unused successor), never a client with no valid token.
+   */
+  rotate?(oldTokenHash: string, next: NewRefreshToken & { tokenHash: string }): Promise<boolean>;
   /** Must be safe to call on an unknown or already-revoked hash — `AuthService.signOut()` relies on this being a no-op, not a throw. */
   revoke(tokenHash: string): Promise<void>;
   revokeAllForSubject(subject: string): Promise<void>;
+  /** Optional. Revokes every refresh token of one login, so reusing a stolen token ends that session without signing out the user's other devices. */
+  revokeFamily?(familyId: string): Promise<void>;
 }
 
 export interface TokenPair {
@@ -53,9 +76,12 @@ export interface AuthService {
   signIn(identifier: string, password: string): Promise<TokenPair>;
   /**
    * Rotates `refreshToken` for a new pair. Throws `UnauthorizedException`
-   * if it's unknown, expired, revoked, or **already rotated** — reuse of an
-   * already-rotated token revokes every refresh token for that subject,
-   * since only the rightful client should ever hold the newest one.
+   * if it's unknown, expired, revoked, or **already rotated**. Reuse of an
+   * already-rotated token revokes that login's refresh tokens (its family
+   * when the store supports one, else every refresh token of the subject),
+   * since only the rightful client should ever hold the newest one, unless
+   * it was rotated within `refreshReuseGraceSeconds`, which is a plain
+   * rejection that revokes nothing.
    */
   refresh(refreshToken: string): Promise<TokenPair>;
   /** Revokes one refresh token. Idempotent — never throws for an unknown or already-revoked token. */
@@ -69,6 +95,7 @@ export interface AuthService {
 export interface NormalizedIssuingOptions {
   accessTokenTtlSeconds: number;
   refreshTokenTtlSeconds: number;
+  refreshReuseGraceSeconds: number;
 }
 
 function hashRefreshToken(token: string): string {
@@ -83,6 +110,13 @@ let dummyHash: Promise<string> | undefined;
 function getDummyHash(): Promise<string> {
   dummyHash ??= hashPassword(randomBytes(32).toString("hex"));
   return dummyHash;
+}
+
+/** A freshly minted pair and what to persist for its refresh token. */
+interface IssuedTokens {
+  pair: TokenPair;
+  refreshTokenHash: string;
+  record: NewRefreshToken;
 }
 
 interface AuthServiceTokens<Claims> {
@@ -134,7 +168,7 @@ export function createAuthServiceClass<Claims>(deps: AuthServiceTokens<Claims>):
         throw new UnauthorizedException("Invalid credentials");
       }
 
-      return this.#issuePair(record.subject, claims);
+      return this.#startSession(record.subject, claims);
     }
 
     async refresh(refreshToken: string): Promise<TokenPair> {
@@ -146,25 +180,34 @@ export function createAuthServiceClass<Claims>(deps: AuthServiceTokens<Claims>):
       }
 
       if (record.rotatedAt) {
-        await this.refreshTokens.revokeAllForSubject(record.subject);
+        // A token that was just rotated and is shown again is, most likely, the client refreshing twice at once (two
+        // tabs, a retry after a timeout). Inside the grace window that is a plain rejection: the client still holds the
+        // newer token from the first response. Outside it, it is reuse, and the session is revoked.
+        if (!this.#withinGrace(record.rotatedAt.getTime())) {
+          await this.#revokeSession(record);
+        }
         throw new UnauthorizedException("Invalid or expired refresh token");
       }
 
-      const rotated = await this.refreshTokens.markRotated(tokenHash);
-      if (!rotated) {
-        // Lost a race with a concurrent refresh of this exact token — same
-        // reuse-detected handling as an already-rotated token above.
-        await this.refreshTokens.revokeAllForSubject(record.subject);
-        throw new UnauthorizedException("Invalid or expired refresh token");
-      }
-
+      // Everything that can fail without leaving a trace happens before anything is written: a failure here costs the
+      // client nothing, it retries with the token it still has.
       const claims = await this.credentials.loadClaims(record.subject);
       if (!claims) {
         await this.refreshTokens.revokeAllForSubject(record.subject);
         throw new UnauthorizedException("Invalid or expired refresh token");
       }
+      const issued = await this.#build(record.subject, claims, record.familyId ?? randomUUID());
 
-      return this.#issuePair(record.subject, claims);
+      const rotated = await this.#rotate(tokenHash, issued);
+      if (!rotated) {
+        // Lost a race with a concurrent refresh of this exact token: it was rotated a moment ago, so the same handling
+        // as the rotated-token case above.
+        if (!this.#withinGrace(Date.now())) {
+          await this.#revokeSession(record);
+        }
+        throw new UnauthorizedException("Invalid or expired refresh token");
+      }
+      return issued.pair;
     }
 
     async signOut(refreshToken: string): Promise<void> {
@@ -178,14 +221,50 @@ export function createAuthServiceClass<Claims>(deps: AuthServiceTokens<Claims>):
           `issueTokens() was called for subject "${subject}", but loadClaims() returned nothing for it — the caller must ensure the account exists (and is visible to loadClaims) before calling this.`,
         );
       }
-      return this.#issuePair(subject, claims);
+      return this.#startSession(subject, claims);
     }
 
     async revokeAllSessions(subject: string): Promise<void> {
       await this.refreshTokens.revokeAllForSubject(subject);
     }
 
-    async #issuePair(subject: string, claims: Claims): Promise<TokenPair> {
+    #withinGrace(rotatedAtMs: number): boolean {
+      const graceMs = this.issuingOptions.refreshReuseGraceSeconds * 1000;
+      return graceMs > 0 && Date.now() - rotatedAtMs <= graceMs;
+    }
+
+    /** Ends the login a reused token belongs to: its family if the store keeps one, else every refresh token of the subject. */
+    async #revokeSession(record: RefreshTokenRecord): Promise<void> {
+      if (record.familyId && this.refreshTokens.revokeFamily) {
+        await this.refreshTokens.revokeFamily(record.familyId);
+        return;
+      }
+      await this.refreshTokens.revokeAllForSubject(record.subject);
+    }
+
+    /** Stores the successor and marks the old token rotated: atomically if the store can, else successor first so a failure never strands the client. */
+    async #rotate(oldTokenHash: string, issued: IssuedTokens): Promise<boolean> {
+      const next = { tokenHash: issued.refreshTokenHash, ...issued.record };
+      if (this.refreshTokens.rotate) {
+        return this.refreshTokens.rotate(oldTokenHash, next);
+      }
+      await this.refreshTokens.create(next.tokenHash, issued.record);
+      const marked = await this.refreshTokens.markRotated(oldTokenHash);
+      if (!marked) {
+        // The successor was never handed to anyone; don't leave a live token behind for it.
+        await this.refreshTokens.revoke(next.tokenHash).catch(() => {});
+      }
+      return marked;
+    }
+
+    async #startSession(subject: string, claims: Claims): Promise<TokenPair> {
+      const issued = await this.#build(subject, claims, randomUUID());
+      await this.refreshTokens.create(issued.refreshTokenHash, issued.record);
+      return issued.pair;
+    }
+
+    /** Signs the access token and mints the refresh token, persisting nothing. */
+    async #build(subject: string, claims: Claims, familyId: string): Promise<IssuedTokens> {
       const parsedClaims = deps.claimsSchema.safeParse(claims);
       if (!parsedClaims.success) {
         throw new Error(
@@ -215,9 +294,12 @@ export function createAuthServiceClass<Claims>(deps: AuthServiceTokens<Claims>):
 
       const refreshToken = randomBytes(32).toString("base64url");
       const refreshTokenExpiresAt = new Date(now + this.issuingOptions.refreshTokenTtlSeconds * 1000);
-      await this.refreshTokens.create(hashRefreshToken(refreshToken), { subject, expiresAt: refreshTokenExpiresAt });
 
-      return { accessToken, refreshToken, accessTokenExpiresAt, refreshTokenExpiresAt };
+      return {
+        pair: { accessToken, refreshToken, accessTokenExpiresAt, refreshTokenExpiresAt },
+        refreshTokenHash: hashRefreshToken(refreshToken),
+        record: { subject, expiresAt: refreshTokenExpiresAt, familyId },
+      };
     }
   }
 

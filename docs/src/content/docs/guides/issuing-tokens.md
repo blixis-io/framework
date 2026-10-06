@@ -214,6 +214,20 @@ export class AuthController {
 
 `sign-up` writes both rows itself, then calls `issueTokens` — it doesn't go through `signIn`, since the password was just verified by virtue of being the one the caller just chose. This is also where you'd add sign-up-specific checks (email format, password strength, an already-registered email) before ever calling `hashPassword`.
 
+## Making rotation resilient
+
+The store above is the simplest one that works. Three things make it hold up when something fails or two requests overlap. All are optional and backward compatible: a store that implements none of them behaves as before, except that a failure part-way is safer (the successor is stored before the old token is marked rotated).
+
+**1. Rotate in one transaction.** Implement `rotate(oldTokenHash, next)`: mark the old token rotated (the same compare-and-set as `markRotated`) and insert `next` in one transaction, returning `false` and writing nothing if the old token was already rotated or revoked. A failure then leaves the old token untouched, so the client simply retries.
+
+**2. Keep families.** `create` receives a `familyId`: one per sign-in, kept by every rotation. Store it, implement `revokeFamily(familyId)`, and reuse of a stolen token ends *that* login instead of signing the user out of every device.
+
+**3. Decide on a grace window.** An honest client can refresh twice at once (two tabs, or a retry because the first response was lost). By default that looks like theft and ends the login. `refreshReuseGraceSeconds: 10` makes a token rotated in the last 10 seconds a plain `401` that revokes nothing; the client still holds the newer token from the first response. The cost: a stolen token replayed inside that window is also only refused, not punished. Keep it small, and have clients single-flight their refresh calls anyway.
+
+A complete Postgres store with all three, written against `pg`, is [`postgres-refresh-store.example.ts`](https://github.com/blixis-io/framework/blob/main/packages/auth/src/postgres-refresh-store.example.ts). It is not part of the package; copy it. It is tested against a real database in [`postgres-refresh-store.test.ts`](https://github.com/blixis-io/framework/blob/main/packages/auth/src/postgres-refresh-store.test.ts): twelve simultaneous refreshes of one token produce exactly one winner, a failed write of the successor leaves the old token valid and unrotated, replaying one device's old token leaves the others signed in, sign-out is idempotent, and expired tokens are refused.
+
+What this does not do: revoking refresh tokens does not invalidate **access tokens already issued**. They stay valid until `exp`, so keep `accessTokenTtl` short. If a client's refresh response is lost *and* it retries after the grace window, it is signed out and must sign in again.
+
 ## Before this goes to production
 
 **Rate-limit `sign-in`.** Nothing above throttles repeated attempts — that's explicitly out of scope for this pass, see [Authentication § What this deliberately doesn't do yet](/framework/concepts/authentication/#what-this-deliberately-doesnt-do-yet). Add it at a proxy or with an interceptor before shipping this for real.

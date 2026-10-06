@@ -4,10 +4,10 @@ import { createHttpApplication, runInRequestContext } from "@blixis-io/http";
 import { decodeJwt } from "jose";
 import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
-import { defineAuthModule } from "./module.js";
+import { AuthConfigError, defineAuthModule } from "./module.js";
 import { hashPassword } from "./password.js";
 import * as passwordModule from "./password.js";
-import type { CredentialStore, RefreshTokenRecord, RefreshTokenStore } from "./issuing.js";
+import type { CredentialStore, NewRefreshToken, RefreshTokenRecord, RefreshTokenStore } from "./issuing.js";
 
 /** The controller every hand-built ExecutionContext in this file points at. */
 class TestController {}
@@ -21,11 +21,28 @@ interface Account {
   passwordHash: string;
 }
 
+interface StoreFeatures {
+  /** Implement the optional atomic `rotate()`. */
+  rotate?: boolean;
+  /** Implement the optional `revokeFamily()`. */
+  revokeFamily?: boolean;
+}
+
+/** What a test can make fail on purpose, to see what a failure part-way leaves behind. */
+interface Failures {
+  create: boolean;
+  markRotated: boolean;
+  rotate: boolean;
+  loadClaims: boolean;
+}
+
 /** Fresh, closure-captured in-memory stores per test — same "DbConnection-in-a-closure" trick every other package's own test fixtures use for a fresh DI provider per test. */
-function createStores() {
+function createStores(features: StoreFeatures = {}) {
   const accounts = new Map<string, Account>();
   const claimsBySubject = new Map<string, TestClaims | null>();
   const refreshTokens = new Map<string, RefreshTokenRecord>();
+  const failures: Failures = { create: false, markRotated: false, rotate: false, loadClaims: false };
+  const calls: string[] = [];
 
   @Injectable()
   class TestCredentialStore implements CredentialStore<TestClaims> {
@@ -33,19 +50,34 @@ function createStores() {
       return accounts.get(identifier) ?? null;
     }
     async loadClaims(subject: string) {
+      if (failures.loadClaims) {
+        throw new Error("database is down");
+      }
       return claimsBySubject.get(subject) ?? null;
     }
   }
 
   @Injectable()
   class TestRefreshTokenStore implements RefreshTokenStore {
-    async create(tokenHash: string, record: { subject: string; expiresAt: Date }) {
-      refreshTokens.set(tokenHash, { subject: record.subject, expiresAt: record.expiresAt });
+    // Added to the prototype below, only when a test asks for them: a store without them is the case being tested too.
+    declare rotate?: NonNullable<RefreshTokenStore["rotate"]>;
+    declare revokeFamily?: NonNullable<RefreshTokenStore["revokeFamily"]>;
+
+    async create(tokenHash: string, record: NewRefreshToken) {
+      calls.push("create");
+      if (failures.create) {
+        throw new Error("database is down");
+      }
+      refreshTokens.set(tokenHash, { subject: record.subject, expiresAt: record.expiresAt, familyId: record.familyId });
     }
     async find(tokenHash: string) {
       return refreshTokens.get(tokenHash) ?? null;
     }
     async markRotated(tokenHash: string) {
+      calls.push("markRotated");
+      if (failures.markRotated) {
+        throw new Error("database is down");
+      }
       const record = refreshTokens.get(tokenHash);
       if (!record || record.rotatedAt || record.revokedAt) {
         return false;
@@ -60,6 +92,7 @@ function createStores() {
       }
     }
     async revokeAllForSubject(subject: string) {
+      calls.push("revokeAllForSubject");
       for (const [hash, record] of refreshTokens) {
         if (record.subject === subject) {
           refreshTokens.set(hash, { ...record, revokedAt: new Date() });
@@ -68,18 +101,52 @@ function createStores() {
     }
   }
 
-  return { accounts, claimsBySubject, refreshTokens, TestCredentialStore, TestRefreshTokenStore };
+  if (features.rotate) {
+    TestRefreshTokenStore.prototype.rotate = async function rotate(oldTokenHash: string, next: NewRefreshToken & { tokenHash: string }) {
+      calls.push("rotate");
+      if (failures.rotate) {
+        throw new Error("database is down");
+      }
+      const old = refreshTokens.get(oldTokenHash);
+      if (!old || old.rotatedAt || old.revokedAt) {
+        return false;
+      }
+      refreshTokens.set(oldTokenHash, { ...old, rotatedAt: new Date() });
+      refreshTokens.set(next.tokenHash, { subject: next.subject, expiresAt: next.expiresAt, familyId: next.familyId });
+      return true;
+    };
+  }
+  if (features.revokeFamily) {
+    TestRefreshTokenStore.prototype.revokeFamily = async function revokeFamily(familyId: string) {
+      calls.push("revokeFamily");
+      for (const [hash, record] of refreshTokens) {
+        if (record.familyId === familyId) {
+          refreshTokens.set(hash, { ...record, revokedAt: new Date() });
+        }
+      }
+    };
+  }
+
+  return { accounts, claimsBySubject, refreshTokens, failures, calls, TestCredentialStore, TestRefreshTokenStore };
 }
 
-async function buildAuth(claimsOverride?: TestClaims | null) {
-  const stores = createStores();
+interface BuildOptions extends StoreFeatures {
+  refreshReuseGraceSeconds?: number;
+}
+
+async function buildAuth(claimsOverride?: TestClaims | null, options: BuildOptions = {}) {
+  const stores = createStores(options);
   const auth = defineAuthModule(ClaimsSchema);
 
   @Module({
     imports: [
       auth.AuthModule.forRoot({
         secret: SECRET,
-        issuing: { credentialStore: stores.TestCredentialStore, refreshTokenStore: stores.TestRefreshTokenStore },
+        issuing: {
+          credentialStore: stores.TestCredentialStore,
+          refreshTokenStore: stores.TestRefreshTokenStore,
+          ...(options.refreshReuseGraceSeconds === undefined ? {} : { refreshReuseGraceSeconds: options.refreshReuseGraceSeconds }),
+        },
       }),
     ],
   })
@@ -414,5 +481,207 @@ describe("tokens issued with an issuer and audience configured", () => {
 
     expect(claims.iss).toBeUndefined();
     expect(claims.aud).toBeUndefined();
+  });
+});
+
+const PASSWORD = "correct horse battery staple";
+
+async function signedIn(options: BuildOptions = {}) {
+  const built = await buildAuth(undefined, options);
+  await built.seed("alice@example.com", PASSWORD, "user-1");
+  const first = await built.authService.signIn("alice@example.com", PASSWORD);
+  return { ...built, first };
+}
+
+describe("AuthService.refresh: a failure part-way never strands the client", () => {
+  it.each([
+    ["loading the claims fails", (failures: Failures) => (failures.loadClaims = true)],
+    ["storing the successor fails", (failures: Failures) => (failures.create = true)],
+    ["marking the old token rotated fails", (failures: Failures) => (failures.markRotated = true)],
+  ])("a store without rotate(): when %s, the old token still works on retry", async (_name, breakIt) => {
+    const { authService, stores, first } = await signedIn();
+    breakIt(stores.failures);
+
+    await expect(authService.refresh(first.refreshToken)).rejects.toThrow("database is down");
+
+    stores.failures.loadClaims = false;
+    stores.failures.create = false;
+    stores.failures.markRotated = false;
+    await expect(authService.refresh(first.refreshToken)).resolves.toMatchObject({ refreshToken: expect.any(String) });
+  });
+
+  it("stores the successor before it marks the old token rotated, and never the other way round", async () => {
+    const { authService, stores, first } = await signedIn();
+    stores.calls.length = 0;
+
+    await authService.refresh(first.refreshToken);
+
+    expect(stores.calls).toEqual(["create", "markRotated"]);
+  });
+
+  it("a store without rotate(), after losing a race: no live successor is left behind for a token nobody received", async () => {
+    const { authService, stores, first } = await signedIn();
+    await authService.refresh(first.refreshToken); // first.refreshToken is now rotated
+
+    const live = () => [...stores.refreshTokens.values()].filter((record) => !record.revokedAt && !record.rotatedAt).length;
+    await expect(authService.refresh(first.refreshToken)).rejects.toThrow("Invalid or expired refresh token");
+
+    expect(live()).toBe(0); // reuse revoked the whole subject, successor of the reuse attempt included
+  });
+
+  it("a store with rotate(): uses it, once, instead of create and markRotated", async () => {
+    const { authService, stores, first } = await signedIn({ rotate: true });
+    stores.calls.length = 0;
+
+    const second = await authService.refresh(first.refreshToken);
+
+    expect(stores.calls).toEqual(["rotate"]);
+    await expect(authService.refresh(second.refreshToken)).resolves.toBeDefined();
+  });
+
+  it("a store with rotate(): when it fails nothing was written, so the old token works and there is no successor", async () => {
+    const { authService, stores, first } = await signedIn({ rotate: true });
+    const before = stores.refreshTokens.size;
+    stores.failures.rotate = true;
+
+    await expect(authService.refresh(first.refreshToken)).rejects.toThrow("database is down");
+
+    expect(stores.refreshTokens.size).toBe(before);
+    stores.failures.rotate = false;
+    await expect(authService.refresh(first.refreshToken)).resolves.toBeDefined();
+  });
+
+  it("a store with rotate(): resolving false (it lost a race) is treated as reuse", async () => {
+    const { authService, stores, first } = await signedIn({ rotate: true });
+    const second = await authService.refresh(first.refreshToken);
+
+    await expect(authService.refresh(first.refreshToken)).rejects.toThrow("Invalid or expired refresh token");
+    await expect(authService.refresh(second.refreshToken)).rejects.toThrow("Invalid or expired refresh token");
+    expect(stores.calls).toContain("revokeAllForSubject");
+  });
+});
+
+describe("AuthService.refresh: one login at a time (families)", () => {
+  it("reusing one device's old token ends that login only, and the user's other device keeps working", async () => {
+    const { authService, seed } = await buildAuth(undefined, { revokeFamily: true });
+    await seed("alice@example.com", PASSWORD, "user-1");
+    const phone = await authService.signIn("alice@example.com", PASSWORD);
+    const laptop = await authService.signIn("alice@example.com", PASSWORD);
+    const phoneNext = await authService.refresh(phone.refreshToken);
+
+    await expect(authService.refresh(phone.refreshToken)).rejects.toThrow("Invalid or expired refresh token"); // replayed
+
+    await expect(authService.refresh(phoneNext.refreshToken)).rejects.toThrow("Invalid or expired refresh token"); // that login is over
+    await expect(authService.refresh(laptop.refreshToken)).resolves.toBeDefined(); // the other one is not
+  });
+
+  it("keeps the family across rotations", async () => {
+    const { authService, stores, first } = await signedIn({ revokeFamily: true });
+    const second = await authService.refresh(first.refreshToken);
+    await authService.refresh(second.refreshToken);
+
+    const families = new Set([...stores.refreshTokens.values()].map((record) => record.familyId));
+
+    expect(families.size).toBe(1);
+    expect([...families][0]).toEqual(expect.any(String));
+  });
+
+  it("gives every sign-in its own family", async () => {
+    const { authService, stores, seed } = await buildAuth(undefined, { revokeFamily: true });
+    await seed("alice@example.com", PASSWORD, "user-1");
+    await authService.signIn("alice@example.com", PASSWORD);
+    await authService.signIn("alice@example.com", PASSWORD);
+
+    expect(new Set([...stores.refreshTokens.values()].map((record) => record.familyId)).size).toBe(2);
+  });
+
+  it("falls back to revoking every session of the subject when the store has no revokeFamily()", async () => {
+    const { authService, seed, stores } = await buildAuth();
+    await seed("alice@example.com", PASSWORD, "user-1");
+    const phone = await authService.signIn("alice@example.com", PASSWORD);
+    const laptop = await authService.signIn("alice@example.com", PASSWORD);
+    await authService.refresh(phone.refreshToken);
+
+    await expect(authService.refresh(phone.refreshToken)).rejects.toThrow("Invalid or expired refresh token");
+
+    expect(stores.calls).toContain("revokeAllForSubject");
+    await expect(authService.refresh(laptop.refreshToken)).rejects.toThrow("Invalid or expired refresh token");
+  });
+
+  it("falls back to the subject for a token with no family (a row from before families)", async () => {
+    const { authService, stores, first } = await signedIn({ revokeFamily: true });
+    for (const [hash, record] of stores.refreshTokens) {
+      stores.refreshTokens.set(hash, { subject: record.subject, expiresAt: record.expiresAt });
+    }
+    const second = await authService.refresh(first.refreshToken);
+    stores.calls.length = 0;
+
+    await expect(authService.refresh(first.refreshToken)).rejects.toThrow("Invalid or expired refresh token");
+
+    expect(stores.calls).toEqual(["revokeAllForSubject"]);
+    expect([...stores.refreshTokens.values()].find((record) => record.familyId)?.familyId).toEqual(expect.any(String)); // the successor started a family
+    await expect(authService.refresh(second.refreshToken)).rejects.toThrow("Invalid or expired refresh token");
+  });
+});
+
+describe("AuthService.refresh: refreshReuseGraceSeconds", () => {
+  it("is off by default: refreshing an old token twice signs the login out", async () => {
+    const { authService, first } = await signedIn();
+    const second = await authService.refresh(first.refreshToken);
+
+    await expect(authService.refresh(first.refreshToken)).rejects.toThrow("Invalid or expired refresh token");
+
+    await expect(authService.refresh(second.refreshToken)).rejects.toThrow("Invalid or expired refresh token");
+  });
+
+  it("inside the window, the old token is refused but the session survives, and the newer token still works", async () => {
+    const { authService, stores, first } = await signedIn({ refreshReuseGraceSeconds: 10 });
+    const second = await authService.refresh(first.refreshToken);
+    stores.calls.length = 0;
+
+    await expect(authService.refresh(first.refreshToken)).rejects.toThrow("Invalid or expired refresh token");
+
+    expect(stores.calls).not.toContain("revokeAllForSubject");
+    await expect(authService.refresh(second.refreshToken)).resolves.toBeDefined();
+  });
+
+  it("outside the window, the same replay is reuse and revokes the session", async () => {
+    const { authService, stores, first } = await signedIn({ refreshReuseGraceSeconds: 10 });
+    const second = await authService.refresh(first.refreshToken);
+    for (const [hash, record] of stores.refreshTokens) {
+      if (record.rotatedAt) {
+        stores.refreshTokens.set(hash, { ...record, rotatedAt: new Date(Date.now() - 11_000) });
+      }
+    }
+
+    await expect(authService.refresh(first.refreshToken)).rejects.toThrow("Invalid or expired refresh token");
+
+    await expect(authService.refresh(second.refreshToken)).rejects.toThrow("Invalid or expired refresh token");
+  });
+
+  it("two simultaneous refreshes of one token: one wins, and the winner's session survives the loser", async () => {
+    const { authService, first } = await signedIn({ refreshReuseGraceSeconds: 10 });
+
+    const results = await Promise.allSettled([authService.refresh(first.refreshToken), authService.refresh(first.refreshToken)]);
+
+    const won = results.filter((result): result is PromiseFulfilledResult<Awaited<ReturnType<typeof authService.refresh>>> => result.status === "fulfilled");
+    expect(won).toHaveLength(1);
+    expect(results.filter((result) => result.status === "rejected")).toHaveLength(1);
+    await expect(authService.refresh(won[0]?.value.refreshToken ?? "")).resolves.toBeDefined();
+  });
+
+  it("without it, the same race signs the winner out too (why the option exists)", async () => {
+    const { authService, first } = await signedIn();
+
+    const results = await Promise.allSettled([authService.refresh(first.refreshToken), authService.refresh(first.refreshToken)]);
+
+    const winner = results.find((result) => result.status === "fulfilled");
+    expect(winner).toBeDefined();
+    const token = winner?.status === "fulfilled" ? winner.value.refreshToken : "";
+    await expect(authService.refresh(token)).rejects.toThrow("Invalid or expired refresh token");
+  });
+
+  it.each([[-1], [Number.NaN], [Number.POSITIVE_INFINITY]])("refuses %s at boot", async (value) => {
+    await expect(buildAuth(undefined, { refreshReuseGraceSeconds: value })).rejects.toThrow(AuthConfigError);
   });
 });
