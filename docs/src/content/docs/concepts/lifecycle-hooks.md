@@ -86,6 +86,8 @@ If creating the application throws part-way (a provider's constructor, an `onMod
 
 You still get the error that failed the boot, unchanged. If a shutdown hook also fails during this clean-up, that failure is written to `console.error` rather than replacing the boot error.
 
+`createHttpApplication` and `createFetchHandler` follow the same rule for the step after that: if building the HTTP handler fails (a duplicate route, a class in `controllers` without `@Controller()`), the already-initialised providers are shut down before the error is thrown.
+
 Two details that matter in practice:
 
 - When one provider fails while others are still being built (an async factory, say), the clean-up waits for those to finish first, so nothing is left running unnoticed.
