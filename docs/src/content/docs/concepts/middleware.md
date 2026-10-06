@@ -44,7 +44,7 @@ The chain sits **outside** `requestTimeout`: the deadline covers the application
 
 ## What a middleware does
 
-- **Call `next()` and return its response**, changed or not. `next()` can be called once; a second call is an error.
+- **Call `next()` and return its response**, changed or not. To add headers, use `withResponseHeaders(response, { name: value })` rather than `response.headers.set()`: some responses have immutable headers (`Response.redirect()`, one returned by `fetch()`), and `set()` throws on those. `next()` can be called once; a second call is an error.
 - **Answer itself**, without calling `next()`: a `429` from a rate limiter, a preflight `204` from CORS. Nothing downstream runs.
 - **Hand on a changed request**: `next(new Request(request, { headers }))`. Without an argument the current request goes on.
 - **Throw.** An `HttpException` (`throw new UnauthorizedException("no token")`) answers with that exception's problem+json. Any other error is logged and answers a generic `500`, with the message kept from the client. A middleware that returns something other than a `Response` is also a `500`.

@@ -1,4 +1,5 @@
 import type { ModuleRef } from "@blixis-io/core";
+import { createErrorReporter } from "./error-report.js";
 import { createHttpApplication, type HttpApplication, type HttpApplicationOptions } from "./http-application.js";
 
 /** A Web-standard entry for platforms that call `fetch(request)` per request (Vercel, Netlify, Cloudflare Workers, Deno Deploy, ...). */
@@ -22,6 +23,7 @@ export interface FetchHandler {
  */
 export function createFetchHandler(rootModule: ModuleRef, options: HttpApplicationOptions = {}): FetchHandler {
   let app: Promise<HttpApplication> | undefined;
+  const report = createErrorReporter(options.onError);
 
   function boot(): Promise<HttpApplication> {
     app ??= createHttpApplication(rootModule, options).catch((error: unknown) => {
@@ -37,7 +39,7 @@ export function createFetchHandler(rootModule: ModuleRef, options: HttpApplicati
       try {
         application = await boot();
       } catch (error) {
-        console.error(error);
+        report({ error, phase: "boot" });
         return new Response(
           JSON.stringify({ type: "about:blank", title: "Internal Server Error", status: 500, detail: "An unexpected error occurred" }),
           { status: 500, headers: { "content-type": "application/problem+json" } },

@@ -1,6 +1,7 @@
 import { createApplication, Module, type Application, type CreateApplicationOptions, type ModuleRef } from "@blixis-io/core";
 import type { Class, Token } from "@blixis-io/di";
 import { createServer, type Server } from "node:http";
+import { createErrorReporter, type ErrorReporter } from "./error-report.js";
 import { createHandler, exceptionToResponse, runWithDeadline, type HandlerOptions } from "./handler.js";
 import { listenOrigin, resolveOrigin, sendWebResponse, toWebRequest, type OriginOptions } from "./node-adapter.js";
 import { RequestContext, runInUnclaimedRequestContext } from "./request-context.js";
@@ -34,6 +35,14 @@ export interface MiddlewareOptions {
   middleware?: readonly Middleware[];
 }
 
+interface HttpApplicationSettings {
+  shutdownTimeout: number;
+  origin: OriginOptions;
+  requestTimeout: number | undefined;
+  middleware: readonly Middleware[];
+  report: ErrorReporter;
+}
+
 export type HttpApplicationOptions = HandlerOptions & CreateApplicationOptions & ShutdownOptions & OriginOptions & MiddlewareOptions;
 
 /**
@@ -60,46 +69,52 @@ export class HttpApplication {
   readonly #shutdownTimeout: number;
   readonly #requestTimeout: number | undefined;
   readonly #middleware: readonly Middleware[];
+  readonly #report: ErrorReporter;
   readonly #origin: OriginOptions;
   readonly #mounted = new Map<string, MountedHandler>();
   #server: Server | undefined;
   #listening = false;
   #closing: Promise<void> | undefined;
 
-  private constructor(
-    app: Application,
-    handle: (request: Request) => Promise<Response>,
-    shutdownTimeout: number,
-    origin: OriginOptions,
-    requestTimeout: number | undefined,
-    middleware: readonly Middleware[],
-  ) {
+  private constructor(app: Application, handle: (request: Request) => Promise<Response>, settings: HttpApplicationSettings) {
     this.#app = app;
     this.#handle = handle;
-    this.#shutdownTimeout = shutdownTimeout;
-    this.#origin = origin;
-    this.#requestTimeout = requestTimeout;
-    this.#middleware = middleware;
+    this.#shutdownTimeout = settings.shutdownTimeout;
+    this.#origin = settings.origin;
+    this.#requestTimeout = settings.requestTimeout;
+    this.#middleware = settings.middleware;
+    this.#report = settings.report;
   }
 
   static async create(rootModule: ModuleRef, options: HttpApplicationOptions = {}): Promise<HttpApplication> {
     const wrappedRoot = { module: HttpRootModule, imports: [rootModule, RequestContextModule] };
     const app = await createApplication(wrappedRoot, { overrides: options.overrides });
+    const report = createErrorReporter(options.onError);
     let handle: (request: Request) => Promise<Response>;
     try {
       handle = createHandler(app.controllers, app, options);
     } catch (error) {
       // The core application is already up (pools open, hooks run) and nobody holds it yet, so nobody else can close it.
-      // The boot's own error is what the caller needs to see; a failing shutdown hook is logged, not thrown over it.
+      // The boot's own error is what the caller needs to see; a failing shutdown hook is reported, not thrown over it.
       await app.close().catch((closeError: unknown) => {
-        console.error("[@blixis-io/http] an onApplicationShutdown hook failed while rolling back a failed boot:", closeError);
+        report({
+          error: closeError,
+          phase: "shutdown",
+          message: "[@blixis-io/http] an onApplicationShutdown hook failed while rolling back a failed boot:",
+        });
       });
       throw error;
     }
-    return new HttpApplication(app, handle, options.shutdownTimeout ?? DEFAULT_SHUTDOWN_TIMEOUT, {
-      ...(options.trustHostHeader === undefined ? {} : { trustHostHeader: options.trustHostHeader }),
-      ...(options.trustProxy === undefined ? {} : { trustProxy: options.trustProxy }),
-    }, options.requestTimeout, [...(options.middleware ?? [])]);
+    return new HttpApplication(app, handle, {
+      shutdownTimeout: options.shutdownTimeout ?? DEFAULT_SHUTDOWN_TIMEOUT,
+      origin: {
+        ...(options.trustHostHeader === undefined ? {} : { trustHostHeader: options.trustHostHeader }),
+        ...(options.trustProxy === undefined ? {} : { trustProxy: options.trustProxy }),
+      },
+      requestTimeout: options.requestTimeout,
+      middleware: [...(options.middleware ?? [])],
+      report,
+    });
   }
 
   /** Fetches an already-resolved provider directly, bypassing HTTP entirely. */
@@ -150,7 +165,7 @@ export class HttpApplication {
       const middleware = this.#middleware[index];
       if (!middleware) {
         // A failure inside the application is a response here, as it already is for a routed request, so every middleware sees it the same way.
-        return this.#dispatch(current).catch(exceptionToResponse);
+        return this.#dispatch(current).catch((error: unknown) => exceptionToResponse(error, (unexpected) => this.#report({ error: unexpected, phase: "request", request: current })));
       }
       let called = false;
       const response = await middleware(current, (next = current) => {
@@ -168,7 +183,7 @@ export class HttpApplication {
     try {
       return await run(0, request);
     } catch (error) {
-      return exceptionToResponse(error);
+      return exceptionToResponse(error, (unexpected) => this.#report({ error: unexpected, phase: "request", request }));
     }
   }
 
@@ -195,7 +210,7 @@ export class HttpApplication {
           aren't reliably reproducible without a flaky, timing-dependent
           test. */
           .catch((error: unknown) => {
-            console.error(error);
+            this.#report({ error, phase: "request", request });
             if (!res.headersSent) {
               res.writeHead(500);
             }
