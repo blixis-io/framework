@@ -42,6 +42,8 @@ export class HttpApplication {
   readonly #origin: OriginOptions;
   readonly #mounted = new Map<string, MountedHandler>();
   #server: Server | undefined;
+  #listening = false;
+  #closing: Promise<void> | undefined;
 
   private constructor(app: Application, handle: (request: Request) => Promise<Response>, shutdownTimeout: number, origin: OriginOptions) {
     this.#app = app;
@@ -106,6 +108,13 @@ export class HttpApplication {
   }
 
   listen(port: number, hostname = "0.0.0.0"): Promise<ListenHandle> {
+    if (this.#closing) {
+      return Promise.reject(new Error("This application is closed; create a new one to listen again."));
+    }
+    if (this.#listening) {
+      return Promise.reject(new Error("This application is already listening; call close() before listening again."));
+    }
+    this.#listening = true;
     return new Promise((resolve, reject) => {
       const server = createServer((req, res) => {
         // The port actually bound, not the one asked for: listen(0) picks a free one.
@@ -130,7 +139,10 @@ export class HttpApplication {
           /* v8 ignore stop */
       });
 
-      server.once("error", reject);
+      server.once("error", (error) => {
+        this.#listening = false;
+        reject(error);
+      });
       server.listen(port, hostname, () => {
         this.#server = server;
         const address = server.address();
@@ -143,12 +155,20 @@ export class HttpApplication {
     });
   }
 
-  async close(signal?: string): Promise<void> {
-    if (this.#server) {
-      const server = this.#server;
-      // Cleared before closing, not after: makes close() idempotent (a
-      // second call is a no-op instead of ERR_SERVER_NOT_RUNNING) even if
-      // the close below is still in flight.
+  /**
+   * Stops accepting connections, waits for in-flight requests (up to `shutdownTimeout`), then runs the shutdown hooks.
+   * Every call returns the same promise, so a second caller (a signal handler and a test's cleanup, say) waits for the
+   * same drain instead of tearing the application down under requests that are still running. The `signal` of the
+   * first call is the one the hooks see.
+   */
+  close(signal?: string): Promise<void> {
+    this.#closing ??= this.#shutDown(signal);
+    return this.#closing;
+  }
+
+  async #shutDown(signal: string | undefined): Promise<void> {
+    const server = this.#server;
+    if (server) {
       this.#server = undefined;
       await new Promise<void>((resolve, reject) => {
         // Stops accepting new connections and waits for in-flight requests;
