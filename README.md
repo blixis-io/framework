@@ -85,6 +85,7 @@ Legacy decorators are required (`experimentalDecorators` + `emitDecoratorMetadat
 | [`create-blixis`](packages/create-blixis) | `pnpm create blixis my-app` — scaffolds a runnable starter app and installs its dependencies. |
 | [`@blixis-io/tenancy`](packages/tenancy) | Request-scoped multi-tenant access control — mechanism only, no data model. |
 | [`@blixis-io/events`](packages/events) | An in-process domain event bus. |
+| [`@blixis-io/health`](packages/health) | Liveness and readiness endpoints, with readiness checks registered by the providers and not-ready while draining. |
 | [`@blixis-io/security`](packages/security) | Optional CORS, security headers, rate limiting and a proxy-aware client address, as middleware. |
 | [`@blixis-io/testing`](packages/testing) | A thin testing layer on top of `@blixis-io/http` — real requests, fakeable providers. |
 

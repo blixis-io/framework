@@ -1,0 +1,44 @@
+{
+  "name": "@blixis-io/health",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Liveness and readiness endpoints for @blixis-io/http: readiness checks registered by the providers that own the dependencies, and not-ready while the application drains.",
+  "license": "MIT",
+  "author": "Michael Voeten <michael@voeten.online>",
+  "homepage": "https://blixis-io.github.io/framework/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/blixis-io/framework.git",
+    "directory": "packages/health"
+  },
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "keywords": ["health", "readiness", "liveness", "kubernetes", "typescript"],
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": ["dist"],
+  "exports": {
+    ".": {
+      "@blixis-io/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "build": "rolldown -c"
+  },
+  "peerDependencies": {
+    "@blixis-io/core": "workspace:^",
+    "@blixis-io/di": "workspace:^",
+    "@blixis-io/http": "workspace:^"
+  },
+  "devDependencies": {
+    "@blixis-io/core": "workspace:*",
+    "@blixis-io/di": "workspace:*",
+    "@blixis-io/http": "workspace:*"
+  }
+}
