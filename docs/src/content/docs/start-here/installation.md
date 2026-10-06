@@ -17,7 +17,7 @@ sidebar:
 pnpm create blixis my-app
 ```
 
-This writes a runnable app (service, controller, module, `main.ts`, and a `tsconfig.json` with the settings below), installs `@blixis-io/core`, `@blixis-io/di`, `@blixis-io/http`, `zod`, `typescript`, `@types/node` and `concurrently`, and tells you how to run it. `pnpm dev` compiles with `tsc` and then recompiles on every change while Node restarts on the new output (no `tsx`: it can't emit decorator metadata). It detects pnpm, npm, yarn or bun from how you invoked it (`npm create blixis@latest my-app` works too); pass `--no-install` to only write the files. The [Quickstart](/framework/start-here/quickstart/) builds the same app by hand.
+This writes a runnable app (service, controller, module, `main.ts`, and a `tsconfig.json` with the settings below), installs `@blixis-io/core`, `@blixis-io/di`, `@blixis-io/http`, `zod`, `typescript` and `@types/node`, and tells you how to run it. `pnpm dev` runs `scripts/dev.mjs`, a short script it wrote into the app: it compiles with `tsc` and then recompiles on every change while Node restarts on the new output (no `tsx`: it can't emit decorator metadata). There is no process-runner dependency to keep up to date, and the script is yours to change. It detects pnpm, npm, yarn or bun from how you invoked it (`npm create blixis@latest my-app` works too); pass `--no-install` to only write the files. The [Quickstart](/framework/start-here/quickstart/) builds the same app by hand.
 
 To set up deployment at the same time, add `--deploy <target>` (`docker`, `vercel`, `netlify` or `cloudflare`) and, optionally, `--ci <provider>` (`github`, `gitlab` or `bitbucket`):
 

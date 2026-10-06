@@ -12,9 +12,9 @@ export function templateFiles(packageName: string, packageManagerPin?: string): 
         ...(packageManagerPin ? { packageManager: packageManagerPin } : {}),
         engines: { node: ">=24" },
         scripts: {
-          // Decorators need tsc (esbuild/tsx drop the metadata), so dev is "compile once, then
-          // recompile on change while node restarts on the new output".
-          dev: 'tsc -p tsconfig.json && concurrently -k -n tsc,app "tsc -p tsconfig.json --watch --preserveWatchOutput" "node --watch dist/main.js"',
+          // Decorators need tsc (esbuild/tsx drop the metadata), so dev is "compile once, then recompile on
+          // change while node restarts on the new output": scripts/dev.mjs, which needs no extra dependency.
+          dev: "node scripts/dev.mjs",
           build: "tsc -p tsconfig.json",
           start: "node dist/main.js",
           typecheck: "tsc --noEmit -p tsconfig.json",
@@ -46,6 +46,48 @@ export function templateFiles(packageName: string, packageManagerPin?: string): 
       null,
       2,
     )}\n`,
+
+    "scripts/dev.mjs": `// \`npm run dev\`: compile once, then recompile on every change while Node restarts on the new output.
+// Decorators need tsc, because tsx and esbuild drop the metadata constructor injection reads. This replaces a
+// process-runner dependency; it is a few lines, and yours to change.
+import { spawn, spawnSync } from "node:child_process";
+import { existsSync } from "node:fs";
+
+const tsc = "node_modules/typescript/bin/tsc";
+if (!existsSync(tsc)) {
+  console.error("typescript is not installed here: run your package manager's install first.");
+  process.exit(1);
+}
+
+const first = spawnSync(process.execPath, [tsc, "-p", "tsconfig.json"], { stdio: "inherit" });
+if (first.status !== 0) {
+  process.exit(first.status ?? 1);
+}
+
+const children = [
+  spawn(process.execPath, [tsc, "-p", "tsconfig.json", "--watch", "--preserveWatchOutput"], { stdio: "inherit" }),
+  spawn(process.execPath, ["--watch", "dist/main.js"], { stdio: "inherit" }),
+];
+
+let stopping = false;
+function stop(code) {
+  if (stopping) {
+    return;
+  }
+  stopping = true;
+  for (const child of children) {
+    child.kill();
+  }
+  process.exitCode = code;
+}
+
+for (const child of children) {
+  child.once("exit", (code) => stop(code ?? 1));
+}
+for (const signal of ["SIGINT", "SIGTERM"]) {
+  process.on(signal, () => stop(0));
+}
+`,
 
     ".gitignore": "node_modules\ndist\n",
 
@@ -117,4 +159,4 @@ process.on("SIGTERM", () => {
 export const RUNTIME_DEPENDENCIES = ["@blixis-io/core", "@blixis-io/di", "@blixis-io/http", "zod"] as const;
 /** Added only with --deploy: the CLI and its deploy plugin. */
 export const DEPLOY_DEPENDENCIES = ["@blixis-io/cli", "@blixis-io/deploy"] as const;
-export const DEV_DEPENDENCIES = ["typescript", "@types/node", "concurrently"] as const;
+export const DEV_DEPENDENCIES = ["typescript", "@types/node"] as const;
