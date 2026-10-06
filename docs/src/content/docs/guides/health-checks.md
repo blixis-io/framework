@@ -5,8 +5,6 @@ sidebar:
   order: 8.7
 ---
 
-> **Not on npm yet.** The package is in the repository and tested, but it is marked private until its npm placeholder and trusted publisher exist (see the note on [Securing the API](/framework/guides/securing-the-api/)); the install command below will work once it is published.
-
 Two questions, two endpoints, because a platform acts on the answers differently:
 
 | Endpoint | Question | A failure means | Checks |

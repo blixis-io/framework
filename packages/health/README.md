@@ -1,7 +1,5 @@
 # `@blixis-io/health`
 
-> **Not published yet:** private until its npm placeholder and trusted publisher exist.
-
 Liveness (`/livez`) and readiness (`/readyz`) endpoints for [`@blixis-io/http`](../http). Readiness checks are registered by the providers that own the dependencies, and readiness turns to `503 draining` while the application shuts down; liveness stays `200`, because a process that is leaving is not broken.
 
 ```ts

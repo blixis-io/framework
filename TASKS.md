@@ -28,7 +28,7 @@ Legend: `[me]` an agent can do it unattended, `[you]` needs your hands (npm, Git
   - [x] middleware errors reach the outer middleware as responses (#122): found because a 429 lost its CORS headers
   - [x] `getClientIp(request, { trustedProxyHops, isTrustedProxy })`, `cors()`, `securityHeaders()`, `rateLimit()` with a `RateLimitStore`, bounded in-memory store, Postgres store tested with two instances sharing one limit (security package PR)
   - [x] docs: guide "Securing the API" with the proxy recipe, reference, package README
-  - [ ] [you] npm placeholder `0.0.0` and trusted publisher for `@blixis-io/security` (commands in the PR). The package is `private: true` until then, so the release job skips it; after the placeholder exists, remove `private` and the two "not published yet" notes in the guide and the README
+  - [x] npm placeholders and trusted publishers for `@blixis-io/security` and `@blixis-io/health` created by the maintainer; `private` removed (this PR), so the next Version Packages PR publishes `0.1.0` of each
   - [ ] apply to sign-in and refresh routes in the reference app (X-14)
 - [x] **X-8 Tenant isolation: tested patterns** (#105): real-Postgres isolation suite, RLS suite, docs; no library change needed
 - [x] **X-9 Refresh tokens: resilience** (#106): safe write order, optional `rotate()` and `revokeFamily()`, `refreshReuseGraceSeconds` (D-4), Postgres reference store tested
@@ -37,7 +37,7 @@ Legend: `[me]` an agent can do it unattended, `[you]` needs your hands (npm, Git
   - [x] first half (#104): `onError`, `requestId()`, `accessLog()`, `withResponseHeaders()`
   - [x] route `@blixis-io/events` listener failures (`onHandlerError`) and `@blixis-io/core` rollback failures (`onRollbackError`, forwarded by `http` to `onError`) through injectable hooks (REL-5, MNT-3) (this PR)
   - [x] `HttpApplication.draining` and `startDraining()` (#124)
-  - [x] new package `@blixis-io/health` (D-8): `/livez` and `/readyz`, readiness checks registered by providers, not ready while draining; tested that readiness flips while draining and liveness doesn't (health package PR). Private until `[you]` publish a placeholder and set up the trusted publisher, as for `@blixis-io/security`
+  - [x] new package `@blixis-io/health` (D-8): `/livez` and `/readyz`, readiness checks registered by providers, not ready while draining; tested that readiness flips while draining and liveness doesn't (health package PR).
 - [ ] **X-11 Finish release hardening** [me, then you] S to M
   - [x] actions pinned to commit SHAs in every workflow and in the generated deploy workflow; every SHA checked against its tag with the GitHub API (this PR)
   - [x] Dependabot for actions and npm, `audit.yml` (`pnpm audit --prod --audit-level high`, on dependency changes and weekly), `codeql.yml`, `SECURITY.md` (this PR)

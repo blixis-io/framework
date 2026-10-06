@@ -1,7 +1,5 @@
 # `@blixis-io/security`
 
-> **Not published yet:** private until its npm placeholder and trusted publisher exist.
-
 An optional production baseline for [`@blixis-io/http`](../http): CORS with explicit origins, security headers, rate limiting with a pluggable shared store, and a proxy-aware client address. Plain middleware; nothing is on by default.
 
 ```bash
