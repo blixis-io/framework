@@ -100,7 +100,7 @@ const app = await createHttpApplication(AppModule);
 await app.listen(3000);
 ```
 
-`createHttpApplication` wraps `@blixis-io/core`'s `createApplication` (see [Modules](/framework/concepts/modules/)) — it builds the module graph, then builds the router from `app.controllers`. `listen()` binds a real `node:http` server; `app.handle(request)` runs the same logic against an in-memory `Request` with no socket at all, which is what `@blixis-io/testing` uses (see [Testing](/framework/concepts/testing/)).
+`createHttpApplication` wraps `@blixis-io/core`'s `createApplication` (see [Modules](/framework/concepts/modules/)) — it builds the module graph, then builds the router from `app.controllers`. If building the router fails (a duplicate route, say), the already-initialised providers are shut down before the error is thrown. `listen()` binds a real `node:http` server; `app.handle(request)` runs the same logic against an in-memory `Request` with no socket at all, which is what `@blixis-io/testing` uses (see [Testing](/framework/concepts/testing/)).
 
 ## Next
 
