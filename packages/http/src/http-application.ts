@@ -178,23 +178,26 @@ export class HttpApplication {
         return this.#dispatch(current).catch((error: unknown) => exceptionToResponse(error, (unexpected) => this.#report({ error: unexpected, phase: "request", request: current })));
       }
       let called = false;
-      const response = await middleware(current, (next = current) => {
-        if (called) {
-          throw new Error("A middleware called next() more than once.");
+      try {
+        const response = await middleware(current, (next = current) => {
+          if (called) {
+            throw new Error("A middleware called next() more than once.");
+          }
+          called = true;
+          return run(index + 1, next);
+        });
+        if (!(response instanceof Response)) {
+          throw new TypeError("A middleware must return a Response (the one from next(), or its own).");
         }
-        called = true;
-        return run(index + 1, next);
-      });
-      if (!(response instanceof Response)) {
-        throw new TypeError("A middleware must return a Response (the one from next(), or its own).");
+        return response;
+      } catch (error) {
+        // A failure in this middleware is a response for the one outside it, just like a failure in the application: so
+        // `next()` never rejects, and a CORS or logging middleware further out still sees (and can decorate) the 429
+        // a rate limiter threw, or the 500 a broken middleware caused.
+        return exceptionToResponse(error, (unexpected) => this.#report({ error: unexpected, phase: "request", request: current }));
       }
-      return response;
     };
-    try {
-      return await run(0, request);
-    } catch (error) {
-      return exceptionToResponse(error, (unexpected) => this.#report({ error: unexpected, phase: "request", request }));
-    }
+    return run(0, request);
   }
 
   listen(port: number, hostname = "0.0.0.0"): Promise<ListenHandle> {

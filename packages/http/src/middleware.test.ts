@@ -9,6 +9,7 @@ import { Get, Post } from "./decorators/routes.js";
 import { createFetchHandler } from "./fetch-handler.js";
 import { UnauthorizedException } from "./exceptions.js";
 import { createHttpApplication, type Middleware } from "./http-application.js";
+import { withResponseHeaders } from "./request-id.js";
 import { RequestContext } from "./request-context.js";
 
 @Injectable()
@@ -257,6 +258,72 @@ describe("middleware: errors", () => {
     const app = await createHttpApplication(AppModule, { middleware: [returnsNoResponse] });
 
     expect((await app.handle(get("/things"))).status).toBe(500);
+    error.mockRestore();
+    await app.close();
+  });
+});
+
+const throwsUnauthorized: Middleware = () => {
+  throw new UnauthorizedException("no token");
+};
+
+const throwsError: Middleware = () => {
+  throw new Error("inner failure");
+};
+
+describe("middleware: an error thrown further in reaches the middleware outside as a response", () => {
+  it("shows an outer middleware the problem response of an HttpException thrown by an inner one, and lets it decorate it", async () => {
+    const seen: number[] = [];
+    const decorate: Middleware = async (_request, next) => {
+      const response = await next();
+      seen.push(response.status);
+      return withResponseHeaders(response, { "x-outer": "saw it" });
+    };
+    const app = await createHttpApplication(AppModule, { middleware: [decorate, throwsUnauthorized] });
+
+    const response = await app.handle(get("/things"));
+
+    expect(seen).toEqual([401]);
+    expect(response.status).toBe(401);
+    expect(response.headers.get("x-outer")).toBe("saw it");
+    expect(response.headers.get("content-type")).toBe("application/problem+json");
+    await app.close();
+  });
+
+  it("shows it a generic 500 for any other error, which is still logged once", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const seen: number[] = [];
+    const observe: Middleware = async (_request, next) => {
+      const response = await next();
+      seen.push(response.status);
+      return response;
+    };
+    const app = await createHttpApplication(AppModule, { middleware: [observe, throwsError] });
+
+    expect((await app.handle(get("/things"))).status).toBe(500);
+
+    expect(seen).toEqual([500]);
+    expect(error).toHaveBeenCalledTimes(1);
+    error.mockRestore();
+    await app.close();
+  });
+
+  it("does not let next() reject, so a middleware never needs a try/catch around it", async () => {
+    let rejected = false;
+    const guarded: Middleware = async (_request, next) => {
+      try {
+        return await next();
+      } catch {
+        rejected = true;
+        return new Response("never");
+      }
+    };
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const app = await createHttpApplication(AppModule, { middleware: [guarded, throwsError] });
+
+    await app.handle(get("/things"));
+
+    expect(rejected).toBe(false);
     error.mockRestore();
     await app.close();
   });
