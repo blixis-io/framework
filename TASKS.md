@@ -41,11 +41,11 @@ Legend: `[me]` an agent can do it unattended, `[you]` needs your hands (npm, Git
   - [ ] new package `@blixis-io/health` (D-8): `/livez` and `/readyz`, readiness checks registered by providers, not ready while draining [me; `[you]` npm placeholder and trusted publisher]
   - [ ] test: readiness flips while draining and liveness doesn't
 - [ ] **X-11 Finish release hardening** [me, then you] S to M
-  - [ ] review, finish and merge branch `ci/supply-chain-hardening` (Dependabot, audit, CodeQL, `SECURITY.md`, action pins; the work was uncommitted in the maintainer's checkout)
-  - [ ] re-check the ChatGPT item 10 against it, note anything still open
-  - [ ] run coverage once instead of tests twice (PERF-7)
-  - [ ] docs link check in CI (DOC-1)
-  - [ ] automatic CI run for the Version Packages PR (CI-4); the default `GITHUB_TOKEN` cannot trigger workflows, so find a way that needs no new secret, else `[you]` provide a token
+  - [x] actions pinned to commit SHAs in every workflow and in the generated deploy workflow; every SHA checked against its tag with the GitHub API (this PR)
+  - [x] Dependabot for actions and npm, `audit.yml` (`pnpm audit --prod --audit-level high`, on dependency changes and weekly), `codeql.yml`, `SECURITY.md` (this PR)
+  - [x] audit overrides for two docs-toolchain advisories (`http-cache-semantics`, `source-map-js`); one moderate remains, not gating
+  - [x] coverage runs once instead of tests twice (PERF-7) and a docs link check runs in `pnpm run ci` (DOC-1); the full `pnpm run ci` passes locally, 98.96% lines
+  - [x] CI-4: the release job runs `gh workflow run ci.yml --ref changeset-release/main` (`workflow_dispatch` is the one event the workflow token may start), replacing the manual empty commit; `ci.yml` gained `workflow_dispatch`. **Unverified until the next Version Packages PR**: check that the `ci` check appears on it
   - [ ] [you] enable CodeQL and Dependabot in repo settings; verify branch protection and npm account settings
   - [ ] [you] remove `NPM_TOKEN` plumbing from `release.yml` once OIDC is confirmed for every package (MNT-6)
 
@@ -90,7 +90,7 @@ Legend: `[me]` an agent can do it unattended, `[you]` needs your hands (npm, Git
 ## Releases
 
 - [x] http 0.8.0, openapi 0.5.0, auth 0.5.1, commands 0.2.3, tenancy 0.3.1, testing 0.3.1 published (#97), confirmed on the registry with `npm view`; no fresh-install check yet (X-12 will automate it)
-- [ ] next Version Packages PR: `auth` 0.6.0 (#106) and whatever follows. Merging one publishes to npm: `[you]` approve, or say releases are pre-approved.
+- [ ] next Version Packages PR: `auth` 0.6.0 (#106), `deploy` patch (pinned actions) and whatever follows. Merging one publishes to npm: `[you]` approve, or say releases are pre-approved.
 
 ## Done when
 

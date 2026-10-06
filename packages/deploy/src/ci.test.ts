@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { ACTION_PINS } from "./action-pins.js";
 import { CI_PROVIDER_IDS, ciProviderFor, githubActions } from "./ci.js";
 
 const base = { target: "prod", nodeVersion: "24", branch: "main", secrets: [] as string[], docker: false };
@@ -32,9 +33,9 @@ jobs:
       contents: read
       packages: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v6
+      - uses: ${ACTION_PINS.checkout}
+      - uses: ${ACTION_PINS.pnpm}
+      - uses: ${ACTION_PINS.setupNode}
         with:
           node-version: 24
           cache: pnpm
@@ -82,7 +83,7 @@ jobs:
     ["pnpm", "pnpm exec blix deploy prod", "pnpm install --frozen-lockfile", "cache: pnpm"],
     ["npm", "npx blix deploy prod", "npm ci", "cache: npm"],
     ["yarn", "yarn blix deploy prod", "yarn install --frozen-lockfile", "cache: yarn"],
-    ["bun", "bunx blix deploy prod", "bun install --frozen-lockfile", "oven-sh/setup-bun@v2"],
+    ["bun", "bunx blix deploy prod", "bun install --frozen-lockfile", ACTION_PINS.bun],
   ] as const)("%s uses its own install and exec commands", (packageManager, exec, install, extra) => {
     const yaml = githubActions.render({ ...base, packageManager, registry: undefined });
 
@@ -115,3 +116,19 @@ describe("ciProviderFor: ids that are keys of Object.prototype", () => {
     expect(ciProviderFor(id)).toBeUndefined();
   });
 });
+
+describe("the actions the generated workflow uses", () => {
+  it.each(Object.entries(ACTION_PINS))("%s is pinned to a full commit with its tag in a comment, not to a movable tag", (_name, pin) => {
+    expect(pin).toMatch(/^[\w.-]+\/[\w.-]+@[0-9a-f]{40} # v\d+$/);
+  });
+
+  it("writes the pinned references into the workflow, and no bare @vN tag", () => {
+    const workflow = githubActions.render({ target: "prod", packageManager: "pnpm", nodeVersion: "24", branch: "main", secrets: [], docker: false });
+
+    for (const pin of [ACTION_PINS.checkout, ACTION_PINS.pnpm, ACTION_PINS.setupNode]) {
+      expect(workflow).toContain(`uses: ${pin}`);
+    }
+    expect(workflow).not.toMatch(/uses: [\w./-]+@v\d/);
+  });
+});
+

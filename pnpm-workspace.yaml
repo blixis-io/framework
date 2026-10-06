@@ -4,3 +4,10 @@ packages:
   - "docs"
 allowBuilds:
   esbuild: true
+# Both are reached only through the docs toolchain (astro), never from a published package. Remove each once astro
+# depends on a patched version by itself.
+overrides:
+  # GHSA-ch52-4w7c-c8xp: http-cache-semantics up to 4.2.0
+  http-cache-semantics: ">=4.3.0"
+  # GHSA-68fv-2mgg-jv7q: source-map-js 1.0.0 up to 1.2.1 (event-loop denial of service)
+  source-map-js: ">=1.2.2"
