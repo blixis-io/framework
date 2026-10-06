@@ -239,12 +239,19 @@ export class HttpApplication {
           /* v8 ignore stop */
       });
 
-      server.once("error", (error) => {
+      const onStartError = (error: Error): void => {
         this.#listening = false;
         reject(error);
-      });
+      };
+      server.once("error", onStartError);
       server.listen(port, hostname, () => {
         this.#server = server;
+        // From here on an `error` event is not a failed start. Without a listener Node would throw it as an uncaught
+        // exception (running out of file descriptors, say) and take the process down with every request in flight.
+        server.off("error", onStartError);
+        server.on("error", (error) => {
+          this.#report({ error, phase: "server", message: "[@blixis-io/http] the server reported an error:" });
+        });
         const address = server.address();
         // `address()` only returns a string for a Unix domain socket; `listen()`
         // here always takes a TCP port, so that arm is unreachable in practice.
