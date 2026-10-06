@@ -1,0 +1,5 @@
+---
+"@blixis-io/security": minor
+---
+
+First release (the package stays private until its npm placeholder exists, so this changeset does not publish yet): an optional production baseline for `@blixis-io/http`, as plain middleware. `cors()` with explicit origins, preflight handled without routes, `Vary: Origin`, and `credentials: true` with `"*"` refused when it is created. `securityHeaders()` with conservative JSON-API defaults (`nosniff`, `no-referrer`, `DENY`, a deny-everything CSP, `same-origin` resource policy; HSTS only when asked). `rateLimit()`: a fixed window per key with a pluggable atomic `RateLimitStore`, `RateLimit-*` headers, a `429` problem document with `Retry-After`, several named limits sharing a store, `match` to limit only sign-in and refresh, and `onStoreError` to fail open or closed. A bounded in-memory store for development and a single instance; a Postgres store, tested against a real database with two instances sharing one limit, is in the docs. `getClientIp()`, which reads `X-Forwarded-For` only as far as you say (`trustedProxyHops`, counted from the end, optionally only from a trusted peer) and never uses the part a client controls.

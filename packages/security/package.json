@@ -1,6 +1,7 @@
 {
   "name": "@blixis-io/security",
   "version": "0.0.0",
+  "private": true,
   "description": "An optional production baseline for @blixis-io/http: CORS with explicit origins, security headers, rate limiting with a pluggable shared store, and a proxy-aware client address. Plain middleware, nothing on by default.",
   "license": "MIT",
   "author": "Michael Voeten <michael@voeten.online>",

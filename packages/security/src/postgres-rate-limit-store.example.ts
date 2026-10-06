@@ -24,11 +24,11 @@ export class PostgresRateLimitStore implements RateLimitStore {
   async hit(key: string, windowMs: number): Promise<RateLimitHit> {
     const { rows } = await this.pool.query<{ count: number; reset_ms: string }>(
       `insert into rate_limits (key, count, reset_at)
-       values ($1, 1, now() + $2 * interval '1 millisecond')
-       on conflict (key) do update set
-         count = case when rate_limits.reset_at <= now() then 1 else rate_limits.count + 1 end,
-         reset_at = case when rate_limits.reset_at <= now() then now() + $2 * interval '1 millisecond' else rate_limits.reset_at end
-       returning count, (extract(epoch from reset_at) * 1000)::bigint as reset_ms`,
+        values ($1, 1, now() + $2 * interval '1 millisecond')
+        on conflict (key) do update set
+          count = case when rate_limits.reset_at <= now() then 1 else rate_limits.count + 1 end,
+          reset_at = case when rate_limits.reset_at <= now() then now() + $2 * interval '1 millisecond' else rate_limits.reset_at end
+        returning count, (extract(epoch from reset_at) * 1000)::bigint as reset_ms`,
       [key, windowMs],
     );
     const row = rows[0];
