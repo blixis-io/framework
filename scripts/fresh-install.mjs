@@ -8,7 +8,7 @@
 //
 // Needs the repository built (`pnpm run build`). Dependency-free, and written to run on Linux, macOS and Windows.
 import { spawn, spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync } from "node:fs";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -70,7 +70,8 @@ function freePort() {
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-const work = mkdtempSync(join(tmpdir(), "blixis-fresh-"));
+// The long path: on Windows `tmpdir()` can be an 8.3 short name (`RUNNER~1`), and pnpm then sees one directory under two names.
+const work = mkdtempSync(join(realpathSync.native(tmpdir()), "blixis-fresh-"));
 console.log(`working in ${work}`);
 
 try {
