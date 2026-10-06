@@ -54,7 +54,7 @@ Legend: `[me]` an agent can do it unattended, `[you]` needs your hands (npm, Git
   - [x] `scripts/fresh-install.mjs` + `fresh-install.yml`: pack all packages, scaffold with the real `create-blixis`, install the tarballs, build, `blix doctor`, start, call, SIGTERM and assert exit 0; matrix Linux, macOS, Windows x pnpm, npm; weekly and on push/PR (#112). Windows cannot check the graceful stop (no SIGTERM)
   - [x] `publint` and `@arethetypeswrong/cli` for every package (`scripts/check-exports.mjs`, job `package-exports`): all 16 pass (#112)
   - [ ] make the fresh-install jobs a required check once they have been green for a while [you]
-  - [ ] a registry mode (install the *published* latest) for the weekly run
+  - [x] registry mode (`--source registry`: the published `create-blixis` and the published packages, pnpm with `minimumReleaseAgeExclude` so a release made today can be checked) and a `published` job in `fresh-install.yml` on the weekly schedule and by hand; passes locally with npm and pnpm (this PR). The stale `concurrently` install in the script is gone too
   - [ ] unsupported toolchain (decorator metadata dropped, e.g. `tsx`) fails with an actionable message; `blix doctor` already reports the decorator flags, check what it says for the esbuild case
   - [ ] **found by this work:** the scaffold's `concurrently` dev dependency made `npm install` report 2 critical advisories (it pins a vulnerable `shell-quote` exactly); replaced by a generated `scripts/dev.mjs`, `npm audit` is clean (#114)
 - [x] **X-13 Stability policy and contribution guide** (#110): `start-here/stability.md` (audience, support, `0.x` rules, deprecation, 1.0 checklist), `CONTRIBUTING.md`, README status section; nothing like it existed before

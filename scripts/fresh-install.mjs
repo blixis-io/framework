@@ -4,11 +4,13 @@
 // a missing file, a wrong `exports` entry, a peer range nothing satisfies or lost decorator metadata fails here and
 // not on a user's machine.
 //
-//   node scripts/fresh-install.mjs [--pm pnpm|npm] [--keep]
+//   node scripts/fresh-install.mjs [--pm pnpm|npm] [--source packed|registry] [--keep]
 //
-// Needs the repository built (`pnpm run build`). Dependency-free, and written to run on Linux, macOS and Windows.
+// `--source packed` (default) installs tarballs packed from this checkout and needs the repository built
+// (`pnpm run build`). `--source registry` installs what is actually published on npm, with the published create-blixis,
+// to catch a publishing mistake (a missing file, an exports entry, a peer range nothing satisfies) that packing cannot. Dependency-free, and written to run on Linux, macOS and Windows.
 import { spawn, spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -17,6 +19,10 @@ import { fileURLToPath } from "node:url";
 const root = fileURLToPath(new URL("..", import.meta.url));
 const args = process.argv.slice(2);
 const keep = args.includes("--keep");
+const source = args.includes("--source") ? args[args.indexOf("--source") + 1] : "packed";
+if (source !== "packed" && source !== "registry") {
+  fail(`--source must be packed or registry (got ${source})`);
+}
 const pm = args.includes("--pm") ? args[args.indexOf("--pm") + 1] : "npm";
 if (pm !== "pnpm" && pm !== "npm") {
   fail(`--pm must be pnpm or npm (got ${pm})`);
@@ -68,6 +74,11 @@ function freePort() {
   });
 }
 
+/** Stands in for `tarball` when nothing was packed (registry mode), which never calls it. */
+function noTarball() {
+  return "";
+}
+
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // The long path: on Windows `tmpdir()` can be an 8.3 short name (`RUNNER~1`), and pnpm then sees one directory under two names.
@@ -75,53 +86,64 @@ const work = mkdtempSync(join(realpathSync.native(tmpdir()), "blixis-fresh-"));
 console.log(`working in ${work}`);
 
 try {
-  const packages = readdirSync(join(root, "packages"))
-    .map((dir) => ({ dir: join(root, "packages", dir), manifest: join(root, "packages", dir, "package.json") }))
-    .filter(({ manifest }) => existsSync(manifest))
-    .map(({ dir, manifest }) => ({ dir, ...JSON.parse(readFileSync(manifest, "utf8")) }))
-    .filter((pkg) => !pkg.private);
-  for (const pkg of packages) {
-    if (!existsSync(join(pkg.dir, "dist"))) {
-      fail(`${pkg.name} has no dist/. Run \`pnpm run build\` first.`);
-    }
-  }
-
-  step(`pack ${packages.length} packages`);
+  const packed = source === "packed";
   const tarballs = join(work, "tarballs");
-  mkdirSync(tarballs);
-  for (const pkg of packages) {
-    // pnpm pack, not npm pack: it rewrites `workspace:` ranges to real versions, as publishing does.
-    run("pnpm", ["pack", "--pack-destination", tarballs], { cwd: pkg.dir });
-  }
-  const tarball = (name) => {
-    const file = `${name.replace(/^@/, "").replace("/", "-")}-${packages.find((pkg) => pkg.name === name).version}.tgz`;
-    const path = join(tarballs, file);
-    if (!existsSync(path)) {
-      fail(`expected ${path} after packing ${name}`);
+  let tarball = noTarball;
+
+  if (packed) {
+    const packages = readdirSync(join(root, "packages"))
+      .map((dir) => ({ dir: join(root, "packages", dir), manifest: join(root, "packages", dir, "package.json") }))
+      .filter(({ manifest }) => existsSync(manifest))
+      .map(({ dir, manifest }) => ({ dir, ...JSON.parse(readFileSync(manifest, "utf8")) }))
+      .filter((pkg) => !pkg.private);
+    for (const pkg of packages) {
+      if (!existsSync(join(pkg.dir, "dist"))) {
+        fail(`${pkg.name} has no dist/. Run \`pnpm run build\` first.`);
+      }
     }
-    return path;
-  };
 
-  step("scaffold an app with the real create-blixis");
+    step(`pack ${packages.length} packages`);
+    mkdirSync(tarballs);
+    for (const pkg of packages) {
+      // pnpm pack, not npm pack: it rewrites `workspace:` ranges to real versions, as publishing does.
+      run("pnpm", ["pack", "--pack-destination", tarballs], { cwd: pkg.dir });
+    }
+    tarball = (name) => {
+      const file = `${name.replace(/^@/, "").replace("/", "-")}-${packages.find((pkg) => pkg.name === name).version}.tgz`;
+      const path = join(tarballs, file);
+      if (!existsSync(path)) {
+        fail(`expected ${path} after packing ${name}`);
+      }
+      return path;
+    };
+  }
+
+  step(packed ? "scaffold an app with the real create-blixis" : "scaffold an app with the published create-blixis");
   const agent = `${pm}/${version(pm)} node/${process.version}`;
-  run("node", [join(root, "packages", "create-blixis", "dist", "index.js"), "app", "--no-install"], {
-    cwd: work,
-    env: { npm_config_user_agent: agent },
-  });
+  if (packed) {
+    run("node", [join(root, "packages", "create-blixis", "dist", "index.js"), "app", "--no-install"], { cwd: work, env: { npm_config_user_agent: agent } });
+  } else {
+    run(pm === "pnpm" ? "pnpm" : "npm", pm === "pnpm" ? ["dlx", "create-blixis@latest", "app", "--no-install"] : ["exec", "--yes", "create-blixis@latest", "--", "app", "--no-install"], { cwd: work });
+  }
   const app = join(work, "app");
+  if (!packed && pm === "pnpm") {
+    // pnpm 11 skips versions younger than 24 hours, so a release made today could not be installed to check it.
+    writeFileSync(join(app, "pnpm-workspace.yaml"), 'minimumReleaseAgeExclude:\n  - "@blixis-io/*"\n');
+  }
 
-  step(`install the packed packages with ${pm}`);
-  const runtime = ["core", "di", "http"].map((name) => tarball(`@blixis-io/${name}`));
-  const tools = ["cli"].map((name) => tarball(`@blixis-io/${name}`));
+  step(packed ? `install the packed packages with ${pm}` : `install the published packages with ${pm}`);
+  const names = (list) => list.map((name) => (packed ? tarball(`@blixis-io/${name}`) : `@blixis-io/${name}`));
+  const runtime = names(["core", "di", "http"]);
+  const tools = names(["cli"]);
   if (pm === "pnpm") {
     run("pnpm", ["add", ...runtime, "zod"], { cwd: app });
-    run("pnpm", ["add", "-D", ...tools, "typescript", "@types/node", "concurrently"], { cwd: app });
+    run("pnpm", ["add", "-D", ...tools, "typescript", "@types/node"], { cwd: app });
   } else {
     run("npm", ["install", ...runtime, "zod"], { cwd: app });
-    run("npm", ["install", "-D", ...tools, "typescript", "@types/node", "concurrently"], { cwd: app });
+    run("npm", ["install", "-D", ...tools, "typescript", "@types/node"], { cwd: app });
   }
 
-  step("build (tsc against the packed type declarations)");
+  step("build (tsc against the installed type declarations)");
   run(pm, pm === "npm" ? ["run", "build"] : ["build"], { cwd: app });
 
   step("blix doctor");
@@ -177,7 +199,7 @@ try {
     child.kill("SIGKILL");
   }
 
-  console.log(`\nOK: ${pm}, ${process.platform}, node ${process.version}`);
+  console.log(`\nOK: ${source}, ${pm}, ${process.platform}, node ${process.version}`);
 } finally {
   if (keep || process.exitCode) {
     console.log(`\nkept ${work}`);
