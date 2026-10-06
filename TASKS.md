@@ -1,0 +1,102 @@
+# Tasks: external review follow-up
+
+Created 2026-10-06, status updated 2026-10-06 (after #106). Reasoning and designs: [`PLAN.md`](./PLAN.md). Fact-check of the review: [`EXTERNAL-REVIEW-ASSESSMENT.md`](./EXTERNAL-REVIEW-ASSESSMENT.md). Separate from [`TODO.tmp.md`](./TODO.tmp.md); IDs here start with `X-` so they don't clash with its numbering. Delete or merge into the TODO when done.
+
+**Decisions D-1 to D-8 are all approved as recommended** (2026-10-06). `[x]` items name the PR that merged them.
+
+Legend: `[me]` an agent can do it unattended, `[you]` needs your hands (npm, GitHub settings), `[decide]` needs a decision first. Size: S under half a day, M about a day, L several days.
+
+**Rules for every item** (same as the existing backlog): its own PR; a regression test that fails on the old code; a changeset if a published package changes; docs updated in the same PR; say in the PR what was *not* verified.
+
+## Phase 0: correctness (done)
+
+- [x] **X-0** the four reproduced defects became failing tests inside their fix PRs (#96, #98, #99, #100)
+- [x] **X-1 Router: method-aware fallback** (#96)
+- [x] **X-2 Deadline covers guards and mounted routes** (#100); a late guard no longer starts the next guard or the controller
+- [x] **X-3 HTTP boot rolls back** (#98)
+- [x] **X-4 Shared close, single `listen()`** (#99)
+  - [x] decided D-5: no `shutdownHookTimeout`, documented in `running-in-production.md` instead
+  - [ ] persistent server `error` listener after start (BUG-12): left out of #99, still open, needs a way to test it
+- [x] **X-5 OpenAPI matches reality** (#101): problem+json, `securitySchemes` / `security` / `@ApiSecurity`, optional bodies, `204`, `onUnrepresentable`, duplicate `operationId`, contract test
+- [x] docs follow-up for the `http` reference (#102)
+
+## Phase 1: production baseline
+
+- [x] **X-6 Request-wide wrapper** (#103): `middleware: []` on `createHttpApplication` and `createFetchHandler`, request context outside the middleware
+- [ ] **X-7 Security baseline** [me; needs `[you]` for npm] L, new package `@blixis-io/security`
+  - [ ] [you] npm placeholder `0.0.0` and trusted publisher for `@blixis-io/security` (commands in the PR)
+  - [ ] client IP: the Node adapter exposes the socket address on `RequestContext`; `getClientIp(request, { trustProxy })` (D-3)
+  - [ ] `cors()`: explicit origins, preflight, `credentials` with `"*"` is a construction error
+  - [ ] `securityHeaders()` with conservative overridable defaults
+  - [ ] `rateLimit()` with a `RateLimitStore` interface; in-memory store labelled development-only; Postgres store example, tested
+  - [ ] tests: preflight, credentials rule, 429 keeps CORS/security headers, two instances share a Postgres-backed store and enforce one limit
+  - [ ] docs: proxy recipe (proxy overwrites forwarded headers, backend not directly reachable); apply to sign-in and refresh routes
+- [x] **X-8 Tenant isolation: tested patterns** (#105): real-Postgres isolation suite, RLS suite, docs; no library change needed
+- [x] **X-9 Refresh tokens: resilience** (#106): safe write order, optional `rotate()` and `revokeFamily()`, `refreshReuseGraceSeconds` (D-4), Postgres reference store tested
+  - [ ] cookie and CSRF guidance (not in #106)
+- [ ] **X-10 Observability and health**
+  - [x] first half (#104): `onError`, `requestId()`, `accessLog()`, `withResponseHeaders()`
+  - [ ] route `@blixis-io/events` listener failures and `@blixis-io/core` rollback failures through an injectable hook (REL-5, MNT-3) [me] S
+  - [ ] `HttpApplication` exposes a draining state [me] S
+  - [ ] new package `@blixis-io/health` (D-8): `/livez` and `/readyz`, readiness checks registered by providers, not ready while draining [me; `[you]` npm placeholder and trusted publisher]
+  - [ ] test: readiness flips while draining and liveness doesn't
+- [ ] **X-11 Finish release hardening** [me, then you] S to M
+  - [ ] review, finish and merge branch `ci/supply-chain-hardening` (Dependabot, audit, CodeQL, `SECURITY.md`, action pins; the work was uncommitted in the maintainer's checkout)
+  - [ ] re-check the ChatGPT item 10 against it, note anything still open
+  - [ ] run coverage once instead of tests twice (PERF-7)
+  - [ ] docs link check in CI (DOC-1)
+  - [ ] automatic CI run for the Version Packages PR (CI-4); the default `GITHUB_TOKEN` cannot trigger workflows, so find a way that needs no new secret, else `[you]` provide a token
+  - [ ] [you] enable CodeQL and Dependabot in repo settings; verify branch protection and npm account settings
+  - [ ] [you] remove `NPM_TOKEN` plumbing from `release.yml` once OIDC is confirmed for every package (MNT-6)
+
+## Phase 2: adoption
+
+- [ ] **X-12 Fresh-install CI** [me] M to L
+  - [ ] job: `pnpm pack` all publishable packages, scaffold with `create-blixis` from the tarballs, install, build, run, probe over HTTP, SIGTERM, assert exit 0 and the shutdown hook ran
+  - [ ] repeat with npm; then macOS and Windows for the CLI packages (TST-5)
+  - [ ] `publint` and `attw` for exports and types (MNT-8)
+  - [ ] unsupported toolchain (decorator metadata dropped) fails with an actionable message; check `blix doctor` first
+- [ ] **X-13 Stability policy and contribution guide** [me] S
+  - [ ] check whether any of this already exists in README or docs
+  - [ ] audience, supported Node, stable APIs, pre-1.0 breaking-change rule, deprecation approach, package compatibility table, 1.0 checklist
+  - [ ] `CONTRIBUTING.md`; issue-sized public milestones
+- [ ] **X-14 Reference application** [after X-7, X-9, X-10] L
+  - [ ] `examples/saas-api` (separate from `hello-api`); fixed scope: sign-in, refresh store, orgs/spaces/memberships, one tenant resource with a child, migrations, one transaction, error contract, OpenAPI with security, request-id logs, `/readyz`, Docker via `blix deploy`
+  - [ ] tests include denied cases (non-member 404, cross-tenant id 404, rate limit 429)
+  - [ ] README walkthrough; a fresh checkout reaches a working API with documented commands
+  - [ ] CI runs it, and runs it against the previous release to check the upgrade path
+
+## Phase 3: when demand or measurements justify it
+
+- [ ] **X-15 Outbox example** in the reference app: outbox table in the same transaction, poller, idempotent consumer. No queue abstraction before something needs it. [me] M
+- [ ] **X-16 Database operations guide:** migration generation and order, no migration race across replicas at boot, pool sizing across replicas, query deadlines, transaction nesting. [me] M
+- [ ] **X-17 Real-socket benchmark:** validation and auth on; tail latency, memory, cold start; environment and limits recorded. No CI budget yet. [me] M
+- [ ] **X-18 Property tests** for the router (right after X-1) and the other hand-written parsers (TST-1). [me] M
+- [ ] Deferred, unchanged: uploads, WebSockets, caching, more ORMs/runtimes, Node-only entry split.
+
+## Decisions (all approved as recommended)
+
+| ID | Decision | Used by |
+| --- | --- | --- |
+| D-1 | `middleware: []` option only, no `app.use()` | X-6 (done) |
+| D-2 | request context starts outside the middleware | X-6 (done), X-10 |
+| D-3 | client IP: `RequestContext` field set by the Node adapter, plus `getClientIp()` honouring `trustProxy` | X-7 |
+| D-4 | grace window for double refresh: configurable, default off | X-9 (done) |
+| D-5 | `shutdownHookTimeout`: document, don't add | X-4 (done) |
+| D-6 | access-token revocation hook: not now, document short TTLs | X-9 (done as docs) |
+| D-7 | security baseline in a new package `@blixis-io/security` | X-7 |
+| D-8 | health in its own package `@blixis-io/health` | X-10 |
+
+## Releases
+
+- [x] http 0.8.0, openapi 0.5.0, auth 0.5.1, commands 0.2.3, tenancy 0.3.1, testing 0.3.1 published (#97), confirmed on the registry with `npm view`; no fresh-install check yet (X-12 will automate it)
+- [ ] next Version Packages PR: `auth` 0.6.0 (#106) and whatever follows. Merging one publishes to npm: `[you]` approve, or say releases are pre-approved.
+
+## Done when
+
+- [x] each reproduced defect has a regression test, and the `close()` and `requestTimeout` doc sentences are true
+- [x] the X-8 suite passes and the tenancy docs describe what the helper does and doesn't cover
+- [x] the X-9 real-store tests pass
+- [x] the X-6 test shows one policy on every request path
+- [ ] X-12 passes on the OS and package-manager matrix
+- [ ] X-14 deploys from a fresh checkout, with its upgrade path checked in CI
