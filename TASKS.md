@@ -57,7 +57,7 @@ Legend: `[me]` an agent can do it unattended, `[you]` needs your hands (npm, Git
   - [ ] make the fresh-install jobs a required check once they have been green for a while [you]
   - [ ] a registry mode (install the *published* latest) for the weekly run
   - [ ] unsupported toolchain (decorator metadata dropped, e.g. `tsx`) fails with an actionable message; `blix doctor` already reports the decorator flags, check what it says for the esbuild case
-  - [ ] **found by this work:** the scaffold's `concurrently` dev dependency made `npm install` report 2 critical advisories (it pins a vulnerable `shell-quote` exactly); replaced by a generated `scripts/dev.mjs`, `npm audit` is clean (fix PR #114, open)
+  - [ ] **found by this work:** the scaffold's `concurrently` dev dependency made `npm install` report 2 critical advisories (it pins a vulnerable `shell-quote` exactly); replaced by a generated `scripts/dev.mjs`, `npm audit` is clean (#114)
 - [x] **X-13 Stability policy and contribution guide** (#110): `start-here/stability.md` (audience, support, `0.x` rules, deprecation, 1.0 checklist), `CONTRIBUTING.md`, README status section; nothing like it existed before
   - [ ] public issue-sized milestones on GitHub [you]: not something the repository can hold
   - [ ] the policy wording (one-minor deprecation, "Behaviour change" convention) is a proposal written from current practice; the maintainer should adjust it
