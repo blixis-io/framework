@@ -20,6 +20,9 @@ interface OpenApiDocumentOptions {
   title: string;
   version: string;
   description?: string;
+  securitySchemes?: Record<string, OpenApiSecurityScheme>; // declared under components.securitySchemes
+  security?: (string | OpenApiSecurityRequirement)[]; // applies to every operation unless @ApiSecurity overrides it
+  onUnrepresentable?: "open" | "warn" | "throw"; // default "open"
 }
 ```
 
@@ -37,6 +40,16 @@ function serveOpenApi(app: MountableApp, path: string, options: OpenApiDocumentO
 
 Mounts `GET path` on an `HttpApplication` (via `app.mount()`), serving the generated document as JSON — built on first request, then cached. The route is public: mounted routes bypass guards and interceptors.
 
+Throws when a security requirement names a scheme missing from `securitySchemes`, or when two operations share an `operationId`; with `onUnrepresentable: "throw"` it also throws for a schema JSON Schema can't express. With the default it never throws for a schema.
+
+## `ApiSecurity`
+
+```ts
+function ApiSecurity(...requirements: [false] | (string | Record<string, string[]>)[]): ClassDecorator & MethodDecorator;
+```
+
+Marks a controller or a route with the security schemes it needs, in the generated document only. `false` marks it public. See [Documenting authentication](/framework/concepts/api-documentation/#documenting-authentication).
+
 ## `OpenApiDocument` shape
 
 ```ts
@@ -44,7 +57,8 @@ interface OpenApiDocument {
   openapi: "3.1.0";
   info: { title: string; version: string; description?: string };
   paths: Record<string, Record<string, OpenApiOperation>>; // path -> lowercase HTTP method -> operation
-  components: { schemas: { Problem: JsonSchema } };
+  security?: OpenApiSecurityRequirement[]; // only when the options set it
+  components: { schemas: { Problem: JsonSchema }; securitySchemes?: Record<string, OpenApiSecurityScheme> };
 }
 
 interface OpenApiOperation {
@@ -54,7 +68,8 @@ interface OpenApiOperation {
   tags?: string[];
   parameters?: OpenApiParameter[];
   requestBody?: { required: boolean; content: { "application/json": { schema: JsonSchema } } };
-  responses: Record<string, OpenApiResponse>; // status code -> response, plus a "default" entry
+  responses: Record<string, OpenApiResponse>; // status code -> response, plus a "default" entry (application/problem+json)
+  security?: OpenApiSecurityRequirement[]; // only when @ApiSecurity is used; [] = public
 }
 
 interface OpenApiParameter {
@@ -66,8 +81,11 @@ interface OpenApiParameter {
 
 interface OpenApiResponse {
   description: string;
-  content?: { "application/json": { schema: JsonSchema } };
+  content?: Record<string, { schema: JsonSchema }>; // media type -> schema
 }
+
+type OpenApiSecurityScheme = { type: string } & Record<string, unknown>; // passed through as given
+type OpenApiSecurityRequirement = Record<string, string[]>; // scheme name -> scopes
 
 type JsonSchema = Record<string, unknown>; // z.toJSONSchema() output, minus its $schema key; never throws (see below)
 ```

@@ -1,4 +1,5 @@
 export {
+  ApiSecurity,
   generateOpenApiDocument,
   serveOpenApi,
   type MountableApp,
@@ -9,4 +10,7 @@ export {
   type OpenApiOperation,
   type OpenApiParameter,
   type OpenApiResponse,
+  type OpenApiSecurityRequirement,
+  type OpenApiSecurityScheme,
+  type UnrepresentableMode,
 } from "./generate.js";

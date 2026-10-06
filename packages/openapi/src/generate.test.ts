@@ -1,8 +1,8 @@
 import { Module } from "@blixis-io/core";
 import { ApiOperation, ApiTags, Body, Controller, createHttpApplication, Delete, Get, Headers, HttpCode, Param, Post, Query, Returns } from "@blixis-io/http";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
-import { generateOpenApiDocument, serveOpenApi } from "./generate.js";
+import { ApiSecurity, generateOpenApiDocument, serveOpenApi } from "./generate.js";
 
 const PostSchema = z.object({ id: z.string(), title: z.string() });
 const CreatePostSchema = z.object({ title: z.string() });
@@ -224,7 +224,7 @@ describe("generateOpenApiDocument", () => {
         for (const operation of Object.values(pathItem)) {
           expect(operation.responses["default"]).toEqual({
             description: "Error",
-            content: { "application/json": { schema: { $ref: "#/components/schemas/Problem" } } },
+            content: { "application/problem+json": { schema: { $ref: "#/components/schemas/Problem" } } },
           });
         }
       }
@@ -340,7 +340,7 @@ describe("generateOpenApiDocument: validate: false", () => {
 
     const fastDoc = generateOpenApiDocument({ controllers: [FastController] }, { title: "t", version: "1" });
 
-    expect(fastDoc.paths["/fast"]?.["get"]?.responses["200"]?.content?.["application/json"].schema).toMatchObject({
+    expect(fastDoc.paths["/fast"]?.["get"]?.responses["200"]?.content?.["application/json"]?.schema).toMatchObject({
       type: "object",
       properties: { id: { type: "string" } },
     });
@@ -352,7 +352,7 @@ const bodySchemaOf = (controller: new () => object) => generateOpenApiDocument({
 const docFor = (...controllers: (new () => object)[]) => generateOpenApiDocument({ controllers }, { title: "t", version: "1" });
 
 /** The schema of a `GET`'s 200 response, or of a `POST`'s request body, at `path`. */
-const okSchema = (document: ReturnType<typeof docFor>, path: string) => document.paths[path]?.get?.responses["200"]?.content?.["application/json"].schema;
+const okSchema = (document: ReturnType<typeof docFor>, path: string) => document.paths[path]?.get?.responses["200"]?.content?.["application/json"]?.schema;
 const bodySchema = (document: ReturnType<typeof docFor>, path: string) => document.paths[path]?.post?.requestBody?.content["application/json"].schema;
 
 describe("generateOpenApiDocument: schemas JSON Schema can't represent", () => {
@@ -465,7 +465,7 @@ describe("generateOpenApiDocument: request schemas describe what a client sends"
   });
 
   it("does mark it required in the response, where the default has been applied", () => {
-    const response = docFor(DraftsController).paths["/drafts"]?.post?.responses["200"]?.content?.["application/json"].schema;
+    const response = docFor(DraftsController).paths["/drafts"]?.post?.responses["200"]?.content?.["application/json"]?.schema;
 
     expect(response?.["required"]).toEqual(expect.arrayContaining(["title", "tags", "draft"]));
   });
@@ -518,3 +518,266 @@ describe("generateOpenApiDocument: @Query schemas of any shape", () => {
   });
 });
 
+
+describe("generateOpenApiDocument: security", () => {
+  @ApiSecurity("bearerAuth")
+  @Controller("private")
+  class PrivateController {
+    @Get()
+    list() {
+      return [];
+    }
+
+    @ApiSecurity(false)
+    @Get("health")
+    health() {
+      return {};
+    }
+
+    @ApiSecurity({ oauth: ["read", "write"] }, "apiKey")
+    @Post()
+    create() {
+      return {};
+    }
+  }
+
+  @Controller("open")
+  class OpenController {
+    @Get()
+    list() {
+      return [];
+    }
+  }
+
+  const securitySchemes = {
+    bearerAuth: { type: "http", scheme: "bearer", bearerFormat: "JWT" },
+    oauth: { type: "oauth2", flows: {} },
+    apiKey: { type: "apiKey", in: "header", name: "x-api-key" },
+  };
+  const generate = (options: Record<string, unknown>) =>
+    generateOpenApiDocument({ controllers: [PrivateController, OpenController] }, { title: "t", version: "1", securitySchemes, ...options });
+
+  it("declares the schemes under components and leaves them out when none are given", () => {
+    expect(generate({}).components.securitySchemes).toEqual(securitySchemes);
+    expect(generateOpenApiDocument({ controllers: [OpenController] }, { title: "t", version: "1" }).components).not.toHaveProperty("securitySchemes");
+  });
+
+  it("puts a controller's requirement on each of its operations, and a method's own value over it", () => {
+    const document = generate({});
+
+    expect(document.paths["/private"]?.get?.security).toEqual([{ bearerAuth: [] }]);
+    expect(document.paths["/private"]?.post?.security).toEqual([{ oauth: ["read", "write"] }, { apiKey: [] }]);
+  });
+
+  it("marks a route with @ApiSecurity(false) as public with an empty requirement list", () => {
+    expect(generate({ security: ["bearerAuth"] }).paths["/private/health"]?.get?.security).toEqual([]);
+  });
+
+  it("adds a document-wide requirement without touching operations that do not set one", () => {
+    const document = generate({ security: ["bearerAuth"] });
+
+    expect(document.security).toEqual([{ bearerAuth: [] }]);
+    expect(document.paths["/open"]?.get).not.toHaveProperty("security");
+  });
+
+  it("omits document-level security when none is given", () => {
+    expect(generate({})).not.toHaveProperty("security");
+  });
+
+  it("refuses a requirement that names a scheme that was not declared, naming the route", () => {
+    expect(() => generate({ securitySchemes: { bearerAuth: securitySchemes.bearerAuth } })).toThrow(/PrivateController\.create requires security scheme "oauth"/);
+    expect(() => generate({ security: ["nope"] })).toThrow(/document's `security` requires security scheme "nope"/);
+  });
+});
+
+describe("generateOpenApiDocument: optional request bodies and empty responses", () => {
+  const Create = z.object({ title: z.string() });
+
+  @Controller("bodies")
+  class BodiesController {
+    @Post("required")
+    required(@Body(Create) _body: unknown) {
+      return {};
+    }
+
+    @Post("optional")
+    optional(@Body(Create.optional()) _body: unknown) {
+      return {};
+    }
+
+    @Post("anything")
+    anything(@Body(z.unknown()) _body: unknown) {
+      return {};
+    }
+
+    @Post("async")
+    async(@Body(z.string().refine(async () => true)) _body: unknown) {
+      return {};
+    }
+
+    @Get("maybe")
+    @Returns(Create.optional())
+    maybe() {
+      return undefined;
+    }
+
+    @Get("maybe-created")
+    @HttpCode(202)
+    @Returns(Create.optional())
+    maybeCreated() {
+      return undefined;
+    }
+
+    @Get("always")
+    @Returns(Create)
+    always() {
+      return {};
+    }
+  }
+
+  const document = generateOpenApiDocument({ controllers: [BodiesController] }, { title: "t", version: "1" });
+
+  it("marks the body required unless the schema accepts a missing value", () => {
+    expect(document.paths["/bodies/required"]?.post?.requestBody?.required).toBe(true);
+    expect(document.paths["/bodies/optional"]?.post?.requestBody?.required).toBe(false);
+    expect(document.paths["/bodies/anything"]?.post?.requestBody?.required).toBe(false);
+  });
+
+  it("treats a schema it cannot check synchronously as required", () => {
+    expect(document.paths["/bodies/async"]?.post?.requestBody?.required).toBe(true);
+  });
+
+  it("documents 204 next to 200 when the @Returns schema accepts undefined, as the handler answers 204 for it", () => {
+    expect(Object.keys(document.paths["/bodies/maybe"]?.get?.responses ?? {})).toEqual(["200", "204", "default"]);
+    expect(document.paths["/bodies/maybe"]?.get?.responses["204"]).toEqual({ description: "No content" });
+  });
+
+  it("adds no 204 when @HttpCode picks the status for every outcome, or the schema requires a value", () => {
+    expect(Object.keys(document.paths["/bodies/maybe-created"]?.get?.responses ?? {})).toEqual(["202", "default"]);
+    expect(Object.keys(document.paths["/bodies/always"]?.get?.responses ?? {})).toEqual(["200", "default"]);
+  });
+});
+
+// Zod leaves a lazy schema whose definition threw half-built, so each use gets a fresh one.
+const lazyController = () => {
+  @Controller("lazy")
+  class LazyController {
+    @Post()
+    create(
+      @Body(
+        z.lazy((): z.ZodType => {
+          throw new Error("definition could not be built");
+        }),
+      )
+      _body: unknown,
+    ) {
+      return {};
+    }
+  }
+  return LazyController;
+};
+
+const generate = (controllers: Array<new () => object>, onUnrepresentable?: "open" | "warn" | "throw") =>
+  generateOpenApiDocument({ controllers }, { title: "t", version: "1", ...(onUnrepresentable ? { onUnrepresentable } : {}) });
+
+describe("generateOpenApiDocument: onUnrepresentable", () => {
+  @Controller("custom")
+  class CustomController {
+    @Post()
+    create(@Body(z.object({ id: z.custom<string>(() => true) })) _body: unknown) {
+      return {};
+    }
+  }
+
+  @Controller("transformed")
+  class TransformedController {
+    @Get()
+    @Returns(z.string().transform((value) => value.length))
+    get() {
+      return "x";
+    }
+  }
+
+  @Controller("fine")
+  class OpenByDesignController {
+    @Post()
+    create(@Body(z.object({ anything: z.unknown(), whatever: z.any(), when: z.date(), n: z.number().default(1) })) _body: unknown) {
+      return {};
+    }
+  }
+
+  it("documents the open schema silently by default, as before", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    expect(() => generate([CustomController, TransformedController, lazyController()])).not.toThrow();
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  it("warns with the route and the schema type, and still documents it as open", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    const document = generate([CustomController, TransformedController, lazyController()], "warn");
+
+    const messages = warn.mock.calls.map((call) => String(call[0]));
+    expect(messages).toContainEqual(expect.stringContaining("CustomController.create: a `custom` schema (input side)"));
+    expect(messages).toContainEqual(expect.stringContaining("TransformedController.get: a `transform` schema (output side)"));
+    expect(messages).toContainEqual(expect.stringContaining("LazyController.create: the schema could not be converted to JSON Schema (definition could not be built)"));
+    expect(document.paths["/custom"]?.post?.requestBody?.content["application/json"].schema).toBeDefined();
+    warn.mockRestore();
+  });
+
+  it.each([
+    ["custom", CustomController, /CustomController\.create: a `custom` schema/],
+    ["transform", TransformedController, /TransformedController\.get: a `transform` schema/],
+  ])("throws for a %s schema in strict mode, naming the route", (_name, controller, message) => {
+    expect(() => generate([controller], "throw")).toThrow(message);
+  });
+
+  it("throws for a schema that cannot be converted at all in strict mode, naming the route", () => {
+    expect(() => generate([lazyController()], "throw")).toThrow(/LazyController\.create: the schema could not be converted .*definition could not be built/);
+  });
+
+  it("does not flag z.any(), z.unknown(), a date or a defaulted field, in any mode", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    expect(() => generate([OpenByDesignController], "throw")).not.toThrow();
+    generate([OpenByDesignController], "warn");
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
+  });
+});
+
+const make = (name: string) => {
+  @Controller(name)
+  class Same {
+    @Get()
+    list() {
+      return [];
+    }
+  }
+  return Same;
+};
+
+describe("generateOpenApiDocument: operationId", () => {
+  it("refuses two operations with the same operationId, naming both", () => {
+    expect(() => generateOpenApiDocument({ controllers: [make("a"), make("b")] }, { title: "t", version: "1" })).toThrow(
+      /operationId "Same_list" is used by both Same\.list and Same\.list/,
+    );
+  });
+
+  it("accepts an explicit operationId that tells them apart", () => {
+    @Controller("c")
+    class Same {
+      @ApiOperation({ operationId: "listC" })
+      @Get()
+      list() {
+        return [];
+      }
+    }
+
+    const document = generateOpenApiDocument({ controllers: [make("a"), Same] }, { title: "t", version: "1" });
+
+    expect(document.paths["/c"]?.get?.operationId).toBe("listC");
+  });
+});

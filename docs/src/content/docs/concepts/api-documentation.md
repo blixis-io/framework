@@ -62,9 +62,9 @@ Both are entirely optional — a route with neither still gets a valid, unique `
 - **Path params** (`@Param`) → required path parameters, typed from the schema if given, `{type: "string"}` otherwise.
 - **Query params** (`@Query`) → one parameter per key of the schema's shape, whatever wrapped the object (`.refine()`, `.transform()`, `.strict()`). A key is `required` only when it has neither a default nor `.optional()`. There's nothing to enumerate for a schema-less `@Query()` or a schema that isn't an object (a `z.record()`, say), so nothing is documented for those.
 - **Headers** (`@Headers(name)`) → one parameter, only when `name` is given — `@Headers()` (all headers) has nothing specific to document either.
-- **Body** (`@Body(schema)`) → the JSON request body, only with a schema. `additionalProperties: false` appears only when the schema is `.strict()`: a plain `z.object()` accepts extra keys and strips them.
-- **Responses**: the `@Returns` schema (if present) at `@HttpCode`'s status (or `200`). Without `@Returns`, the status is still documented but with no schema — the generator can't statically know whether a handler returns `undefined` (→ `204` at runtime) without one, so give routes that return nothing an explicit `@HttpCode(204)` if you want the document to say so accurately.
-- Every operation also gets a `default` response referencing one shared `components.schemas.Problem` object — matching this framework's actual `application/problem+json` error shape — rather than guessing which specific 4xx/5xx codes apply to which route.
+- **Body** (`@Body(schema)`) → the JSON request body, only with a schema. It is `required` unless the schema accepts a missing value (`.optional()`, `z.unknown()`), because the handler reads an empty body as `undefined`. `additionalProperties: false` appears only when the schema is `.strict()`: a plain `z.object()` accepts extra keys and strips them.
+- **Responses**: the `@Returns` schema (if present) at `@HttpCode`'s status (or `200`). When the `@Returns` schema accepts `undefined` (and no `@HttpCode` fixes the status), `204` is documented next to it, since that is what the handler answers for `undefined`. Without `@Returns`, the status is still documented but with no schema — the generator can't statically know whether a handler returns `undefined` without one, so give routes that return nothing an explicit `@HttpCode(204)` if you want the document to say so accurately.
+- Every operation also gets a `default` response referencing one shared `components.schemas.Problem` object — under the `application/problem+json` media type, matching what the framework really sends — rather than guessing which specific 4xx/5xx codes apply to which route.
 - **Wildcard (`*`) routes are excluded entirely** — OpenAPI has no path construct for them.
 
 ## Which side of a schema is documented
@@ -89,6 +89,43 @@ The document is always generated; one awkward schema never takes it down. (Befor
 - A `z.date()` is documented as `{ type: "string", format: "date-time" }`, which is what JSON serialization makes of it.
 - A type with no JSON Schema equivalent (the output of a `.transform()`, a `z.custom()`) is documented as an open schema, `{}`.
 - A schema that can't be converted at all becomes `{ description: "Schema could not be converted to JSON Schema: <reason>" }`, so the reason is visible in the document and every other operation is unaffected.
+
+## Documenting authentication
+
+The document says how to authenticate only if you tell it. Declare the schemes once, then mark routes:
+
+```ts
+const doc = generateOpenApiDocument(app, {
+  title: "my-api",
+  version: "1.0.0",
+  securitySchemes: { bearerAuth: { type: "http", scheme: "bearer", bearerFormat: "JWT" } },
+  security: ["bearerAuth"], // every operation, unless a route says otherwise
+});
+```
+
+```ts
+@ApiSecurity(false) // public: overrides the document-wide requirement
+@Get("health")
+health() { /* ... */ }
+
+@ApiSecurity({ oauth: ["admin"] }) // a scheme with scopes
+@Delete(":id")
+remove() { /* ... */ }
+```
+
+`@ApiSecurity` works at class or method position (the method wins). Each argument is one alternative, a scheme name or `{ name: scopes }`; `false` means public. It only changes the document: **it enforces nothing, guards do**, so keep it in step with your `@Public()` and roles by hand. A name that isn't declared in `securitySchemes` makes generation throw, naming the route, so a client generator never gets a dangling reference.
+
+## Failing the build on an open schema
+
+`onUnrepresentable` decides what happens when a schema can't be expressed (see above): `"open"` (default) documents it as open silently; `"warn"` also logs the route and the kind of schema; `"throw"` fails generation with the same message. `z.any()`, `z.unknown()` and `z.date()` are never flagged: they are open or mapped on purpose. A CI step that generates the document with `"throw"` keeps a silently open schema from shipping.
+
+```ts
+generateOpenApiDocument(app, { title: "my-api", version: "1.0.0", onUnrepresentable: "throw" });
+```
+
+## Unique operation ids
+
+Two routes with the same `operationId` (typically two controller classes with the same name, since the default is `${ControllerName}_${methodName}`) make generation throw, naming both. Give one an explicit `@ApiOperation({ operationId })`.
 
 ## Next
 

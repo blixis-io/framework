@@ -1,4 +1,4 @@
-import type { Class } from "@blixis-io/di";
+import { defineMetadata, getMetadata, type Class } from "@blixis-io/di";
 import {
   getApiOperation,
   getClassApiTags,
@@ -28,8 +28,15 @@ export interface OpenApiParameter {
 
 export interface OpenApiResponse {
   description: string;
-  content?: { "application/json": { schema: JsonSchema } };
+  /** Media type to schema: `application/json` for a success body, `application/problem+json` for errors. */
+  content?: Record<string, { schema: JsonSchema }>;
 }
+
+/** A Security Scheme Object as OpenAPI defines it (`{ type: "http", scheme: "bearer" }`, `{ type: "apiKey", ... }`). Passed through as given. */
+export type OpenApiSecurityScheme = { type: string } & Record<string, unknown>;
+
+/** One alternative a request may satisfy: scheme name to the scopes it needs (`[]` for schemes without scopes). */
+export type OpenApiSecurityRequirement = Record<string, string[]>;
 
 export interface OpenApiOperation {
   operationId: string;
@@ -39,19 +46,35 @@ export interface OpenApiOperation {
   parameters?: OpenApiParameter[];
   requestBody?: { required: boolean; content: { "application/json": { schema: JsonSchema } } };
   responses: Record<string, OpenApiResponse>;
+  /** Present only when the route says so with `@ApiSecurity`; an empty array marks a public route that overrides the document's `security`. */
+  security?: OpenApiSecurityRequirement[];
 }
 
 export interface OpenApiDocument {
   openapi: "3.1.0";
   info: { title: string; version: string; description?: string };
   paths: Record<string, Record<string, OpenApiOperation>>;
-  components: { schemas: { Problem: JsonSchema } };
+  /** Present only when `OpenApiDocumentOptions.security` is. */
+  security?: OpenApiSecurityRequirement[];
+  components: { schemas: { Problem: JsonSchema }; securitySchemes?: Record<string, OpenApiSecurityScheme> };
 }
+
+/** What to do with a schema JSON Schema cannot express (`z.custom()`, a `.transform()`'s output, a schema that fails to convert). */
+export type UnrepresentableMode = "open" | "warn" | "throw";
 
 export interface OpenApiDocumentOptions {
   title: string;
   version: string;
   description?: string;
+  /** Security schemes to declare under `components.securitySchemes`, keyed by the name `@ApiSecurity` and `security` refer to. */
+  securitySchemes?: Record<string, OpenApiSecurityScheme>;
+  /** Requirements that apply to every operation unless a route overrides them with `@ApiSecurity`. */
+  security?: (string | OpenApiSecurityRequirement)[];
+  /**
+   * `"open"` (default) documents a schema that cannot be expressed as an open schema, silently. `"warn"` does the
+   * same and logs which route and schema it was. `"throw"` fails generation, for a build that must not ship an open schema.
+   */
+  onUnrepresentable?: UnrepresentableMode;
 }
 
 const PROBLEM_SCHEMA: JsonSchema = {
@@ -64,6 +87,54 @@ const PROBLEM_SCHEMA: JsonSchema = {
   },
   required: ["type", "title", "status", "detail"],
 };
+
+const PROBLEM_MEDIA_TYPE = "application/problem+json";
+
+const API_SECURITY = Symbol("blixis:api-security");
+
+type SecurityInput = string | OpenApiSecurityRequirement;
+
+function toRequirements(inputs: readonly SecurityInput[]): OpenApiSecurityRequirement[] {
+  return inputs.map((input) => (typeof input === "string" ? { [input]: [] } : input));
+}
+
+/**
+ * Declares which security scheme a controller (class position) or one route (method position) needs, for the
+ * generated document only; it enforces nothing, guards do. Each argument is one alternative: a scheme name, or
+ * `{ oauth: ["read"] }` to name scopes. `@ApiSecurity(false)` marks a public route, overriding the document-wide
+ * `security`. A method's own value wins over its controller's. Every name must be declared in `securitySchemes`.
+ */
+export function ApiSecurity(...requirements: [false] | SecurityInput[]): ClassDecorator & MethodDecorator {
+  const value = requirements[0] === false ? [] : toRequirements(requirements as SecurityInput[]);
+  const decorator = (target: object, propertyKey?: string | symbol): void => {
+    if (propertyKey === undefined) {
+      defineMetadata(API_SECURITY, value, target);
+    } else {
+      defineMetadata(API_SECURITY, value, target, propertyKey);
+    }
+  };
+  return decorator;
+}
+
+function getRouteSecurity(controller: Class, propertyKey: string | symbol): OpenApiSecurityRequirement[] | undefined {
+  return getMetadata<OpenApiSecurityRequirement[]>(API_SECURITY, controller.prototype as object, propertyKey) ?? getMetadata<OpenApiSecurityRequirement[]>(API_SECURITY, controller);
+}
+
+/** Where a schema came from, and what to do when it cannot be expressed: threaded through every conversion so a message can name the route. */
+interface SchemaContext {
+  where: string;
+  mode: UnrepresentableMode;
+}
+
+function reportOpen(context: SchemaContext, reason: string): void {
+  const message = `${context.where}: ${reason}, documented as an open schema`;
+  if (context.mode === "throw") {
+    throw new Error(`[@blixis-io/openapi] ${message}`);
+  }
+  if (context.mode === "warn") {
+    console.warn(`[@blixis-io/openapi] ${message}`);
+  }
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -80,7 +151,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  * `z.custom()`) become an open schema (`{}`), a `z.date()` becomes a `date-time` string (what JSON serialization
  * makes of it), and a schema that can't be converted at all becomes an open schema that says so in its description.
  */
-function toSchema(schema: ZodType, io: "input" | "output"): JsonSchema {
+function toSchema(schema: ZodType, io: "input" | "output", context: SchemaContext): JsonSchema {
   try {
     const { $schema: _unused, ...rest } = z.toJSONSchema(schema, {
       io,
@@ -90,12 +161,25 @@ function toSchema(schema: ZodType, io: "input" | "output"): JsonSchema {
         if (zodSchema instanceof z.ZodDate) {
           jsonSchema.type = "string";
           jsonSchema.format = "date-time";
+          return;
+        }
+        // `z.any()` and `z.unknown()` are open on purpose; anything else that came out empty could not be expressed.
+        // eslint-disable-next-line no-underscore-dangle -- the override callback is handed Zod core schemas, which only expose `_zod`
+        const type = zodSchema._zod.def.type;
+        if (type !== "any" && type !== "unknown" && Object.keys(jsonSchema).length === 0) {
+          reportOpen(context, `a \`${type}\` schema (${io} side) has no JSON Schema equivalent`);
         }
       },
     });
     return rest;
   } catch (error) {
-    return { description: `Schema could not be converted to JSON Schema: ${error instanceof Error ? error.message : String(error)}` };
+    // A strict-mode report from the override above is the caller's answer, not a conversion failure.
+    if (context.mode === "throw" && error instanceof Error && error.message.startsWith("[@blixis-io/openapi]")) {
+      throw error;
+    }
+    const reason = error instanceof Error ? error.message : String(error);
+    reportOpen(context, `the schema could not be converted to JSON Schema (${reason})`);
+    return { description: `Schema could not be converted to JSON Schema: ${reason}` };
   }
 }
 
@@ -104,8 +188,8 @@ function toSchema(schema: ZodType, io: "input" | "output"): JsonSchema {
  * `.transform()`, `.strict()`): read from the JSON Schema rather than from the Zod class, so it can't be defeated by
  * a wrapper or by a second copy of Zod. A key is required only when it has neither a default nor `.optional()`.
  */
-function queryParameters(schema: ZodType): OpenApiParameter[] {
-  const converted = toSchema(schema, "input");
+function queryParameters(schema: ZodType, context: SchemaContext): OpenApiParameter[] {
+  const converted = toSchema(schema, "input", context);
   const properties = converted["properties"];
   if (converted["type"] !== "object" || !isRecord(properties)) {
     return [];
@@ -134,7 +218,17 @@ function buildOpenApiPath(prefix: string, routePath: string): string | undefined
   return `/${converted.join("/")}`;
 }
 
-function buildParameters(prototype: object, propertyKey: string | symbol): {
+/** Whether a missing value passes the schema: the handler reads an empty body as `undefined`, so then the body is optional. */
+function acceptsUndefined(schema: ZodType): boolean {
+  try {
+    return schema.safeParse(undefined).success;
+  } catch {
+    // An async refinement cannot be checked synchronously; treat the body as required.
+    return false;
+  }
+}
+
+function buildParameters(prototype: object, propertyKey: string | symbol, context: SchemaContext): {
   parameters: OpenApiParameter[];
   requestBody: OpenApiOperation["requestBody"];
 } {
@@ -148,12 +242,12 @@ function buildParameters(prototype: object, propertyKey: string | symbol): {
           name: source.name,
           in: "path",
           required: true,
-          schema: source.schema ? toSchema(source.schema, "input") : { type: "string" },
+          schema: source.schema ? toSchema(source.schema, "input", context) : { type: "string" },
         });
         break;
       case "query":
         if (source.schema) {
-          parameters.push(...queryParameters(source.schema));
+          parameters.push(...queryParameters(source.schema, context));
         }
         break;
       case "headers":
@@ -163,7 +257,9 @@ function buildParameters(prototype: object, propertyKey: string | symbol): {
         break;
       case "body":
         if (source.schema) {
-          requestBody = { required: true, content: { "application/json": { schema: toSchema(source.schema, "input") } } };
+          // Converted before `acceptsUndefined` parses: a `z.lazy()` whose definition throws is left half-built by the parse.
+          const schema = toSchema(source.schema, "input", context);
+          requestBody = { required: !acceptsUndefined(source.schema), content: { "application/json": { schema } } };
         }
         break;
       // `req` (the raw Request) has nothing documentable — no case needed.
@@ -173,26 +269,34 @@ function buildParameters(prototype: object, propertyKey: string | symbol): {
   return { parameters, requestBody };
 }
 
-function buildResponses(prototype: object, propertyKey: string | symbol): Record<string, OpenApiResponse> {
-  const status = String(getHttpCode(prototype, propertyKey) ?? 200);
+function buildResponses(prototype: object, propertyKey: string | symbol, context: SchemaContext): Record<string, OpenApiResponse> {
+  const httpCode = getHttpCode(prototype, propertyKey);
+  const status = String(httpCode ?? 200);
   const returnsSchema = getReturnsSchema(prototype, propertyKey);
 
-  return {
+  const responses: Record<string, OpenApiResponse> = {
     [status]: returnsSchema
-      ? { description: "Success", content: { "application/json": { schema: toSchema(returnsSchema, "output") } } }
+      ? { description: "Success", content: { "application/json": { schema: toSchema(returnsSchema, "output", context) } } }
       : { description: "Success" },
-    default: {
-      description: "Error",
-      content: { "application/json": { schema: { $ref: "#/components/schemas/Problem" } } },
-    },
   };
+  // A handler that returns `undefined` is answered with no body: 204 unless `@HttpCode` says otherwise.
+  if (returnsSchema && httpCode === undefined && acceptsUndefined(returnsSchema)) {
+    responses["204"] = { description: "No content" };
+  }
+  responses["default"] = {
+    description: "Error",
+    content: { [PROBLEM_MEDIA_TYPE]: { schema: { $ref: "#/components/schemas/Problem" } } },
+  };
+  return responses;
 }
 
-function buildOperation(controller: Class, route: RouteDefinition): OpenApiOperation {
+function buildOperation(controller: Class, route: RouteDefinition, mode: UnrepresentableMode): OpenApiOperation {
   const prototype = controller.prototype as object;
   const operation = getApiOperation(prototype, route.propertyKey);
   const tags = [...getClassApiTags(controller), ...getMethodApiTags(prototype, route.propertyKey)];
-  const { parameters, requestBody } = buildParameters(prototype, route.propertyKey);
+  const context: SchemaContext = { where: `${controller.name}.${String(route.propertyKey)}`, mode };
+  const { parameters, requestBody } = buildParameters(prototype, route.propertyKey, context);
+  const security = getRouteSecurity(controller, route.propertyKey);
 
   return {
     operationId: operation?.operationId ?? `${controller.name}_${String(route.propertyKey)}`,
@@ -201,8 +305,20 @@ function buildOperation(controller: Class, route: RouteDefinition): OpenApiOpera
     ...(tags.length > 0 ? { tags } : {}),
     ...(parameters.length > 0 ? { parameters } : {}),
     ...(requestBody ? { requestBody } : {}),
-    responses: buildResponses(prototype, route.propertyKey),
+    responses: buildResponses(prototype, route.propertyKey, context),
+    ...(security ? { security } : {}),
   };
+}
+
+/** Every scheme a requirement names must be declared, or a client generator would be handed a dangling reference. */
+function assertDeclared(requirements: readonly OpenApiSecurityRequirement[], declared: ReadonlySet<string>, where: string): void {
+  for (const requirement of requirements) {
+    for (const name of Object.keys(requirement)) {
+      if (!declared.has(name)) {
+        throw new Error(`[@blixis-io/openapi] ${where} requires security scheme "${name}", which is not in \`securitySchemes\`.`);
+      }
+    }
+  }
 }
 
 /**
@@ -216,6 +332,13 @@ function buildOperation(controller: Class, route: RouteDefinition): OpenApiOpera
  */
 export function generateOpenApiDocument(app: ControllerSource, options: OpenApiDocumentOptions): OpenApiDocument {
   const paths: OpenApiDocument["paths"] = {};
+  const mode = options.onUnrepresentable ?? "open";
+  const declared = new Set(Object.keys(options.securitySchemes ?? {}));
+  const documentSecurity = options.security ? toRequirements(options.security) : undefined;
+  if (documentSecurity) {
+    assertDeclared(documentSecurity, declared, "The document's `security`");
+  }
+  const operationIds = new Map<string, string>();
 
   for (const controller of app.controllers) {
     const prefix = getControllerPrefix(controller) ?? "";
@@ -226,8 +349,21 @@ export function generateOpenApiDocument(app: ControllerSource, options: OpenApiD
         continue;
       }
 
+      const operation = buildOperation(controller, route, mode);
+      const where = `${controller.name}.${String(route.propertyKey)}`;
+      const owner = operationIds.get(operation.operationId);
+      if (owner !== undefined) {
+        throw new Error(
+          `[@blixis-io/openapi] operationId "${operation.operationId}" is used by both ${owner} and ${where}; give one of them its own with @ApiOperation({ operationId }).`,
+        );
+      }
+      operationIds.set(operation.operationId, where);
+      if (operation.security) {
+        assertDeclared(operation.security, declared, where);
+      }
+
       paths[path] ??= {};
-      paths[path][route.method.toLowerCase()] = buildOperation(controller, route);
+      paths[path][route.method.toLowerCase()] = operation;
     }
   }
 
@@ -235,7 +371,11 @@ export function generateOpenApiDocument(app: ControllerSource, options: OpenApiD
     openapi: "3.1.0",
     info: { title: options.title, version: options.version, ...(options.description ? { description: options.description } : {}) },
     paths,
-    components: { schemas: { Problem: PROBLEM_SCHEMA } },
+    ...(documentSecurity ? { security: documentSecurity } : {}),
+    components: {
+      schemas: { Problem: PROBLEM_SCHEMA },
+      ...(options.securitySchemes ? { securitySchemes: options.securitySchemes } : {}),
+    },
   };
 }
 
