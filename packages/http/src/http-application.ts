@@ -53,7 +53,17 @@ export class HttpApplication {
   static async create(rootModule: ModuleRef, options: HttpApplicationOptions = {}): Promise<HttpApplication> {
     const wrappedRoot = { module: HttpRootModule, imports: [rootModule, RequestContextModule] };
     const app = await createApplication(wrappedRoot, { overrides: options.overrides });
-    const handle = createHandler(app.controllers, app, options);
+    let handle: (request: Request) => Promise<Response>;
+    try {
+      handle = createHandler(app.controllers, app, options);
+    } catch (error) {
+      // The core application is already up (pools open, hooks run) and nobody holds it yet, so nobody else can close it.
+      // The boot's own error is what the caller needs to see; a failing shutdown hook is logged, not thrown over it.
+      await app.close().catch((closeError: unknown) => {
+        console.error("[@blixis-io/http] an onApplicationShutdown hook failed while rolling back a failed boot:", closeError);
+      });
+      throw error;
+    }
     return new HttpApplication(app, handle, options.shutdownTimeout ?? DEFAULT_SHUTDOWN_TIMEOUT, {
       ...(options.trustHostHeader === undefined ? {} : { trustHostHeader: options.trustHostHeader }),
       ...(options.trustProxy === undefined ? {} : { trustProxy: options.trustProxy }),

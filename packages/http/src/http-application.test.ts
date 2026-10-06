@@ -1,12 +1,13 @@
-import { Module } from "@blixis-io/core";
+import { Module, type OnApplicationShutdown } from "@blixis-io/core";
 import { Injectable } from "@blixis-io/di";
 import { request as httpRequest } from "node:http";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { Controller } from "./decorators/controller.js";
 import type { CanActivate, ExecutionContext } from "./decorators/guards.js";
 import { UseGuards } from "./decorators/guards.js";
 import { Body, Param, Req } from "./decorators/params.js";
 import { Get, Post } from "./decorators/routes.js";
+import { DuplicateRouteError } from "./router.js";
 import { createHttpApplication } from "./http-application.js";
 import { RequestContext } from "./request-context.js";
 
@@ -398,5 +399,59 @@ describe("HttpApplication.mount()", () => {
       app.mount("GET", "/status", () => new Response("again"));
     }).toThrow("GET /status is already mounted");
     await app.close();
+  });
+});
+
+describe("createHttpApplication: a boot that fails while building the handler", () => {
+  const closed: string[] = [];
+
+  @Injectable()
+  class Resource implements OnApplicationShutdown {
+    onApplicationShutdown(): void {
+      closed.push("resource");
+    }
+  }
+
+  @Injectable()
+  class FailingResource implements OnApplicationShutdown {
+    onApplicationShutdown(): void {
+      throw new Error("flush failed");
+    }
+  }
+
+  @Controller("dup")
+  class DuplicateRoutes {
+    @Get("x")
+    first() {
+      return 1;
+    }
+
+    @Get("x")
+    second() {
+      return 2;
+    }
+  }
+
+  it("shuts down what the core application already initialised, then rejects with the original error", async () => {
+    closed.length = 0;
+
+    @Module({ providers: [Resource], controllers: [DuplicateRoutes] })
+    class BrokenModule {}
+
+    await expect(createHttpApplication(BrokenModule)).rejects.toBeInstanceOf(DuplicateRouteError);
+
+    expect(closed).toEqual(["resource"]);
+  });
+
+  it("still rejects with the original error, and logs the failure, when a shutdown hook fails during the rollback", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    @Module({ providers: [FailingResource], controllers: [DuplicateRoutes] })
+    class BrokenModule {}
+
+    await expect(createHttpApplication(BrokenModule)).rejects.toBeInstanceOf(DuplicateRouteError);
+
+    expect(error.mock.calls[0]?.[1]).toMatchObject({ message: "flush failed" });
+    error.mockRestore();
   });
 });

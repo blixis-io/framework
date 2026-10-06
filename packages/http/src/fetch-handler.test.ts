@@ -102,6 +102,35 @@ describe("createFetchHandler", () => {
     await handler.close();
   });
 
+  it("releases what a failed boot built before retrying, even when the failure is in building the handler", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    events.length = 0;
+
+    @Controller("dup")
+    class DuplicateRoutes {
+      @Get("x")
+      first() {
+        return 1;
+      }
+
+      @Get("x")
+      second() {
+        return 2;
+      }
+    }
+
+    @Module({ providers: [Probe], controllers: [DuplicateRoutes] })
+    class BrokenModule {}
+
+    const handler = createFetchHandler(BrokenModule);
+
+    expect((await handler.fetch(request())).status).toBe(500);
+    expect((await handler.fetch(request())).status).toBe(500);
+
+    expect(events).toEqual(["init", "shutdown:none", "init", "shutdown:none"]);
+    error.mockRestore();
+  });
+
   it("never leaks the boot error to the client", async () => {
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
 
