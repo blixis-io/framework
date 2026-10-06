@@ -65,7 +65,7 @@ Legend: `[me]` an agent can do it unattended, `[you]` needs your hands (npm, Git
   - [x] 45 tests against a real Postgres including the denied cases (non-member 404, cross-tenant id 404, forged tenant, the database's own refusal, the 429) and one limit across two instances
   - [x] README walkthrough and a docs page; the built app was smoke-tested (sign-up, `/me`, request ids in the log, SIGTERM to `503` readiness to exit 0)
   - [x] `blix.config.ts` with a Docker target; `blix deploy --dry-run` and `deploy doctor` work
-  - [ ] a Docker image built from a copy of the example (it depends on workspace packages and on the unpublished security and health packages, so not here yet)
+  - [ ] a Docker image built from a copy of the example (it depends on workspace packages ; the security and health packages are published now)
   - [ ] CI runs it against the previous *release* to check the upgrade path: needs the registry mode of the fresh-install job (X-12) and the two new packages published
   - [ ] invitations, password reset and email verification are out of scope on purpose
 
@@ -99,7 +99,8 @@ Legend: `[me]` an agent can do it unattended, `[you]` needs your hands (npm, Git
 ## Releases
 
 - [x] http 0.8.0, openapi 0.5.0, auth 0.5.1, commands 0.2.3, tenancy 0.3.1, testing 0.3.1 published (#97), confirmed on the registry with `npm view`; no fresh-install check yet (X-12 will automate it)
-- [ ] next Version Packages PR: `auth` 0.6.0 (#106), `deploy` patch (pinned actions) and whatever follows. Merging one publishes to npm: `[you]` approve, or say releases are pre-approved.
+- [x] Version Packages #107 merged and published (2026-10-07): 15 packages incl. `@blixis-io/security` 0.1.0 and `@blixis-io/health` 0.1.0 (first releases), `core` 0.5.0, `auth` 0.6.0, `openapi` 0.5.0, `deploy` 0.6.0, `http` 0.8.0; the registry fresh-install job (3 OSes x npm/pnpm) passed against what is live. Merging a Version Packages PR still publishes: `[you]` approve each.
+  - note: `#107` needed a `ci` run on its head; the `workflow_dispatch` run produced green check runs but GitHub did not count them, approving the `pull_request` runs did.
 
 ## Done when
 
