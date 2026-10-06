@@ -26,7 +26,7 @@
     "@arethetypeswrong/cli": "^0.18.5",
     "@changesets/changelog-github": "^1.0.1",
     "@changesets/cli": "^3.0.3",
-    "@types/node": "^24.0.0",
+    "@types/node": "^26.6.4",
     "@vitest/coverage-v8": "^5.0.2",
     "editorconfig-checker": "^7.0.0",
     "oxlint": "^1.86.0",
