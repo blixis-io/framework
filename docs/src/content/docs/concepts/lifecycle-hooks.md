@@ -63,7 +63,7 @@ The container tracks the order providers actually finish constructing — which,
 
 ## `close()` is idempotent
 
-Calling `app.close()` more than once — once from a signal handler and once from a test's cleanup, say — is safe. The first call runs every shutdown hook and marks the application closed; every subsequent call is a no-op, not a second run of every hook.
+Calling `app.close()` more than once — once from a signal handler and once from a test's cleanup, say — is safe. The first call runs every shutdown hook and marks the application closed; every subsequent call returns that same promise, not a second run of every hook. With `createHttpApplication` that includes calls made while the first is still draining requests: they wait for the same drain.
 
 ```ts
 process.on("SIGTERM", () => {

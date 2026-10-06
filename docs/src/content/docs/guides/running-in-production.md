@@ -31,7 +31,9 @@ process.on("SIGTERM", () => {
 });
 ```
 
-`app.close(signal?)` closes the listening socket *and* runs every `OnApplicationShutdown` hook in the application (see [Lifecycle Hooks](/framework/concepts/lifecycle-hooks/)) — the string you pass through is handed to each hook as-is, so a database connection's shutdown hook can log or branch on which signal triggered it. `close()` is idempotent: calling it more than once (a signal handler *and* a test's cleanup both running it, say) is safe — the second call is a no-op, not a duplicate teardown.
+`app.close(signal?)` closes the listening socket *and* runs every `OnApplicationShutdown` hook in the application (see [Lifecycle Hooks](/framework/concepts/lifecycle-hooks/)) — the string you pass through is handed to each hook as-is, so a database connection's shutdown hook can log or branch on which signal triggered it. `close()` is idempotent: calling it more than once (a signal handler *and* a test's cleanup both running it, say) is safe. Every call returns the same promise, so a second caller waits for the same drain-then-teardown instead of closing the application under requests that are still running, and the hooks run once. The `signal` of the first call is the one the hooks see. If a hook fails, every caller's promise rejects with that same error. A hook that never settles keeps `close()` pending: `shutdownTimeout` only bounds the wait for in-flight requests, not the hooks, so give hooks that talk to the network their own timeout.
+
+`listen()` can only be called once per application: a second call while it is listening, or after `close()`, rejects with an error instead of leaving the first server running without a handle.
 
 ## Malformed requests
 

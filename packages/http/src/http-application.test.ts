@@ -1,6 +1,6 @@
 import { Module, type OnApplicationShutdown } from "@blixis-io/core";
 import { Injectable } from "@blixis-io/di";
-import { request as httpRequest } from "node:http";
+import { createServer, request as httpRequest } from "node:http";
 import { describe, expect, it, vi } from "vitest";
 import { Controller } from "./decorators/controller.js";
 import type { CanActivate, ExecutionContext } from "./decorators/guards.js";
@@ -365,6 +365,125 @@ describe("HttpApplication.close(): graceful shutdown", () => {
     await (await fetch(`http://127.0.0.1:${port}/work/quick`)).json();
 
     await expect(app.close()).resolves.toBeUndefined();
+  });
+});
+
+const tick = (ms = 50) => new Promise((resolve) => setTimeout(resolve, ms));
+
+describe("HttpApplication.close(): concurrent and repeated calls", () => {
+  const events: string[] = [];
+  let release: (() => void) | undefined;
+
+  @Injectable()
+  class Pool implements OnApplicationShutdown {
+    onApplicationShutdown(): void {
+      events.push("pool closed");
+    }
+  }
+
+  @Controller("slow")
+  class SlowController {
+    @Get()
+    async slow() {
+      await new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      events.push("request finished");
+      return { ok: true };
+    }
+  }
+
+  @Module({ providers: [Pool], controllers: [SlowController] })
+  class SlowModule {}
+
+  it("makes every concurrent caller wait for the same drain before the application is torn down", async () => {
+    events.length = 0;
+    const app = await createHttpApplication(SlowModule, { shutdownTimeout: 10_000 });
+    const { port } = await app.listen(0, "127.0.0.1");
+    const pending = fetch(`http://127.0.0.1:${port}/slow`);
+    await tick();
+
+    const first = app.close();
+    const second = app.close();
+    const settled: string[] = [];
+    void first.then(() => settled.push("first"));
+    void second.then(() => settled.push("second"));
+    await tick();
+
+    expect(events).toEqual([]);
+    expect(settled).toEqual([]);
+
+    release?.();
+    await Promise.all([first, second]);
+
+    expect(events).toEqual(["request finished", "pool closed"]);
+    expect((await pending).status).toBe(200);
+  });
+
+  it("returns the same promise, and runs the hooks once, however often it is called", async () => {
+    events.length = 0;
+    const app = await createHttpApplication(SlowModule);
+    await app.listen(0, "127.0.0.1");
+
+    const first = app.close();
+    expect(app.close()).toBe(first);
+    await first;
+    await app.close();
+
+    expect(events).toEqual(["pool closed"]);
+  });
+
+  it("rejects every caller with the same error when a shutdown hook fails", async () => {
+    @Injectable()
+    class Flaky implements OnApplicationShutdown {
+      onApplicationShutdown(): void {
+        throw new Error("flush failed");
+      }
+    }
+
+    @Module({ providers: [Flaky] })
+    class FlakyModule {}
+
+    const app = await createHttpApplication(FlakyModule);
+    const first = app.close();
+    const second = app.close();
+
+    await expect(first).rejects.toThrow("flush failed");
+    await expect(second).rejects.toThrow("flush failed");
+  });
+});
+
+describe("HttpApplication.listen(): one server per application", () => {
+  it("refuses a second listen() while the first server is up, and keeps serving on the first", async () => {
+    const app = await createHttpApplication(GreetingModule);
+    const { port } = await app.listen(0, "127.0.0.1");
+
+    await expect(app.listen(0, "127.0.0.1")).rejects.toThrow(/already listening/);
+
+    expect((await fetch(`http://127.0.0.1:${port}/greet/ada`)).status).toBe(200);
+    await app.close();
+  });
+
+  it("refuses listen() after close()", async () => {
+    const app = await createHttpApplication(GreetingModule);
+    await app.close();
+
+    await expect(app.listen(0, "127.0.0.1")).rejects.toThrow(/closed/);
+  });
+
+  it("lets listen() be tried again after it failed to bind", async () => {
+    const taken = createServer();
+    await new Promise<void>((resolve) => taken.listen(0, "127.0.0.1", resolve));
+    const address = taken.address();
+    const takenPort = typeof address === "object" && address !== null ? address.port : 0;
+    const app = await createHttpApplication(GreetingModule);
+
+    await expect(app.listen(takenPort, "127.0.0.1")).rejects.toThrow(/EADDRINUSE/);
+    const { port } = await app.listen(0, "127.0.0.1");
+
+    expect((await fetch(`http://127.0.0.1:${port}/greet/ada`)).status).toBe(200);
+    await app.close();
+    await new Promise((resolve) => taken.close(resolve));
   });
 });
 
