@@ -49,7 +49,7 @@ The chain sits **outside** `requestTimeout`: the deadline covers the application
 - **Hand on a changed request**: `next(new Request(request, { headers }))`. Without an argument the current request goes on.
 - **Throw.** An `HttpException` (`throw new UnauthorizedException("no token")`) answers with that exception's problem+json. Any other error is logged and answers a generic `500`, with the message kept from the client. A middleware that returns something other than a `Response` is also a `500`.
 
-A failure inside the application (a controller error, a mounted handler that throws) reaches a middleware as a `500` **response**, not as a rejection from `next()`, so every middleware sees failures the same way.
+A failure anywhere further in (a controller error, a mounted handler that throws, **or another middleware that throws**) reaches the middleware outside it as a **response**, never as a rejection from `next()`. So `next()` needs no `try`/`catch`, and a CORS or logging middleware placed first still sees, and can decorate, the `429` a rate limiter threw or the `500` a broken middleware caused.
 
 ## Request context
 
