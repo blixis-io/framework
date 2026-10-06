@@ -251,7 +251,7 @@ describe("blix deploy init", () => {
   it("accepts --flag=value, --branch and --entry", async () => {
     await run(["init", "--ci=github", "--branch=release", "--entry=dist/server.js"], undefined, deps(fakeRunner()));
 
-    expect(readFileSync(join(cwd, ".github/workflows/deploy.yml"), "utf8")).toContain("branches: [release]");
+    expect(readFileSync(join(cwd, ".github/workflows/deploy.yml"), "utf8")).toContain('branches: ["release"]');
     expect(readFileSync(join(cwd, "Dockerfile"), "utf8")).toContain('"dist/server.js"');
   });
 });

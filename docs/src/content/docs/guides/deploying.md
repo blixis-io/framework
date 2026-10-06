@@ -222,6 +222,18 @@ Invalid deploy config in blix.config.ts:
 
 Before this check, a misspelt option was ignored and the default stayed in force, so `pussh: false` still pushed the image.
 
+## Names that go into generated files
+
+Some names from your flags and `blix.config.ts` are copied into files `blix deploy` generates: the Dockerfile's `CMD`, and the CI workflow, which runs with your deploy secrets. So each is held to what that kind of name can be, and anything else is refused with a message that names the value (shown as JSON, so an invisible character shows). A newline, a quote, a `;` or a `$(...)` can then never become a second instruction, an extra workflow step or a shell command.
+
+| Name | Allowed | Because it becomes |
+| --- | --- | --- |
+| a target name (the key under `deploy.targets`, `--name`) | letters, digits, `.`, `_`, `-`, starting with a letter or digit | `run: blix deploy <name>`, a shell command line |
+| an environment variable (`env`, `registry.usernameEnv`, `passwordEnv`) | letters, digits, `_`, not starting with a digit, and not `true`, `false`, `yes`, `no`, `on`, `off`, `null`, `y`, `n` in any case | a YAML key and `${{ secrets.NAME }}` (YAML would read those words as a boolean or null) |
+| the CI branch (`--branch`) | starts with a letter, digit or `_`, then letters, digits, `.`, `_`, `/`, `-`, `*` | `branches: ["<name>"]` and a shell comparison |
+
+The docker entry (`--entry`) can be any path: it is written as a JSON string, so a quote or a newline in it stays text in one argument of `CMD`. The branch is always quoted in the file now (`branches: ["main"]`), because a branch named `1.0` would otherwise be read by YAML as the number 1. If you regenerate a workflow with `--force`, expect that one-line difference.
+
 ## If a build fails with `ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION`
 
 A pnpm 11 project that has just upgraded to a fresh `@blixis-io/*` release can fail its Docker build, its CI install, or Vercel's build, because pnpm refuses versions younger than 24 hours. It fixes itself after a day, or immediately with `minimumReleaseAgeExclude: ["@blixis-io/*"]` in `pnpm-workspace.yaml`. The generated Dockerfile copies `pnpm-workspace.yaml`, so the setting applies inside the image too. Details and the reasoning: [Installation](/framework/start-here/installation/#pnpm-11-skips-versions-younger-than-24-hours).

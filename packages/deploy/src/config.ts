@@ -1,6 +1,10 @@
 import type { LoadedConfig } from "@blixis-io/cli";
 import { z } from "zod";
 import { DEFAULT_CLI_VERSIONS, type CliPackage } from "./cli-versions.js";
+import { ENV_NAME, ENV_NAME_RULE, TARGET_NAME, TARGET_NAME_RULE } from "./safe-names.js";
+
+/** An environment variable name, checked because generated CI files turn it into a YAML key and a secret reference. */
+const EnvNameSchema = z.string().regex(ENV_NAME, ENV_NAME_RULE);
 
 /** Words `blix deploy <word>` already means, so a target can't be named any of them. */
 export const RESERVED_TARGET_NAMES = ["init", "build", "ci", "doctor", "help"] as const;
@@ -8,9 +12,9 @@ export const RESERVED_TARGET_NAMES = ["init", "build", "ci", "doctor", "help"] a
 const RegistrySchema = z.strictObject({
   host: z.string().min(1),
   /** Environment variable holding the registry username. */
-  usernameEnv: z.string().min(1).default("REGISTRY_USERNAME"),
+  usernameEnv: EnvNameSchema.default("REGISTRY_USERNAME"),
   /** Environment variable holding the registry password or token. Piped to `docker login` on stdin, never put in argv. */
-  passwordEnv: z.string().min(1).default("REGISTRY_PASSWORD"),
+  passwordEnv: EnvNameSchema.default("REGISTRY_PASSWORD"),
 });
 
 const DockerTargetSchema = z.strictObject({
@@ -28,7 +32,7 @@ const DockerTargetSchema = z.strictObject({
   /** A shell command run after the push (e.g. `fly deploy --image "$BLIX_IMAGE"`); it sees `BLIX_IMAGE` and `BLIX_TAG`. This is how Fly, Railway, Render or a VPS pick the new image up. */
   after: z.string().min(1).optional(),
   /** Environment variable names this target needs. `blix deploy doctor` checks them; generated CI files pass them through as secrets. */
-  env: z.array(z.string().min(1)).default([]),
+  env: z.array(EnvNameSchema).default([]),
 });
 
 /** The provider CLI `npx` runs, pinned by default: it runs with your deploy credentials in its environment, so `latest` would run whatever is published next. Say `"latest"` here to opt in anyway. */
@@ -38,7 +42,7 @@ const ToolBase = {
   /** Your build command. Defaults to the package manager's `run build`. */
   build: z.string().min(1).optional(),
   /** Environment variable names this target needs; `doctor` checks them and generated CI files pass them through as secrets. */
-  env: z.array(z.string().min(1)).default([]),
+  env: z.array(EnvNameSchema).default([]),
 };
 
 const ProviderBase = {
@@ -124,6 +128,10 @@ export function parseDeployConfig(loaded: LoadedConfig | undefined): DeployConfi
   const names = Object.keys(config.targets);
   if (names.length === 0) {
     throw new DeployConfigError('deploy.targets is empty. Add at least one target, e.g. { prod: { type: "docker", image: "..." } }.');
+  }
+  const unsafe = names.find((name) => !TARGET_NAME.test(name));
+  if (unsafe !== undefined) {
+    throw new DeployConfigError(`deploy.targets: ${JSON.stringify(unsafe)} can't be a target name (it goes into a generated CI file): ${TARGET_NAME_RULE}.`);
   }
   const reserved = names.find((name) => (RESERVED_TARGET_NAMES as readonly string[]).includes(name));
   if (reserved) {

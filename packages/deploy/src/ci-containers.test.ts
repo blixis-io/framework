@@ -114,7 +114,7 @@ image: node:24
 
 pipelines:
   branches:
-    main:
+    "main":
       - step:
           name: Deploy prod
           services:
@@ -140,7 +140,7 @@ image: node:24
 
 pipelines:
   branches:
-    main:
+    "main":
       - step:
           name: Deploy prod
           script:
@@ -152,7 +152,7 @@ pipelines:
   it("uses the given branch and target name", () => {
     const yaml = bitbucketPipelines.render({ ...base, packageManager: "npm", docker: false, registry: undefined, branch: "release", target: "staging" });
 
-    expect(yaml).toContain("    release:");
+    expect(yaml).toContain(`    "release":`);
     expect(yaml).toContain("name: Deploy staging");
     expect(yaml).toContain("npx blix deploy staging");
   });
