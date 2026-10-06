@@ -1,4 +1,5 @@
 import { Module } from "@blixis-io/core";
+import { Injectable } from "@blixis-io/di";
 import { describe, expect, it, vi } from "vitest";
 import { accessLog, type AccessLogEntry } from "./access-log.js";
 import { Controller } from "./decorators/controller.js";
@@ -148,6 +149,33 @@ describe("onError", () => {
     expect(written).toEqual(expect.arrayContaining(["logger is down", "database password is hunter2"]));
     error.mockRestore();
     await app.close();
+  });
+});
+
+describe("onError: a shutdown hook failing while a failed boot is rolled back", () => {
+  it("is reported with phase shutdown and the boot error is still what rejects", async () => {
+    const reports: ErrorReport[] = [];
+
+    @Injectable()
+    class Resource {
+      onApplicationShutdown(): void {
+        throw new Error("close failed too");
+      }
+    }
+
+    @Injectable()
+    class Broken {
+      onModuleInit(): void {
+        throw new Error("init failed");
+      }
+    }
+
+    @Module({ providers: [Resource, Broken] })
+    class BrokenModule {}
+
+    await expect(createHttpApplication(BrokenModule, { onError: (report) => reports.push(report) })).rejects.toThrow("init failed");
+
+    expect(reports.map((report) => [report.phase, report.error instanceof Error ? report.error.message : report.error])).toEqual([["shutdown", "close failed too"]]);
   });
 });
 

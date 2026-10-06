@@ -15,9 +15,25 @@ export interface EventBus<Events extends Record<string, unknown>> {
   on<K extends keyof Events & string>(type: K, handler: EventHandler<Events[K]>): () => void;
 }
 
+/** What a failing event handler hands to `onHandlerError`. */
+export interface EventHandlerFailure {
+  /** The event type the handler was subscribed to. */
+  type: string;
+  /** What it threw. */
+  error: unknown;
+  /** The payload it was given: it may hold personal data, so log only what you need. */
+  payload: unknown;
+}
+
 export interface EventsForRootOptions {
   /** Makes `EVENT_BUS` visible to every module without each one importing this one directly. Defaults to `false`. */
   global?: boolean;
+  /**
+   * Called for every handler that throws or rejects. `emit()` still resolves and sibling handlers still run: a failing
+   * listener never fails the code that emitted. Without this the failure is written with `console.error`. Give it your
+   * logger. A hook that itself throws is caught and written to `console.error` along with the original failure.
+   */
+  onHandlerError?: (failure: EventHandlerFailure) => void;
 }
 
 /**
@@ -29,6 +45,11 @@ export interface EventsForRootOptions {
 @Injectable()
 class InProcessEventBus<Events extends Record<string, unknown>> implements EventBus<Events> {
   readonly #handlers = new Map<string, Set<EventHandler<never>>>();
+  readonly #onHandlerError: ((failure: EventHandlerFailure) => void) | undefined;
+
+  constructor(onHandlerError?: (failure: EventHandlerFailure) => void) {
+    this.#onHandlerError = onHandlerError;
+  }
 
   on<K extends keyof Events & string>(type: K, handler: EventHandler<Events[K]>): () => void {
     let handlers = this.#handlers.get(type);
@@ -56,13 +77,24 @@ class InProcessEventBus<Events extends Record<string, unknown>> implements Event
           // trusts `type` actually matches, same as `on()`'s own erasure.
           await handler(payload as never);
         } catch (error) {
-          // A handler's own failure never blocks sibling handlers or the
-          // caller — same self-contained fallback @blixis-io/logging's own
-          // transport-failure handling already uses.
-          console.error(`event handler for "${type}" failed:`, error);
+          // A handler's own failure never blocks sibling handlers or the caller.
+          this.#report({ type, error, payload });
         }
       }),
     );
+  }
+
+  #report(failure: EventHandlerFailure): void {
+    if (!this.#onHandlerError) {
+      console.error(`event handler for "${failure.type}" failed:`, failure.error);
+      return;
+    }
+    try {
+      this.#onHandlerError(failure);
+    } catch (hookError) {
+      console.error("[@blixis-io/events] onHandlerError threw while reporting a failed handler:", hookError);
+      console.error(`event handler for "${failure.type}" failed:`, failure.error);
+    }
   }
 }
 
@@ -151,7 +183,7 @@ export function defineEventsModule<Events extends Record<string, unknown>>(): {
     static forRoot(options: EventsForRootOptions = {}): DynamicModule {
       return {
         module: EventsModule,
-        providers: [{ provide: EVENT_BUS, useClass: InProcessEventBus }, EventSubscriber],
+        providers: [{ provide: EVENT_BUS, useFactory: () => new InProcessEventBus<Events>(options.onHandlerError) }, EventSubscriber],
         exports: [EVENT_BUS],
         global: options.global ?? false,
       };

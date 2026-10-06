@@ -35,7 +35,7 @@ Legend: `[me]` an agent can do it unattended, `[you]` needs your hands (npm, Git
   - [ ] cookie and CSRF guidance (not in #106)
 - [ ] **X-10 Observability and health**
   - [x] first half (#104): `onError`, `requestId()`, `accessLog()`, `withResponseHeaders()`
-  - [ ] route `@blixis-io/events` listener failures and `@blixis-io/core` rollback failures through an injectable hook (REL-5, MNT-3) [me] S
+  - [x] route `@blixis-io/events` listener failures (`onHandlerError`) and `@blixis-io/core` rollback failures (`onRollbackError`, forwarded by `http` to `onError`) through injectable hooks (REL-5, MNT-3) (this PR)
   - [ ] `HttpApplication` exposes a draining state [me] S
   - [ ] new package `@blixis-io/health` (D-8): `/livez` and `/readyz`, readiness checks registered by providers, not ready while draining [me; `[you]` npm placeholder and trusted publisher]
   - [ ] test: readiness flips while draining and liveness doesn't

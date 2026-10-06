@@ -89,13 +89,15 @@ How it works, and what to know:
 - Because the subscription happens **after** boot, an event emitted from an `onModuleInit` is not seen by `@OnEvent` handlers. Emit from request handling, or from `onApplicationBootstrap`.
 - Transient providers are never cached, so their handlers are not subscribed. Use singleton providers (the default).
 - Handlers are unsubscribed when the application closes.
-- Failure behaviour is the same as `on()`: a handler that throws is logged and doesn't affect the others or the emitter.
+- Failure behaviour is the same as `on()`: a handler that throws is reported (see below) and doesn't affect the others or the emitter.
 - Two `defineEventsModule()` calls in one app keep separate handlers: each decorator only feeds its own bus.
 - `@OnEvent` on something that isn't a method fails the boot with the class and member name.
 
 ## What `emit()` actually does — and doesn't
 
-The only implementation, `InProcessEventBus`, runs every handler registered for an event **concurrently**, and `emit()` resolves once all of them have settled — success or failure. A handler that throws (or an async handler whose promise rejects) is caught individually: it's logged, but it never stops sibling handlers from running and never makes `emit()` itself reject. There's no ordering guarantee between handlers for the same event.
+The only implementation, `InProcessEventBus`, runs every handler registered for an event **concurrently**, and `emit()` resolves once all of them have settled — success or failure. A handler that throws (or an async handler whose promise rejects) is caught individually: it's reported, but it never stops sibling handlers from running and never makes `emit()` itself reject. There's no ordering guarantee between handlers for the same event.
+
+By default the report is `console.error`. To send it to your logger, pass `onHandlerError` to `forRoot()`: `EventsModule.forRoot({ onHandlerError: ({ type, error }) => logger.error("event handler failed", { type, err: error }) })`. It also receives the `payload` the handler was given, which may hold personal data: log only what you need. A hook that throws does not fail `emit()` either; both failures are written to `console.error`.
 
 This means:
 

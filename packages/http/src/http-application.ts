@@ -91,8 +91,14 @@ export class HttpApplication {
 
   static async create(rootModule: ModuleRef, options: HttpApplicationOptions = {}): Promise<HttpApplication> {
     const wrappedRoot = { module: HttpRootModule, imports: [rootModule, RequestContextModule] };
-    const app = await createApplication(wrappedRoot, { overrides: options.overrides });
     const report = createErrorReporter(options.onError);
+    const app = await createApplication(wrappedRoot, {
+      overrides: options.overrides,
+      // A shutdown hook failing while a failed boot is rolled back goes where every other unexpected error goes.
+      onRollbackError: (error) => {
+        report({ error, phase: "shutdown", message: "[@blixis-io/core] an onApplicationShutdown hook failed while rolling back a failed boot:" });
+      },
+    });
     let handle: (request: Request) => Promise<Response>;
     try {
       handle = createHandler(app.controllers, app, options);
