@@ -103,7 +103,7 @@ const peer = currentRemoteAddress(); // "203.0.113.7"
 
 ## What isn't handled for you yet
 
-There's no built-in request logging, rate limiting, CORS, security headers or compression: the framework's HTTP layer is deliberately just routing + validation + guards + error mapping (see [Introduction](/framework/start-here/introduction/)). What there is, is a place to put them: the `middleware` option wraps *every* request, including the ones the router refuses and the routes you `mount()`, and works the same under `listen()` and `createFetchHandler`.
+There's no built-in request logging, rate limiting, CORS, security headers or compression in the HTTP layer itself (the optional [`@blixis-io/security`](/framework/guides/securing-the-api/) package provides the middleware for the middle three): the framework's HTTP layer is deliberately just routing + validation + guards + error mapping (see [Introduction](/framework/start-here/introduction/)). What there is, is a place to put them: the `middleware` option wraps *every* request, including the ones the router refuses and the routes you `mount()`, and works the same under `listen()` and `createFetchHandler`.
 
 ```ts
 import { withResponseHeaders, type Middleware } from "@blixis-io/http";
