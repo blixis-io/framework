@@ -61,7 +61,7 @@ Legend: `[me]` an agent can do it unattended, `[you]` needs your hands (npm, Git
   - [ ] the policy wording (one-minor deprecation, "Behaviour change" convention) is a proposal written from current practice; the maintainer should adjust it
 - [x] **X-14 Reference application** [after X-7, X-9, X-10] L (this PR)
   - [x] `examples/saas-api` (separate from `hello-api`): sign-in and sign-up (one transaction), refresh store with families, orgs/spaces/memberships, a tenant resource with a child, migrations (`blix run db:migrate`), error contract, OpenAPI with security, request-id logs, `/readyz` and draining, CORS and security headers, per-client rate limits shared across instances
-  - [x] 44 tests against a real Postgres including the denied cases (non-member 404, cross-tenant id 404, forged tenant, the database's own refusal, the 429) and one limit across two instances
+  - [x] 45 tests against a real Postgres including the denied cases (non-member 404, cross-tenant id 404, forged tenant, the database's own refusal, the 429) and one limit across two instances
   - [x] README walkthrough and a docs page; the built app was smoke-tested (sign-up, `/me`, request ids in the log, SIGTERM to `503` readiness to exit 0)
   - [x] `blix.config.ts` with a Docker target; `blix deploy --dry-run` and `deploy doctor` work
   - [ ] a Docker image built from a copy of the example (it depends on workspace packages and on the unpublished security and health packages, so not here yet)
