@@ -1,5 +1,16 @@
 # @blixis-io/events
 
+## 0.4.0
+
+### Minor Changes
+
+- [#125](https://github.com/blixis-io/framework/pull/125) [`d8ba3d1`](https://github.com/blixis-io/framework/commit/d8ba3d1a99f38ef0b7a792912585c75dc4cc42d0) Thanks [@EmVeeNL](https://github.com/EmVeeNL)! - A failing event listener can now go to your logger. `EventsModule.forRoot({ onHandlerError })` is called for every handler that throws or rejects, with the event `type`, the `error` and the `payload` the handler was given (which may hold personal data, so log only what you need); `emit()` still resolves and sibling handlers still run. Without it the failure is written with `console.error`, as before, and a hook that itself throws is caught and both failures are written. Exports `EventHandlerFailure`.
+
+### Patch Changes
+
+- Updated dependencies [[`d8ba3d1`](https://github.com/blixis-io/framework/commit/d8ba3d1a99f38ef0b7a792912585c75dc4cc42d0)]:
+  - @blixis-io/core@0.5.0
+
 ## 0.3.0
 
 ### Minor Changes

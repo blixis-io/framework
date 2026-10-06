@@ -1,6 +1,6 @@
 {
   "name": "@blixis-io/health",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Liveness and readiness endpoints for @blixis-io/http: readiness checks registered by the providers that own the dependencies, and not-ready while the application drains.",
   "license": "MIT",
   "author": "Michael Voeten <michael@voeten.online>",

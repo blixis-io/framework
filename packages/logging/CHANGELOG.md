@@ -1,5 +1,12 @@
 # @blixis-io/logging
 
+## 0.3.1
+
+### Patch Changes
+
+- Updated dependencies [[`d8ba3d1`](https://github.com/blixis-io/framework/commit/d8ba3d1a99f38ef0b7a792912585c75dc4cc42d0)]:
+  - @blixis-io/core@0.5.0
+
 ## 0.3.0
 
 ### Minor Changes
