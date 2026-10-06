@@ -77,6 +77,7 @@ export class HttpApplication {
   #server: Server | undefined;
   #listening = false;
   #closing: Promise<void> | undefined;
+  #draining = false;
 
   private constructor(app: Application, handle: (request: Request) => Promise<Response>, settings: HttpApplicationSettings) {
     this.#app = app;
@@ -246,6 +247,23 @@ export class HttpApplication {
         resolve({ port: actualPort });
       });
     });
+  }
+
+  /**
+   * `true` from the moment `close()` is called, or `startDraining()`, onward. A readiness check reports "not ready" while
+   * this is `true`, so a load balancer stops sending traffic to an instance that is about to go away.
+   */
+  get draining(): boolean {
+    return this.#draining || this.#closing !== undefined;
+  }
+
+  /**
+   * Marks the application as draining without closing anything: it keeps serving, but `draining` is `true`. Call it when
+   * a shutdown signal arrives, wait for the load balancer to notice (its health-check interval), then `close()`.
+   * Closing first would refuse new connections before the balancer knew to stop using this instance.
+   */
+  startDraining(): void {
+    this.#draining = true;
   }
 
   /**

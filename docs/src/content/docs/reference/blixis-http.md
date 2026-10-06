@@ -59,6 +59,8 @@ class HttpApplication {
   handle(request: Request): Promise<Response>;
   mount(method: "GET" | "POST", path: string, handler: (request: Request) => Response | Promise<Response>): void;
   listen(port: number, hostname?: string): Promise<ListenHandle>; // hostname defaults to "0.0.0.0"
+  readonly draining: boolean; // true once startDraining() or close() has been called
+  startDraining(): void; // mark as draining without closing; keeps serving
   close(signal?: string): Promise<void>;
 }
 
