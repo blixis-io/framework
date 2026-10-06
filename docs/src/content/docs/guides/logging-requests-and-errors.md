@@ -63,7 +63,7 @@ With the setup above, one request id appears in the access-log entry and in the 
 
 ## Not covered yet
 
-Metrics and tracing integrations, and a readiness endpoint that reflects dependencies and shutdown (`@blixis-io/health`, next).
+Metrics and tracing integrations. (A readiness endpoint that reflects dependencies and shutdown is a separate piece: [Health checks](/framework/guides/health-checks/).)
 
 Two more places take a hook of their own: a shutdown hook that fails while a failed boot is rolled back reaches `onError` with `phase: "shutdown"` (for `createHttpApplication`, and as `onRollbackError` on `createApplication` from `@blixis-io/core`), and a failing event listener goes to `onHandlerError` on `EventsModule.forRoot()` from `@blixis-io/events`:
 
