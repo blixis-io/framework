@@ -1,0 +1,25 @@
+{
+  "name": "benchmarks",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.build.json",
+    "bench": "node dist/run.js"
+  },
+  "dependencies": {
+    "@blixis-io/auth": "workspace:*",
+    "@blixis-io/core": "workspace:*",
+    "@blixis-io/di": "workspace:*",
+    "@blixis-io/http": "workspace:*",
+    "@blixis-io/security": "workspace:*",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "autocannon": "^8.0.0"
+  }
+}
