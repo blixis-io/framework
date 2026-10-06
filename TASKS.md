@@ -52,11 +52,13 @@ Legend: `[me]` an agent can do it unattended, `[you]` needs your hands (npm, Git
 ## Phase 2: adoption
 
 - [ ] **X-12 Fresh-install CI** [me] M to L
-  - [ ] job: `pnpm pack` all publishable packages, scaffold with `create-blixis` from the tarballs, install, build, run, probe over HTTP, SIGTERM, assert exit 0 and the shutdown hook ran
-  - [ ] repeat with npm; then macOS and Windows for the CLI packages (TST-5)
-  - [ ] `publint` and `attw` for exports and types (MNT-8)
-  - [ ] unsupported toolchain (decorator metadata dropped) fails with an actionable message; check `blix doctor` first
-- [x] **X-13 Stability policy and contribution guide** (this PR): `start-here/stability.md` (audience, support, `0.x` rules, deprecation, 1.0 checklist), `CONTRIBUTING.md`, README status section; nothing like it existed before
+  - [x] `scripts/fresh-install.mjs` + `fresh-install.yml`: pack all packages, scaffold with the real `create-blixis`, install the tarballs, build, `blix doctor`, start, call, SIGTERM and assert exit 0; matrix Linux, macOS, Windows x pnpm, npm; weekly and on push/PR (#112). Windows cannot check the graceful stop (no SIGTERM)
+  - [x] `publint` and `@arethetypeswrong/cli` for every package (`scripts/check-exports.mjs`, job `package-exports`): all 16 pass (#112)
+  - [ ] make the fresh-install jobs a required check once they have been green for a while [you]
+  - [ ] a registry mode (install the *published* latest) for the weekly run
+  - [ ] unsupported toolchain (decorator metadata dropped, e.g. `tsx`) fails with an actionable message; `blix doctor` already reports the decorator flags, check what it says for the esbuild case
+  - [ ] **found by this work:** the scaffold's `concurrently` dev dependency made `npm install` report 2 critical advisories (it pins a vulnerable `shell-quote` exactly); replaced by a generated `scripts/dev.mjs`, `npm audit` is clean (fix PR #114, open)
+- [x] **X-13 Stability policy and contribution guide** (#110): `start-here/stability.md` (audience, support, `0.x` rules, deprecation, 1.0 checklist), `CONTRIBUTING.md`, README status section; nothing like it existed before
   - [ ] public issue-sized milestones on GitHub [you]: not something the repository can hold
   - [ ] the policy wording (one-minor deprecation, "Behaviour change" convention) is a proposal written from current practice; the maintainer should adjust it
 - [ ] **X-14 Reference application** [after X-7, X-9, X-10] L
