@@ -1,9 +1,9 @@
 import { createApplication, Module, type Application, type CreateApplicationOptions, type ModuleRef } from "@blixis-io/core";
 import type { Class, Token } from "@blixis-io/di";
 import { createServer, type Server } from "node:http";
-import { createHandler, runWithDeadline, type HandlerOptions } from "./handler.js";
+import { createHandler, exceptionToResponse, runWithDeadline, type HandlerOptions } from "./handler.js";
 import { listenOrigin, resolveOrigin, sendWebResponse, toWebRequest, type OriginOptions } from "./node-adapter.js";
-import { RequestContext } from "./request-context.js";
+import { RequestContext, runInUnclaimedRequestContext } from "./request-context.js";
 
 const DEFAULT_SHUTDOWN_TIMEOUT = 10_000;
 
@@ -15,7 +15,26 @@ export interface ShutdownOptions {
   shutdownTimeout?: number;
 }
 
-export type HttpApplicationOptions = HandlerOptions & CreateApplicationOptions & ShutdownOptions & OriginOptions;
+/** Calls the rest of the chain (the next middleware, finally the application) and resolves with its `Response`. Pass a `Request` to hand a changed one on; without one the current request goes on unchanged. Call it at most once. */
+export type NextFunction = (request?: Request) => Promise<Response>;
+
+/**
+ * Code that runs around every request: routed, mounted, and the ones the router refuses (404, 405, malformed path).
+ * Return the `Response` from `next()` (changed or not), or return one of your own without calling it. Throwing an
+ * `HttpException` answers with that exception's problem+json; any other error is logged and answers a generic 500.
+ */
+export type Middleware = (request: Request, next: NextFunction) => Response | Promise<Response>;
+
+export interface MiddlewareOptions {
+  /**
+   * Outermost first. A middleware sees the `Response` the application produced, not the end of its body stream, and
+   * runs inside a request scope (`RequestContext`) that the guards and the controller then share. It sits outside
+   * `requestTimeout`: the deadline covers the application, not the middleware.
+   */
+  middleware?: readonly Middleware[];
+}
+
+export type HttpApplicationOptions = HandlerOptions & CreateApplicationOptions & ShutdownOptions & OriginOptions & MiddlewareOptions;
 
 /**
  * Provides `RequestContext` app-wide, without the user needing to import anything — every `createHttpApplication` root gets wrapped with this.
@@ -40,6 +59,7 @@ export class HttpApplication {
   readonly #handle: (request: Request) => Promise<Response>;
   readonly #shutdownTimeout: number;
   readonly #requestTimeout: number | undefined;
+  readonly #middleware: readonly Middleware[];
   readonly #origin: OriginOptions;
   readonly #mounted = new Map<string, MountedHandler>();
   #server: Server | undefined;
@@ -52,12 +72,14 @@ export class HttpApplication {
     shutdownTimeout: number,
     origin: OriginOptions,
     requestTimeout: number | undefined,
+    middleware: readonly Middleware[],
   ) {
     this.#app = app;
     this.#handle = handle;
     this.#shutdownTimeout = shutdownTimeout;
     this.#origin = origin;
     this.#requestTimeout = requestTimeout;
+    this.#middleware = middleware;
   }
 
   static async create(rootModule: ModuleRef, options: HttpApplicationOptions = {}): Promise<HttpApplication> {
@@ -77,7 +99,7 @@ export class HttpApplication {
     return new HttpApplication(app, handle, options.shutdownTimeout ?? DEFAULT_SHUTDOWN_TIMEOUT, {
       ...(options.trustHostHeader === undefined ? {} : { trustHostHeader: options.trustHostHeader }),
       ...(options.trustProxy === undefined ? {} : { trustProxy: options.trustProxy }),
-    }, options.requestTimeout);
+    }, options.requestTimeout, [...(options.middleware ?? [])]);
   }
 
   /** Fetches an already-resolved provider directly, bypassing HTTP entirely. */
@@ -104,8 +126,16 @@ export class HttpApplication {
     this.#mounted.set(key, handler);
   }
 
-  /** Runs a request through the handler in-process, without a socket. */
-  async handle(request: Request): Promise<Response> {
+  /** Runs a request through the middleware and the handler in-process, without a socket. */
+  handle(request: Request): Promise<Response> {
+    if (this.#middleware.length === 0) {
+      return this.#dispatch(request);
+    }
+    return runInUnclaimedRequestContext(() => this.#throughMiddleware(request));
+  }
+
+  /** The mounted handler for this request, or the router. */
+  async #dispatch(request: Request): Promise<Response> {
     if (this.#mounted.size > 0) {
       const mounted = this.#mounted.get(`${request.method} ${new URL(request.url).pathname}`);
       if (mounted) {
@@ -113,6 +143,33 @@ export class HttpApplication {
       }
     }
     return this.#handle(request);
+  }
+
+  async #throughMiddleware(request: Request): Promise<Response> {
+    const run = async (index: number, current: Request): Promise<Response> => {
+      const middleware = this.#middleware[index];
+      if (!middleware) {
+        // A failure inside the application is a response here, as it already is for a routed request, so every middleware sees it the same way.
+        return this.#dispatch(current).catch(exceptionToResponse);
+      }
+      let called = false;
+      const response = await middleware(current, (next = current) => {
+        if (called) {
+          throw new Error("A middleware called next() more than once.");
+        }
+        called = true;
+        return run(index + 1, next);
+      });
+      if (!(response instanceof Response)) {
+        throw new TypeError("A middleware must return a Response (the one from next(), or its own).");
+      }
+      return response;
+    };
+    try {
+      return await run(0, request);
+    } catch (error) {
+      return exceptionToResponse(error);
+    }
   }
 
   listen(port: number, hostname = "0.0.0.0"): Promise<ListenHandle> {
