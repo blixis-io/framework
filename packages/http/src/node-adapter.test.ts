@@ -3,12 +3,14 @@ import { IncomingMessage, ServerResponse } from "node:http";
 import { Socket } from "node:net";
 import { describe, expect, it } from "vitest";
 import { listenOrigin, resolveOrigin, sendWebResponse, toWebRequest } from "./node-adapter.js";
+import { normalizeAddress, remoteAddressOf } from "./remote-address.js";
 
 function mockIncomingMessage(overrides: Partial<IncomingMessage> = {}): IncomingMessage {
   return {
     method: "GET",
     url: "/",
     headers: {},
+    socket: { remoteAddress: undefined },
     once: () => {},
     ...overrides,
   } as IncomingMessage;
@@ -190,5 +192,40 @@ describe("listenOrigin", () => {
     expect(listenOrigin("::1", 3000)).toBe("http://[::1]:3000");
     expect(new URL("/x", listenOrigin("::1", 3000)).href).toBe("http://[::1]:3000/x");
     expect(listenOrigin("[::1]", 3000)).toBe("http://[::1]:3000");
+  });
+});
+
+const socketWith = (remoteAddress: string | undefined) => ({ socket: { remoteAddress } }) as Partial<IncomingMessage>;
+
+describe("toWebRequest: the peer's address", () => {
+  it("records the address of the socket the request arrived on", () => {
+    const request = toWebRequest(mockIncomingMessage(socketWith("203.0.113.7")), "http://localhost");
+
+    expect(remoteAddressOf(request)).toBe("203.0.113.7");
+  });
+
+  it("records nothing when the socket has no address (it already closed)", () => {
+    expect(remoteAddressOf(toWebRequest(mockIncomingMessage(socketWith(undefined)), "http://localhost"))).toBeUndefined();
+  });
+
+  it("writes an IPv4 peer of a dual-stack socket the plain way", () => {
+    expect(remoteAddressOf(toWebRequest(mockIncomingMessage(socketWith("::ffff:203.0.113.7")), "http://localhost"))).toBe("203.0.113.7");
+  });
+
+  it("knows no peer for a request it did not build", () => {
+    expect(remoteAddressOf(new Request("http://localhost/"))).toBeUndefined();
+  });
+});
+
+describe("normalizeAddress", () => {
+  it.each([
+    ["::ffff:10.0.0.1", "10.0.0.1"],
+    ["::FFFF:10.0.0.1", "10.0.0.1"],
+    ["10.0.0.1", "10.0.0.1"],
+    ["2001:db8::1", "2001:db8::1"],
+    ["::1", "::1"],
+    ["::ffff:0:1", "::ffff:0:1"],
+  ])("%s becomes %s", (input, expected) => {
+    expect(normalizeAddress(input)).toBe(expected);
   });
 });

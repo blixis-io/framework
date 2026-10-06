@@ -1,6 +1,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
+import { recordRemoteAddress } from "./remote-address.js";
 
 /** What the client may tell the server about its own address. Everything is off by default: headers are client input. */
 export interface OriginOptions {
@@ -94,13 +95,15 @@ export function toWebRequest(req: IncomingMessage, baseUrl: string, res?: Server
     (req.headers["transfer-encoding"] !== undefined ||
       (req.headers["content-length"] !== undefined && req.headers["content-length"] !== "0"));
 
-  return new Request(url, {
+  const request = new Request(url, {
     method,
     headers,
     signal: controller.signal,
     // `duplex: "half"` is required by Node's fetch implementation whenever body is a stream.
     ...(hasBody ? { body: Readable.toWeb(req), duplex: "half" as const } : {}),
   });
+  recordRemoteAddress(request, req.socket.remoteAddress);
+  return request;
 }
 
 /** Writes a Web-standard `Response` back onto a Node `ServerResponse`. */

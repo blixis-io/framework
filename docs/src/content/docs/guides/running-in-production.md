@@ -89,6 +89,18 @@ Only a bare `host` or `host:port` is accepted (letters, digits, `-`, `_`, dots, 
 
 Under `createFetchHandler` the platform supplies the `Request` and its URL; these options don't apply.
 
+## Who is connecting
+
+`currentRemoteAddress()` returns the address of the peer that opened the connection for the request being served, from anywhere inside it: a middleware, a guard, a controller, a service. It is `undefined` outside a request, and for a request that did not arrive on a socket (`app.handle()` in-process, `createFetchHandler`, where the platform owns the socket). An IPv4 peer is written plainly (`203.0.113.7`, not `::ffff:203.0.113.7`).
+
+```ts
+import { currentRemoteAddress } from "@blixis-io/http";
+
+const peer = currentRemoteAddress(); // "203.0.113.7"
+```
+
+**Behind a reverse proxy this is the proxy, not the user.** Nothing here reads `X-Forwarded-For` or `Forwarded`, because a client can send any value in them, and the `trustProxy` option above only concerns the origin of `request.url`. To get the user's address, trust the forwarded header only for the proxies you control: `getClientIp()` in `@blixis-io/security` does that and takes the number of proxies in front of the server. Don't key a rate limit or an allow list on the raw header.
+
 ## What isn't handled for you yet
 
 There's no built-in request logging, rate limiting, CORS, security headers or compression: the framework's HTTP layer is deliberately just routing + validation + guards + error mapping (see [Introduction](/framework/start-here/introduction/)). What there is, is a place to put them: the `middleware` option wraps *every* request, including the ones the router refuses and the routes you `mount()`, and works the same under `listen()` and `createFetchHandler`.

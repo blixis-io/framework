@@ -238,6 +238,14 @@ function runInRequestContext<T>(fn: () => T): T;
 
 Injectable anywhere without registering it — `createHttpApplication` provides it globally, through the exported global `RequestContextModule`. Entry points that boot an app without the HTTP layer (`blix run` does) import that module to provide it too. `runInRequestContext` is what `createHandler` wraps around each request; you only call it yourself if you're building a request-handling pipeline outside `createHandler`. See [Request Context](/framework/concepts/request-context/).
 
+## Remote address
+
+```ts
+function currentRemoteAddress(): string | undefined;
+```
+
+The address of the peer that connected, for the request being served. `undefined` outside a request and for a request without a socket. The proxy's address behind a proxy: no header is trusted. See [Running in Production](/framework/guides/running-in-production/#who-is-connecting).
+
 ## Observability helpers
 
 ```ts

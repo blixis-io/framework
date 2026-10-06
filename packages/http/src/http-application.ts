@@ -5,6 +5,7 @@ import { createErrorReporter, type ErrorReporter } from "./error-report.js";
 import { createHandler, exceptionToResponse, runWithDeadline, type HandlerOptions } from "./handler.js";
 import { listenOrigin, resolveOrigin, sendWebResponse, toWebRequest, type OriginOptions } from "./node-adapter.js";
 import { RequestContext, runInUnclaimedRequestContext } from "./request-context.js";
+import { REMOTE_ADDRESS_KEY, remoteAddressOf } from "./remote-address.js";
 
 const DEFAULT_SHUTDOWN_TIMEOUT = 10_000;
 
@@ -70,6 +71,7 @@ export class HttpApplication {
   readonly #requestTimeout: number | undefined;
   readonly #middleware: readonly Middleware[];
   readonly #report: ErrorReporter;
+  readonly #context = new RequestContext();
   readonly #origin: OriginOptions;
   readonly #mounted = new Map<string, MountedHandler>();
   #server: Server | undefined;
@@ -143,10 +145,18 @@ export class HttpApplication {
 
   /** Runs a request through the middleware and the handler in-process, without a socket. */
   handle(request: Request): Promise<Response> {
-    if (this.#middleware.length === 0) {
+    const peer = remoteAddressOf(request);
+    if (this.#middleware.length === 0 && peer === undefined) {
       return this.#dispatch(request);
     }
-    return runInUnclaimedRequestContext(() => this.#throughMiddleware(request));
+    // One request scope around everything, which the handler adopts: what the middleware stores, and the address of the
+    // peer that connected, are what the guards and the controller read.
+    return runInUnclaimedRequestContext(() => {
+      if (peer !== undefined) {
+        this.#context.set(REMOTE_ADDRESS_KEY, peer);
+      }
+      return this.#middleware.length === 0 ? this.#dispatch(request) : this.#throughMiddleware(request);
+    });
   }
 
   /** The mounted handler for this request, or the router. */

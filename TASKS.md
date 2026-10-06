@@ -25,7 +25,8 @@ Legend: `[me]` an agent can do it unattended, `[you]` needs your hands (npm, Git
 - [x] **X-6 Request-wide wrapper** (#103): `middleware: []` on `createHttpApplication` and `createFetchHandler`, request context outside the middleware
 - [ ] **X-7 Security baseline** [me; needs `[you]` for npm] L, new package `@blixis-io/security`
   - [ ] [you] npm placeholder `0.0.0` and trusted publisher for `@blixis-io/security` (commands in the PR)
-  - [ ] client IP: the Node adapter exposes the socket address on `RequestContext`; `getClientIp(request, { trustProxy })` (D-3)
+  - [x] client IP, part 1 (D-3): `currentRemoteAddress()` in `http`, the Node adapter's socket address in the request scope (this PR)
+  - [ ] client IP, part 2: `getClientIp(request, { trustedProxyHops })` in the security package
   - [ ] `cors()`: explicit origins, preflight, `credentials` with `"*"` is a construction error
   - [ ] `securityHeaders()` with conservative overridable defaults
   - [ ] `rateLimit()` with a `RateLimitStore` interface; in-memory store labelled development-only; Postgres store example, tested

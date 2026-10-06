@@ -54,6 +54,7 @@ export type { ErrorReport, ErrorReporter } from "./error-report.js";
 export { currentRequestId, requestId, type RequestIdOptions, withResponseHeaders } from "./request-id.js";
 export type { ParamResolutionContext } from "./params.js";
 export { resolveHandlerArgs } from "./params.js";
+export { currentRemoteAddress } from "./remote-address.js";
 export { RequestContext, RequestContextError, runInRequestContext } from "./request-context.js";
 export { ResponseValidationError, validateResponse } from "./response.js";
 export type { RouteFound, RouteLookupResult, RouteMalformedPath, RouteMethodNotAllowed, RouteNotFound } from "./router.js";
