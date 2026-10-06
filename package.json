@@ -9,12 +9,13 @@
   "scripts": {
     "lint": "oxlint --type-aware .",
     "format:check": "editorconfig-checker",
+    "check:docs-links": "node scripts/check-docs-links.mjs",
     "typecheck": "turbo run typecheck",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "build": "turbo run build",
-    "ci": "turbo run build && turbo run typecheck lint test && pnpm run format:check",
+    "ci": "turbo run build && turbo run typecheck lint && pnpm run test:coverage && pnpm run format:check && pnpm run check:docs-links",
     "changeset": "changeset",
     "version-packages": "changeset version",
     "release": "pnpm run build && changeset publish"

@@ -1,0 +1,37 @@
+# Keeps two things current that otherwise go stale unnoticed: the pinned GitHub Actions (each is a commit SHA, so a
+# new release is only ever picked up through a pull request) and the npm dependencies.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: ci
+
+  - package-ecosystem: npm
+    # A pnpm workspace: the root, every package, the example and the docs.
+    directories:
+      - /
+      - /packages/*
+      - /examples/*
+      - /docs
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      # Minor and patch updates arrive together, one pull request per kind. A major update is always its own pull
+      # request, so it gets its own review.
+      development:
+        dependency-type: development
+        update-types: [minor, patch]
+      production:
+        dependency-type: production
+        update-types: [minor, patch]
+    commit-message:
+      prefix: chore

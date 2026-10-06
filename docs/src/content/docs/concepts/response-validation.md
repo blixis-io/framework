@@ -111,7 +111,7 @@ If you turn it off in production, keep it on in tests and CI so a contract drift
 ## Two escape hatches, unvalidated on purpose
 
 - **A route that returns `undefined`** (mapped to `204 No Content`) skips validation entirely, even with `@Returns` declared — there's no body to check, and `204` is already the established "nothing to validate" convention (see [Routing & Controllers](/framework/concepts/routing-controllers/)).
-- **A route that returns a raw `Response`** also skips validation — returning a `Response` directly is already documented as a deliberate opt-out of the normal JSON pipeline (see the [Cookbook](/framework/examples/cookbook/#returning-a-raw-response)), and a schema was never meant to describe it.
+- **A route that returns a raw `Response`** also skips validation — returning a `Response` directly is already documented as a deliberate opt-out of the normal JSON pipeline (see the [Cookbook](/framework/examples/cookbook/#returning-a-raw-response-and-setting-a-content-type)), and a schema was never meant to describe it.
 
 ## Next
 

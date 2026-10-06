@@ -1,4 +1,5 @@
 import type { PackageManager } from "@blixis-io/cli";
+import { ACTION_PINS } from "./action-pins.js";
 
 export interface CiRenderOptions {
   target: string;
@@ -23,10 +24,10 @@ export interface CiProvider {
 }
 
 const SETUP: Record<PackageManager, { actions: string[]; cache: string; install: string; exec: string }> = {
-  pnpm: { actions: ["      - uses: pnpm/action-setup@v4"], cache: "pnpm", install: "pnpm install --frozen-lockfile", exec: "pnpm exec" },
+  pnpm: { actions: [`      - uses: ${ACTION_PINS.pnpm}`], cache: "pnpm", install: "pnpm install --frozen-lockfile", exec: "pnpm exec" },
   npm: { actions: [], cache: "npm", install: "npm ci", exec: "npx" },
   yarn: { actions: [], cache: "yarn", install: "yarn install --frozen-lockfile", exec: "yarn" },
-  bun: { actions: ["      - uses: oven-sh/setup-bun@v2"], cache: "", install: "bun install --frozen-lockfile", exec: "bunx" },
+  bun: { actions: [`      - uses: ${ACTION_PINS.bun}`], cache: "", install: "bun install --frozen-lockfile", exec: "bunx" },
 };
 
 const GHCR = "ghcr.io";
@@ -55,7 +56,7 @@ export const githubActions: CiProvider = {
     }
 
     const nodeStep = [
-      "      - uses: actions/setup-node@v6",
+      `      - uses: ${ACTION_PINS.setupNode}`,
       "        with:",
       `          node-version: ${nodeVersion}`,
       ...(setup.cache ? [`          cache: ${setup.cache}`] : []),
@@ -80,7 +81,7 @@ jobs:
     permissions:
       contents: read${usesGhcr ? "\n      packages: write" : ""}
     steps:
-      - uses: actions/checkout@v4
+      - uses: ${ACTION_PINS.checkout}
 ${[...setup.actions, ...nodeStep].join("\n")}
       - run: ${setup.install}
       - run: ${setup.exec} blix deploy ${target}${

@@ -232,6 +232,17 @@ The generated workflow is deliberately thin: check out, install, run `blix deplo
 
 For Vercel and Netlify the workflow has no registry step and passes the provider's secrets instead.
 
+**The actions are pinned to a commit**, not to a tag: `actions/checkout@11d5960... # v4`. This workflow runs with your deploy secrets, and a tag such as `v4` can be moved by whoever controls the action's repository, so the exact commit is what you trust. The pins are the commits each tag pointed at when your version of `@blixis-io/deploy` was released, and they change when you upgrade it and regenerate (`blix deploy ci github --force`). To keep them current in between, let Dependabot propose the updates; it understands the tag in the comment:
+
+```yaml title=".github/dependabot.yml"
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+```
+
 ### GitLab CI and Bitbucket Pipelines
 
 ```bash
