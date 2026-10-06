@@ -1,5 +1,23 @@
 # @blixis-io/openapi
 
+## 0.5.0
+
+### Minor Changes
+
+- [#101](https://github.com/blixis-io/framework/pull/101) [`825db3c`](https://github.com/blixis-io/framework/commit/825db3c75d4b2716312d886b3f69534d5aeeb05a) Thanks [@EmVeeNL](https://github.com/EmVeeNL)! - The document now matches what the framework really sends, and can describe authentication.
+  
+  - Errors are documented under `application/problem+json`, the media type the handler sends; before they were `application/json`. `OpenApiResponse.content` is now `Record<string, { schema }>` instead of a fixed `application/json` key.
+  - `requestBody.required` is `false` when the schema accepts a missing value (`.optional()`, `z.unknown()`), as the handler reads an empty body as `undefined`.
+  - A route whose `@Returns` schema accepts `undefined` (and has no `@HttpCode`) also documents `204`.
+  - New `securitySchemes` and `security` options, and an `@ApiSecurity` decorator (class or method; `@ApiSecurity(false)` marks a route public). A requirement naming an undeclared scheme throws, naming the route. It documents only; guards still enforce.
+  - New `onUnrepresentable: "open" | "warn" | "throw"` (default `"open"`, the old behaviour) so a build can fail, or at least log the route, when a schema can't be expressed.
+  - Generation now throws when two operations share an `operationId`, naming both, instead of emitting an invalid document.
+
+### Patch Changes
+
+- Updated dependencies [[`cfa6381`](https://github.com/blixis-io/framework/commit/cfa6381bdda97bc9e22ffe0f2c32d12fc2453702), [`5f9c5ea`](https://github.com/blixis-io/framework/commit/5f9c5ea9ea541d61328e200b2b539027216ab3f0), [`6146198`](https://github.com/blixis-io/framework/commit/61461988b362941b0d231bb39a7f19bec91273e7), [`2216bc0`](https://github.com/blixis-io/framework/commit/2216bc0d93bb681b82583200814d1caa993bc098), [`47566bc`](https://github.com/blixis-io/framework/commit/47566bcfcf9c9a554e14c9afebccc29f71a06dbe), [`3329a9c`](https://github.com/blixis-io/framework/commit/3329a9c88c3b64724670c20a6809526fca3ef5b8)]:
+  - @blixis-io/http@0.8.0
+
 ## 0.4.1
 
 ### Patch Changes

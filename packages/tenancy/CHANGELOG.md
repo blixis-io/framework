@@ -1,5 +1,13 @@
 # @blixis-io/tenancy
 
+## 0.3.1
+
+### Patch Changes
+
+- [#105](https://github.com/blixis-io/framework/pull/105) [`3c78ec6`](https://github.com/blixis-io/framework/commit/3c78ec66768729ac038b49e0c74b55544d427c3f) Thanks [@EmVeeNL](https://github.com/EmVeeNL)! - Documentation and tests only: the Tenancy page now states plainly that `tenantScope()` and the guard do not isolate anything by themselves, lays out the pattern for reads, updates, deletes, inserts, joins, rows loaded by id and jobs, shows the composite-foreign-key schema that stops a child pointing at another tenant's parent, and adds a Postgres row-level-security recipe. Both are backed by new real-Postgres test suites (`isolation.test.ts`, `rls.test.ts`) that attack each operation with another tenant's ids. No code change.
+- Updated dependencies [[`cfa6381`](https://github.com/blixis-io/framework/commit/cfa6381bdda97bc9e22ffe0f2c32d12fc2453702), [`5f9c5ea`](https://github.com/blixis-io/framework/commit/5f9c5ea9ea541d61328e200b2b539027216ab3f0), [`6146198`](https://github.com/blixis-io/framework/commit/61461988b362941b0d231bb39a7f19bec91273e7), [`2216bc0`](https://github.com/blixis-io/framework/commit/2216bc0d93bb681b82583200814d1caa993bc098), [`47566bc`](https://github.com/blixis-io/framework/commit/47566bcfcf9c9a554e14c9afebccc29f71a06dbe), [`3329a9c`](https://github.com/blixis-io/framework/commit/3329a9c88c3b64724670c20a6809526fca3ef5b8)]:
+  - @blixis-io/http@0.8.0
+
 ## 0.3.0
 
 ### Minor Changes
