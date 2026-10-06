@@ -129,6 +129,66 @@ describe("Router: method handling", () => {
   });
 });
 
+describe("Router: a path that matches only for other methods falls through to the next candidate", () => {
+  it("lets a parameter route answer when the static route at the same position has other methods only", () => {
+    const router = new Router<string>();
+    router.add("POST", "/posts/new", "create");
+    router.add("GET", "/posts/:id", "read");
+
+    expect(router.match("GET", "/posts/new")).toEqual({ kind: "found", handler: "read", params: { id: "new" } });
+    expect(router.match("POST", "/posts/new")).toEqual({ kind: "found", handler: "create", params: {} });
+  });
+
+  it("lets a wildcard route answer when a static route has other methods only", () => {
+    const router = new Router<string>();
+    router.add("POST", "/files/readme", "upload");
+    router.add("GET", "/files/*", "download");
+
+    expect(router.match("GET", "/files/readme")).toEqual({ kind: "found", handler: "download", params: { "*": "readme" } });
+  });
+
+  it("falls through nested dead ends", () => {
+    const router = new Router<string>();
+    router.add("POST", "/orgs/acme/members", "add-acme-member");
+    router.add("GET", "/orgs/:slug/members", "list-members");
+
+    expect(router.match("GET", "/orgs/acme/members")).toEqual({ kind: "found", handler: "list-members", params: { slug: "acme" } });
+  });
+
+  it("keeps static before parameter before wildcard when the method matches", () => {
+    const router = new Router<string>();
+    router.add("GET", "/a/b", "static");
+    router.add("GET", "/a/:x", "param");
+    router.add("GET", "/a/*", "wild");
+
+    expect(router.match("GET", "/a/b")).toMatchObject({ handler: "static" });
+    expect(router.match("GET", "/a/c")).toMatchObject({ handler: "param" });
+    expect(router.match("GET", "/a/c/d")).toMatchObject({ handler: "wild" });
+  });
+
+  it("reports the methods of every candidate that matched the path when none supports the requested one", () => {
+    const router = new Router<string>();
+    router.add("POST", "/posts/new", "create");
+    router.add("GET", "/posts/:id", "read");
+    router.add("PUT", "/posts/*", "wild");
+
+    const result = router.match("DELETE", "/posts/new");
+
+    expect(result.kind).toBe("method-not-allowed");
+    expect(result.kind === "method-not-allowed" && result.allowed.toSorted()).toEqual(["GET", "POST", "PUT"]);
+  });
+
+  it("does not list methods of routes that did not match the path", () => {
+    const router = new Router<string>();
+    router.add("POST", "/posts/new", "create");
+    router.add("GET", "/posts/:id/comments", "comments");
+
+    const result = router.match("DELETE", "/posts/new");
+
+    expect(result).toEqual({ kind: "method-not-allowed", allowed: ["POST"] });
+  });
+});
+
 describe("Router: not found", () => {
   it("returns not-found for a path with no matching route at all", () => {
     const router = new Router<string>();
