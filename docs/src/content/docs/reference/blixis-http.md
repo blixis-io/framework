@@ -27,7 +27,7 @@ interface HandlerOptions {
 
 interface ErrorReport {
   error: unknown;
-  phase: "request" | "boot" | "shutdown";
+  phase: "request" | "boot" | "shutdown" | "server"; // "server": the Node server reported an error after it started
   message?: string;
   request?: Request;
   route?: { controller: Class; handler: string | symbol };

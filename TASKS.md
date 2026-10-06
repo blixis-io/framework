@@ -16,7 +16,7 @@ Legend: `[me]` an agent can do it unattended, `[you]` needs your hands (npm, Git
 - [x] **X-3 HTTP boot rolls back** (#98)
 - [x] **X-4 Shared close, single `listen()`** (#99)
   - [x] decided D-5: no `shutdownHookTimeout`, documented in `running-in-production.md` instead
-  - [ ] persistent server `error` listener after start (BUG-12): left out of #99, still open, needs a way to test it
+  - [x] persistent server `error` listener after start (BUG-12), reported to `onError` with `phase: "server"` (this PR; tested by wrapping `createServer` so a test can make the server emit)
 - [x] **X-5 OpenAPI matches reality** (#101): problem+json, `securitySchemes` / `security` / `@ApiSecurity`, optional bodies, `204`, `onUnrepresentable`, duplicate `operationId`, contract test
 - [x] docs follow-up for the `http` reference (#102)
 

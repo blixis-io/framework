@@ -8,9 +8,10 @@ export interface ErrorReport {
   /**
    * `"request"`: an unexpected error while serving a request (a controller, a guard, a mounted handler, a middleware),
    * answered with a generic 500. `"boot"`: the application failed to start (`createFetchHandler`). `"shutdown"`: a
-   * shutdown hook failed while rolling back a failed boot.
+   * shutdown hook failed while rolling back a failed boot. `"server"`: the Node HTTP server reported an error after it
+   * started listening (out of file descriptors, a socket error). The process stays up and keeps serving what it can.
    */
-  phase: "request" | "boot" | "shutdown";
+  phase: "request" | "boot" | "shutdown" | "server";
   /** A short description, set where the error alone does not say what was being done. */
   message?: string;
   /** The request being served, when there was one. */

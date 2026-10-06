@@ -29,7 +29,7 @@ const app = await createHttpApplication(AppModule, {
 });
 ```
 
-The report carries the `request`, the matched `route` (not set for a middleware, a mounted handler or a router refusal) and the `requestId`. `phase` says what failed: `"request"`, `"boot"` (the application failed to start under `createFetchHandler`) or `"shutdown"` (a shutdown hook failed while rolling back a failed boot).
+The report carries the `request`, the matched `route` (not set for a middleware, a mounted handler or a router refusal) and the `requestId`. `phase` says what failed: `"request"`, `"boot"` (the application failed to start under `createFetchHandler`) `"shutdown"` (a shutdown hook failed while rolling back a failed boot) or `"server"` (the Node HTTP server itself reported an error after it started listening, such as running out of file descriptors; the process stays up).
 
 - An `HttpException` is **not** reported: a `404` or `401` thrown on purpose is an answer. A `504` from `requestTimeout` isn't either.
 - Without `onError`, the error is written with `console.error`, the error first, as before.
