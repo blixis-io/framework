@@ -1,5 +1,11 @@
 # @blixis-io/core
 
+## 0.5.0
+
+### Minor Changes
+
+- [#125](https://github.com/blixis-io/framework/pull/125) [`d8ba3d1`](https://github.com/blixis-io/framework/commit/d8ba3d1a99f38ef0b7a792912585c75dc4cc42d0) Thanks [@EmVeeNL](https://github.com/EmVeeNL)! - New `onRollbackError` option on `createApplication`: called for each `onApplicationShutdown` hook that fails while a failed boot is being rolled back. The boot's own error is still what `createApplication` rejects with. Without the option the failure is written with `console.error`, as before; a hook that throws is caught and both failures are written.
+
 ## 0.4.1
 
 ### Patch Changes

@@ -1,5 +1,23 @@
 # @blixis-io/http
 
+## 0.9.0
+
+### Minor Changes
+
+- [#124](https://github.com/blixis-io/framework/pull/124) [`086eaa8`](https://github.com/blixis-io/framework/commit/086eaa817844318bc1e0bd113cea8da5dcb2d009) Thanks [@EmVeeNL](https://github.com/EmVeeNL)! - `HttpApplication` has a `draining` flag and a `startDraining()` method. `draining` is `true` from the moment `close()` is called (so a request still being served can see it) or `startDraining()` has been called; `startDraining()` marks the application as draining without closing anything, for the shutdown sequence a load balancer needs: on the signal, start draining so readiness reports "not ready", wait for the balancer's health check to notice, then `close()`. Closing first refuses connections before the balancer knows to stop using the instance. Nothing else changes. `@blixis-io/health` builds the readiness endpoint on it.
+
+- [#121](https://github.com/blixis-io/framework/pull/121) [`416994a`](https://github.com/blixis-io/framework/commit/416994a92e1d152199eb70734fa6de0e806f3545) Thanks [@EmVeeNL](https://github.com/EmVeeNL)! - New `currentRemoteAddress()`: the address of the peer that connected, for the request being served, readable from a middleware, a guard, a controller or a service. The Node adapter records the socket's address when it builds the `Request`, and `HttpApplication.handle()` puts it in the request scope the handler adopts (an IPv4 peer of a dual-stack socket is written plainly, `203.0.113.7` and not `::ffff:203.0.113.7`). It is `undefined` outside a request and for a request with no socket (in-process `handle()`, `createFetchHandler`). No header is trusted: behind a reverse proxy this is the proxy. It is what a rate limiter or an allow list needs; `@blixis-io/security` builds the proxy-aware `getClientIp()` on it.
+
+### Patch Changes
+
+- [#122](https://github.com/blixis-io/framework/pull/122) [`02329a4`](https://github.com/blixis-io/framework/commit/02329a42ab7c1946e981625b0221e09e7ee05f13) Thanks [@EmVeeNL](https://github.com/EmVeeNL)! - A middleware that throws now reaches the middleware outside it as a response, the way a failure in the application already did. Before, an error thrown by an inner middleware (a rate limiter throwing a `429`, an auth check throwing a `401`) travelled up as a rejection through the outer ones and was turned into a response only at the very top, so a middleware placed first, such as CORS or an access log, never saw that response and could not add its headers to it or record its status. Now `next()` never rejects: an `HttpException` becomes its problem+json response and any other error a logged generic `500`, and each outer middleware receives that `Response`. Behaviour change: a middleware that wrapped `next()` in `try`/`catch` to see an inner middleware's error now gets a response instead.
+
+- [#125](https://github.com/blixis-io/framework/pull/125) [`d8ba3d1`](https://github.com/blixis-io/framework/commit/d8ba3d1a99f38ef0b7a792912585c75dc4cc42d0) Thanks [@EmVeeNL](https://github.com/EmVeeNL)! - A shutdown hook that fails while a failed boot is rolled back (inside `@blixis-io/core`, before the HTTP handler is even built) now reaches `onError` with `phase: "shutdown"`, like the one from a failed handler build already did. Before it was written with `console.error` whatever `onError` said. Without `onError` the output is unchanged.
+
+- [#133](https://github.com/blixis-io/framework/pull/133) [`1a34fc4`](https://github.com/blixis-io/framework/commit/1a34fc4afa9874f825eae7ac3d5d75b83600a399) Thanks [@EmVeeNL](https://github.com/EmVeeNL)! - An `error` event on the Node HTTP server after it started listening no longer takes the process down. Without a listener Node rethrows it as an uncaught exception (running out of file descriptors is the usual cause), ending the process with every request in flight. `listen()` now keeps a listener for the life of the server and reports the error to `onError` with the new `phase: "server"`, or to `console.error` without it; the process keeps serving what it can. An error before the server started (the port is taken) still rejects `listen()` as before.
+- Updated dependencies [[`d8ba3d1`](https://github.com/blixis-io/framework/commit/d8ba3d1a99f38ef0b7a792912585c75dc4cc42d0)]:
+  - @blixis-io/core@0.5.0
+
 ## 0.8.0
 
 ### Minor Changes
