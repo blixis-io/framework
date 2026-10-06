@@ -42,6 +42,14 @@ export interface IssuingOptions<Claims> {
   accessTokenTtl?: number | undefined;
   /** Seconds. Defaults to 2,592,000 (30 days). */
   refreshTokenTtl?: number | undefined;
+  /**
+   * Seconds after a refresh token is rotated during which presenting it again is a plain `401` that revokes nothing,
+   * instead of being treated as theft. Default `0`: any reuse revokes the login (or all of the subject's sessions, if the
+   * store has no families). Set a few seconds (10 is plenty) if clients can refresh twice at once, two tabs say, or retry
+   * a refresh whose response was lost. The cost: a stolen token replayed inside the window is also just rejected, not
+   * punished. The client must use the newest token it received.
+   */
+  refreshReuseGraceSeconds?: number | undefined;
 }
 
 /** The auth module was configured with something it can't work securely with. Thrown from `forRoot()`, so it fails at boot. */
@@ -287,7 +295,13 @@ export function defineAuthModule<Schema extends ZodType>(
         const issuingNormalized: NormalizedIssuingOptions = {
           accessTokenTtlSeconds: options.issuing.accessTokenTtl ?? DEFAULT_ACCESS_TOKEN_TTL_SECONDS,
           refreshTokenTtlSeconds: options.issuing.refreshTokenTtl ?? DEFAULT_REFRESH_TOKEN_TTL_SECONDS,
+          refreshReuseGraceSeconds: options.issuing.refreshReuseGraceSeconds ?? 0,
         };
+        if (!Number.isFinite(issuingNormalized.refreshReuseGraceSeconds) || issuingNormalized.refreshReuseGraceSeconds < 0) {
+          throw new AuthConfigError(
+            `AuthModule.forRoot(): issuing.refreshReuseGraceSeconds must be a number of seconds, 0 or more (got ${issuingNormalized.refreshReuseGraceSeconds}).`,
+          );
+        }
         const AuthServiceImpl = createAuthServiceClass<Claims>({
           claimsSchema,
           authOptionsToken: AUTH_OPTIONS,

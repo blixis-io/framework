@@ -2,6 +2,7 @@ export { AuthConfigError, defineAuthModule, Public, Roles, type AuthModuleOption
 export {
   type AuthService,
   type CredentialStore,
+  type NewRefreshToken,
   type RefreshTokenRecord,
   type RefreshTokenStore,
   type TokenPair,

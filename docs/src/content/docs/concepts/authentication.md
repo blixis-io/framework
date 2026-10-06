@@ -208,11 +208,14 @@ interface CredentialStore<Claims> {
 }
 
 interface RefreshTokenStore {
-  create(tokenHash: string, record: { subject: string; expiresAt: Date }): Promise<void>;
+  create(tokenHash: string, record: { subject: string; expiresAt: Date; familyId: string }): Promise<void>;
   find(tokenHash: string): Promise<RefreshTokenRecord | null | undefined>;
   markRotated(tokenHash: string): Promise<boolean>;
   revoke(tokenHash: string): Promise<void>;
   revokeAllForSubject(subject: string): Promise<void>;
+  // optional, see "Making rotation resilient" in the Issuing Tokens guide:
+  rotate?(oldTokenHash: string, next: { tokenHash: string; subject: string; expiresAt: Date; familyId: string }): Promise<boolean>;
+  revokeFamily?(familyId: string): Promise<void>;
 }
 ```
 
@@ -221,7 +224,8 @@ interface RefreshTokenStore {
 ### Fail-closed rules, deliberate
 
 - **`signIn` never reveals whether an identifier exists.** An unknown identifier still runs a real password verification (against an internally cached dummy hash) before rejecting, so response timing doesn't leak account existence. Unknown identifier, wrong password, and a disabled account (`loadClaims` returning null) all throw the identical `UnauthorizedException("Invalid credentials")`.
-- **Refresh tokens rotate on every use.** `refresh()` invalidates the presented token and issues a new one. Presenting an **already-rotated** token — real reuse, or two callers racing to refresh the same token — revokes every refresh token for that subject and throws, on the theory that only the rightful client should ever hold the newest token.
+- **Refresh tokens rotate on every use.** `refresh()` invalidates the presented token and issues a new one. Presenting an **already-rotated** token — real reuse, or two callers racing to refresh the same token — revokes that login and throws, on the theory that only the rightful client should ever hold the newest token. "That login" is its family (every token descended from one sign-in) if your store implements `revokeFamily`, so the user's other devices stay signed in; otherwise it is every refresh token of the subject. With `refreshReuseGraceSeconds` set, a token rotated within that window is just refused, and nothing is revoked.
+- **A failure part-way never strands the client.** Everything that can fail without leaving a trace (loading the claims, signing the access token) happens before anything is written. Then the successor is stored and the old token marked rotated, atomically if your store implements `rotate`; without it the successor is stored *first*, so a failure leaves the old token usable (and at worst an unused successor), never a client with no valid token.
 - **`signOut` is idempotent.** Revoking an unknown or already-revoked token never throws.
 - **A claims value that fails your own schema is a server bug, not a client error.** If `CredentialStore.loadClaims()` returns something your `claimsSchema` would reject, `AuthService` throws a plain `Error` (a `500`) instead of silently signing a token `JwtAuthGuard` would later reject anyway.
 
@@ -230,7 +234,8 @@ interface RefreshTokenStore {
 This is a first pass, scoped to match what a real caller needs today rather than every guarantee a production identity system eventually wants — each gap below is a deliberate, named deferral:
 
 - **Sign-in is unthrottled.** This is the one that matters most before going to production: `signIn` has no rate limiting or lockout built in. Add it at a proxy, or with an interceptor, before shipping password sign-in for real.
-- **No rotation-family grace window.** Two tabs refreshing the same token at nearly the same instant will trip reuse detection and sign the user out everywhere — clients should single-flight their own refresh calls. There's also no absolute session cap; a session can slide indefinitely while actively used.
+- **The grace window is off by default.** Two tabs refreshing the same token at nearly the same instant trip reuse detection and end that login (just that login, if the store keeps families; every session otherwise). Set `refreshReuseGraceSeconds` to refuse the second request without revoking anything, and have clients single-flight their own refresh calls anyway. There's also no absolute session cap; a session can slide indefinitely while actively used.
+- **Revoking refresh tokens does not revoke access tokens already issued.** A signed access token is valid until its `exp`; sign-out and reuse revocation only stop new ones being minted. Keep `accessTokenTtl` short (the default is 15 minutes) for that reason.
 - **HMAC signing only**, same as verification — no asymmetric (EdDSA) signing or JWKS endpoint. Only relevant once more than one service needs to verify tokens without sharing the HMAC secret.
 - **No security-event hook** for detected reuse — it's logged nowhere by `@blixis-io/auth` itself today. Wire your own logging into your store implementations if you need it.
 
