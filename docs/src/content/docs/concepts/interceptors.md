@@ -5,7 +5,7 @@ sidebar:
   order: 7.5
 ---
 
-An interceptor wraps a route's param resolution and handler invocation in an onion layer — code before `next()` runs before the handler, code after runs after, and it can inspect or replace the `Response` either side returns. Interceptors are DI-resolved classes, same shape as [guards](/framework/concepts/guards-and-authorization/), and run **after** guards: a denied request never reaches an interceptor at all.
+An interceptor wraps a route's param resolution and handler invocation in an onion layer (for something that must apply to *every* request, including the ones that never reach a route, use [middleware](/framework/concepts/middleware/) instead) — code before `next()` runs before the handler, code after runs after, and it can inspect or replace the `Response` either side returns. Interceptors are DI-resolved classes, same shape as [guards](/framework/concepts/guards-and-authorization/), and run **after** guards: a denied request never reaches an interceptor at all.
 
 ## `Interceptor`
 

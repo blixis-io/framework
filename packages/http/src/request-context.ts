@@ -42,3 +42,28 @@ export class RequestContext {
 export function runInRequestContext<T>(fn: () => T): T {
   return storage.run(new Map(), fn);
 }
+
+/** Stores started by `runInUnclaimedRequestContext` that no handler has adopted yet. */
+const unclaimed = new WeakSet<Map<string, unknown>>();
+
+/**
+ * Starts a request scope for code that runs *around* the handler (middleware), which the handler then adopts
+ * instead of starting its own, so what the middleware stored is what the guards and the controller read.
+ */
+export function runInUnclaimedRequestContext<T>(fn: () => T): T {
+  const store = new Map<string, unknown>();
+  unclaimed.add(store);
+  return storage.run(store, fn);
+}
+
+/**
+ * What `createHandler` wraps around each request: adopts the scope a middleware started (once, so a request made from
+ * inside a handler, such as `app.handle()` for a sub-request, still gets a store of its own), or starts a fresh one.
+ */
+export function claimOrRunInRequestContext<T>(fn: () => T): T {
+  const store = storage.getStore();
+  if (store && unclaimed.delete(store)) {
+    return fn();
+  }
+  return runInRequestContext(fn);
+}

@@ -40,7 +40,10 @@ export {
   HttpApplication,
   type HttpApplicationOptions,
   type ListenHandle,
+  type Middleware,
+  type MiddlewareOptions,
   type MountedHandler,
+  type NextFunction,
   RequestContextModule,
   type ShutdownOptions,
 } from "./http-application.js";

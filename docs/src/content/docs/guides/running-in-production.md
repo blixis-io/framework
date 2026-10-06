@@ -91,7 +91,28 @@ Under `createFetchHandler` the platform supplies the `Request` and its URL; thes
 
 ## What isn't handled for you yet
 
-There's no built-in request logging, rate limiting, CORS, or compression middleware — the framework's HTTP layer is deliberately just routing + validation + guards + error mapping (see [Introduction](/framework/start-here/introduction/)). For now, that means wrapping `app.handle` yourself (a function that calls `app.handle(request)` and does something before/after) or reaching for `node:http`-level middleware ahead of the `createServer` callback if you need it. A first-class middleware/interceptor layer is on the framework's roadmap but doesn't exist yet.
+There's no built-in request logging, rate limiting, CORS, security headers or compression: the framework's HTTP layer is deliberately just routing + validation + guards + error mapping (see [Introduction](/framework/start-here/introduction/)). What there is, is a place to put them: the `middleware` option wraps *every* request, including the ones the router refuses and the routes you `mount()`, and works the same under `listen()` and `createFetchHandler`.
+
+```ts
+import type { Middleware } from "@blixis-io/http";
+
+const accessLog: Middleware = async (request, next) => {
+  const started = performance.now();
+  const response = await next();
+  console.log(`${request.method} ${new URL(request.url).pathname} ${response.status} ${Math.round(performance.now() - started)}ms`);
+  return response;
+};
+
+const securityHeaders: Middleware = async (_request, next) => {
+  const response = await next();
+  response.headers.set("x-content-type-options", "nosniff");
+  return response;
+};
+
+const app = await createHttpApplication(AppModule, { middleware: [accessLog, securityHeaders] });
+```
+
+See [Middleware](/framework/concepts/middleware/) for the order, error handling and what a middleware can and can't see.
 
 ## On a platform that calls `fetch` (Vercel, Netlify, Cloudflare Workers)
 

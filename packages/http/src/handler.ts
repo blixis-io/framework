@@ -15,7 +15,7 @@ import {
   UnsupportedMediaTypeException,
 } from "./exceptions.js";
 import { resolveHandlerArgs } from "./params.js";
-import { runInRequestContext } from "./request-context.js";
+import { claimOrRunInRequestContext } from "./request-context.js";
 import { validateResponse } from "./response.js";
 import { Router } from "./router.js";
 import { statusTitle } from "./status-titles.js";
@@ -199,7 +199,8 @@ function problemResponse(status: number, detail: string, extra?: Record<string, 
   return new Response(JSON.stringify(body), { status, headers: { ...headers, "content-type": "application/problem+json" } });
 }
 
-function exceptionToResponse(error: unknown): Response {
+/** A thrown `HttpException` becomes its problem+json response; anything else is logged and becomes a generic 500. */
+export function exceptionToResponse(error: unknown): Response {
   if (error instanceof HttpException) {
     return problemResponse(error.status, error.detail, error.extra, error.headers);
   }
@@ -312,7 +313,7 @@ export function createHandler(
         }
       };
 
-      return runInRequestContext(async () => {
+      return claimOrRunInRequestContext(async () => {
         try {
           // Sequential and short-circuiting on purpose: a later guard must not
           // run once an earlier one has already denied the request.

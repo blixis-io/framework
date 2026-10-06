@@ -14,7 +14,14 @@ Routing, controller/param/guard decorators, Zod-backed validation, RFC 9457 erro
 ```ts
 function createHttpApplication(rootModule: ModuleRef, options?: HttpApplicationOptions): Promise<HttpApplication>;
 
-type HttpApplicationOptions = HandlerOptions & CreateApplicationOptions & ShutdownOptions & OriginOptions; // bodyLimit + requestTimeout + overrides + shutdownTimeout + trustHostHeader/trustProxy
+type HttpApplicationOptions = HandlerOptions & CreateApplicationOptions & ShutdownOptions & OriginOptions & MiddlewareOptions; // bodyLimit + requestTimeout + overrides + shutdownTimeout + trustHostHeader/trustProxy + middleware
+
+interface MiddlewareOptions {
+  middleware?: readonly Middleware[]; // outermost first; see Middleware
+}
+
+type Middleware = (request: Request, next: NextFunction) => Response | Promise<Response>;
+type NextFunction = (request?: Request) => Promise<Response>; // at most once; pass a Request to hand on a changed one
 
 interface OriginOptions {
   trustHostHeader?: boolean; // request.url's origin from the Host header; default false (the listen address)

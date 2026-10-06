@@ -8,7 +8,7 @@ sidebar:
 This page follows a single request through `@blixis-io/http` in the order things happen. The other concept pages each cover one stage in depth; this one shows how they fit together, so you can answer "where does this get checked?" and "why did I get that status?".
 
 ```text
-socket > Request > timeout > route match > RequestContext scope > Response > socket
+socket > Request > [middleware] > timeout > route match > RequestContext scope > Response > [middleware] > socket
 
 inside the scope: guards > interceptors > params + body > handler
 exceptions thrown anywhere inside the scope become responses
@@ -22,6 +22,10 @@ exceptions thrown anywhere inside the scope become responses
 - A body is only attached when the request says it carries one (`Content-Length` above 0, or `Transfer-Encoding`). It stays an unread stream; nothing is buffered yet.
 - `request.signal` aborts if the client disconnects.
 - `request.url`'s origin is the address the server listens on, unless you opt in to trusting the `Host` or `X-Forwarded-*` headers; see [The origin of `request.url`](/framework/guides/running-in-production/#the-origin-of-requesturl).
+
+## Middleware, if you set any
+
+With the `middleware` option, every request passes through the chain first, in order, and every response passes back through it in reverse, whatever produced it: a controller, a guard's `403`, a `404`, a `405`, a malformed-path `400`, a mounted route or a `504`. A middleware can answer without calling `next()`. The chain runs inside a `RequestContext` scope that the guards and the controller then share, so a value a middleware sets is the one they read. See [Middleware](/framework/concepts/middleware/).
 
 ## 2. The timeout, if you set one
 
@@ -37,7 +41,7 @@ The path is split into segments and each one is percent-decoded once (`hello%20w
 | No route for this path | `404` |
 | Path matches, method doesn't | `405` with an `Allow` header |
 
-All three are answered right here. **No guard, interceptor or handler runs**, and no `RequestContext` scope is opened.
+All three are answered right here. **No guard, interceptor or handler runs**, and no `RequestContext` scope is opened (unless you configured [middleware](/framework/concepts/middleware/), which opens one around the whole request and sees these responses too).
 
 ## 4. A fresh `RequestContext` scope
 
