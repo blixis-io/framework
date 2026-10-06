@@ -14,12 +14,11 @@ updates:
       prefix: ci
 
   - package-ecosystem: npm
-    # A pnpm workspace: the root, every package, the example and the docs.
+    # A pnpm workspace: the root, every package and the example apps.
     directories:
       - /
       - /packages/*
       - /examples/*
-      - /docs
     schedule:
       interval: weekly
       day: monday
@@ -33,5 +32,29 @@ updates:
       production:
         dependency-type: production
         update-types: [minor, patch]
+    ignore:
+      # The types describe the oldest Node this project supports (engines: >=24), not the newest, so code cannot
+      # compile against an API that Node 24 does not have. Raise it when the minimum Node moves.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
+    commit-message:
+      prefix: chore
+
+  # The docs site has its own rules: astro check needs TypeScript 5 (7 breaks its typecheck), and @types/node follows
+  # the same rule as above.
+  - package-ecosystem: npm
+    directory: /docs
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      docs-minor-patch:
+        update-types: [minor, patch]
+    ignore:
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
     commit-message:
       prefix: chore

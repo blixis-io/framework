@@ -44,7 +44,8 @@ Legend: `[me]` an agent can do it unattended, `[you]` needs your hands (npm, Git
   - [x] audit overrides for two docs-toolchain advisories (`http-cache-semantics`, `source-map-js`); one moderate remains, not gating
   - [x] coverage runs once instead of tests twice (PERF-7) and a docs link check runs in `pnpm run ci` (DOC-1); the full `pnpm run ci` passes locally, 98.96% lines
   - [x] CI-4: the release job runs `gh workflow run ci.yml --ref changeset-release/main` (`workflow_dispatch` is the one event the workflow token may start), replacing the manual empty commit; `ci.yml` gained `workflow_dispatch`. **Unverified until the next Version Packages PR**: check that the `ci` check appears on it
-  - [ ] [you] enable CodeQL and Dependabot in repo settings; verify branch protection and npm account settings
+  - [x] Dependabot is enabled and working (it opened PRs within minutes of the merge); rules added so it does not propose `@types/node` past Node 24 or TypeScript 7 for the docs site (astro check needs 5)
+  - [ ] [you] enable CodeQL in repo settings (the workflow ran green); verify branch protection and npm account settings
   - [ ] [you] remove `NPM_TOKEN` plumbing from `release.yml` once OIDC is confirmed for every package (MNT-6)
 
 ## Phase 2: adoption
