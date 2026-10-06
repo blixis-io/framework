@@ -46,7 +46,7 @@ interface ListenHandle {
 }
 ```
 
-Wraps `@blixis-io/core`'s `createApplication`, builds the router from `app.controllers`, and adds the HTTP-specific surface. `handle()` runs a request in-process, no socket — what `@blixis-io/testing` is built on. `listen()` binds a real `node:http` server. `mount()` serves an exact path with a plain handler ahead of the router — public (bypasses guards and interceptors), throws on a duplicate method+path; it's what `serveOpenApi` uses. `close()` tears down both the socket (if listening) and the underlying `Application` (running `OnApplicationShutdown` hooks); **idempotent**, safe to call more than once. See [Running in Production](/framework/guides/running-in-production/). `controllers` exposes every controller class in the app's module graph — what [`@blixis-io/openapi`](/framework/reference/blixis-openapi/) walks to build a document that stays in sync with the real running app, without a separately-maintained route list.
+Wraps `@blixis-io/core`'s `createApplication`, builds the router from `app.controllers`, and adds the HTTP-specific surface. `handle()` runs a request in-process, no socket — what `@blixis-io/testing` is built on. `listen()` binds a real `node:http` server; it can be called once, and rejects if the application is already listening or has been closed. `mount()` serves an exact path with a plain handler ahead of the router — public (bypasses guards and interceptors, but not `requestTimeout`: a mounted handler gets the same deadline, with `request.signal` aborting at it), throws on a duplicate method+path; it's what `serveOpenApi` uses. `close()` tears down both the socket (if listening) and the underlying `Application` (running `OnApplicationShutdown` hooks); **idempotent**: every call returns the same promise, so a second caller waits for the same drain and teardown instead of closing the application under running requests, and the hooks run once (a failing hook rejects every caller; the first call's `signal` is the one hooks see). See [Running in Production](/framework/guides/running-in-production/). `controllers` exposes every controller class in the app's module graph — what [`@blixis-io/openapi`](/framework/reference/blixis-openapi/) walks to build a document that stays in sync with the real running app, without a separately-maintained route list.
 
 ### `createHandler` / `buildRouter`
 
@@ -225,14 +225,15 @@ class Router<T> {
   match(method: HttpMethod, path: string): RouteLookupResult<T>;
 }
 
-type RouteLookupResult<T> = RouteFound<T> | RouteNotFound | RouteMethodNotAllowed;
+type RouteLookupResult<T> = RouteFound<T> | RouteNotFound | RouteMethodNotAllowed | RouteMalformedPath;
 
 interface RouteFound<T> { kind: "found"; handler: T; params: Record<string, string> }
 interface RouteNotFound { kind: "not-found" }
-interface RouteMethodNotAllowed { kind: "method-not-allowed"; allowed: HttpMethod[] }
+interface RouteMethodNotAllowed { kind: "method-not-allowed"; allowed: HttpMethod[] } // the methods of every route that matches the path
+interface RouteMalformedPath { kind: "malformed-path" } // a segment has a broken % escape
 ```
 
-The trie router itself, generic over an opaque handler type — `@blixis-io/http` plugs in its own route-entry type internally; you could build a different framework on top of just this. See [Routing & Controllers](/framework/concepts/routing-controllers/#how-a-request-is-matched) for the static/param/wildcard precedence rules.
+The trie router itself, generic over an opaque handler type — `@blixis-io/http` plugs in its own route-entry type internally; you could build a different framework on top of just this. A route only matches the method it was registered with, so a request falls through to the next candidate (static, then param, then wildcard) instead of stopping at a sibling that has other methods only. See [Routing & Controllers](/framework/concepts/routing-controllers/#how-a-request-is-matched) for the precedence rules.
 
 ## Exceptions
 

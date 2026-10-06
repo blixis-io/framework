@@ -94,7 +94,7 @@ export class HttpApplication {
    * Serves an exact path with a plain Web-standard handler, ahead of the controller router — for
    * framework-level endpoints (such as an OpenAPI document) that need the finished app, which a
    * controller can't get at construction time. Mounted routes bypass guards and interceptors, so
-   * they are public; mounting the same method and path twice throws.
+   * they are public, but they do get the `requestTimeout` deadline; mounting the same method and path twice throws.
    */
   mount(method: "GET" | "POST", path: string, handler: MountedHandler): void {
     const key = `${method} ${path}`;
