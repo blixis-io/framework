@@ -20,6 +20,20 @@ interface MiddlewareOptions {
   middleware?: readonly Middleware[]; // outermost first; see Middleware
 }
 
+interface HandlerOptions {
+  // ... bodyLimit, requestTimeout, responseValidation
+  onError?: (report: ErrorReport) => void; // every unexpected error; default console.error(error)
+}
+
+interface ErrorReport {
+  error: unknown;
+  phase: "request" | "boot" | "shutdown";
+  message?: string;
+  request?: Request;
+  route?: { controller: Class; handler: string | symbol };
+  requestId?: string; // when requestId() is in use
+}
+
 type Middleware = (request: Request, next: NextFunction) => Response | Promise<Response>;
 type NextFunction = (request?: Request) => Promise<Response>; // at most once; pass a Request to hand on a changed one
 
@@ -223,6 +237,19 @@ function runInRequestContext<T>(fn: () => T): T;
 ```
 
 Injectable anywhere without registering it — `createHttpApplication` provides it globally, through the exported global `RequestContextModule`. Entry points that boot an app without the HTTP layer (`blix run` does) import that module to provide it too. `runInRequestContext` is what `createHandler` wraps around each request; you only call it yourself if you're building a request-handling pipeline outside `createHandler`. See [Request Context](/framework/concepts/request-context/).
+
+## Observability helpers
+
+```ts
+function requestId(options?: { header?: string; generate?: () => string; trustIncoming?: boolean }): Middleware;
+function currentRequestId(): string | undefined;
+function accessLog(options: { log: (entry: AccessLogEntry) => void }): Middleware;
+function withResponseHeaders(response: Response, headers: Readonly<Record<string, string>>): Response;
+
+interface AccessLogEntry { method: string; path: string; status: number; durationMs: number; requestId?: string }
+```
+
+`withResponseHeaders` sets headers in place, or on a copy when the response's headers are immutable (`Response.redirect()`, a `fetch()` response). See [Logging requests and errors](/framework/guides/logging-requests-and-errors/).
 
 ## Router
 

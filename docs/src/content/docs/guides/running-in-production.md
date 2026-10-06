@@ -94,7 +94,7 @@ Under `createFetchHandler` the platform supplies the `Request` and its URL; thes
 There's no built-in request logging, rate limiting, CORS, security headers or compression: the framework's HTTP layer is deliberately just routing + validation + guards + error mapping (see [Introduction](/framework/start-here/introduction/)). What there is, is a place to put them: the `middleware` option wraps *every* request, including the ones the router refuses and the routes you `mount()`, and works the same under `listen()` and `createFetchHandler`.
 
 ```ts
-import type { Middleware } from "@blixis-io/http";
+import { withResponseHeaders, type Middleware } from "@blixis-io/http";
 
 const accessLog: Middleware = async (request, next) => {
   const started = performance.now();
@@ -103,16 +103,12 @@ const accessLog: Middleware = async (request, next) => {
   return response;
 };
 
-const securityHeaders: Middleware = async (_request, next) => {
-  const response = await next();
-  response.headers.set("x-content-type-options", "nosniff");
-  return response;
-};
+const securityHeaders: Middleware = async (_request, next) => withResponseHeaders(await next(), { "x-content-type-options": "nosniff" });
 
 const app = await createHttpApplication(AppModule, { middleware: [accessLog, securityHeaders] });
 ```
 
-See [Middleware](/framework/concepts/middleware/) for the order, error handling and what a middleware can and can't see.
+See [Middleware](/framework/concepts/middleware/) for the order, error handling and what a middleware can and can't see, and [Logging requests and errors](/framework/guides/logging-requests-and-errors/) for the request-id and access-log middleware that ship with `@blixis-io/http`.
 
 ## On a platform that calls `fetch` (Vercel, Netlify, Cloudflare Workers)
 

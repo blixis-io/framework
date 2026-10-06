@@ -15,6 +15,7 @@ import {
   UnsupportedMediaTypeException,
 } from "./exceptions.js";
 import { resolveHandlerArgs } from "./params.js";
+import { createErrorReporter, type ErrorReporter } from "./error-report.js";
 import { claimOrRunInRequestContext } from "./request-context.js";
 import { validateResponse } from "./response.js";
 import { Router } from "./router.js";
@@ -40,6 +41,12 @@ export interface HandlerOptions {
    * extra fields (say a `passwordHash`) is then sent whole. A route's `@Returns(..., { validate })` wins.
    */
   responseValidation?: "always" | "never";
+  /**
+   * Called for every unexpected error: one a controller, guard, interceptor or middleware threw that is not an
+   * `HttpException` (those are answered as themselves and are not errors). The client gets a generic 500 either way.
+   * Without it the error is written with `console.error`. Give it your logger; see `ErrorReport` for what it receives.
+   */
+  onError?: ErrorReporter;
 }
 
 export class NotAControllerError extends Error {
@@ -200,12 +207,12 @@ function problemResponse(status: number, detail: string, extra?: Record<string, 
 }
 
 /** A thrown `HttpException` becomes its problem+json response; anything else is logged and becomes a generic 500. */
-export function exceptionToResponse(error: unknown): Response {
+export function exceptionToResponse(error: unknown, report: (unexpected: unknown) => void = (unexpected) => { console.error(unexpected); }): Response {
   if (error instanceof HttpException) {
     return problemResponse(error.status, error.detail, error.extra, error.headers);
   }
-  // Internal errors are logged but never surfaced to the client.
-  console.error(error);
+  // Internal errors are reported but never surfaced to the client.
+  report(error);
   return problemResponse(500, "An unexpected error occurred");
 }
 
@@ -284,6 +291,7 @@ export function createHandler(
 
   const requestTimeout = options.requestTimeout;
   const validateByDefault = options.responseValidation !== "never";
+  const report = createErrorReporter(options.onError);
 
   return function handle(incoming: Request): Promise<Response> {
     return runWithDeadline(incoming, requestTimeout, async (request) => {
@@ -353,7 +361,9 @@ export function createHandler(
 
           return await pipeline();
         } catch (error) {
-          return exceptionToResponse(error);
+          return exceptionToResponse(error, (unexpected) => {
+            report({ error: unexpected, phase: "request", request, route: { controller: route.controller, handler: route.propertyKey } });
+          });
         }
       });
     });

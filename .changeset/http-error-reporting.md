@@ -1,0 +1,5 @@
+---
+"@blixis-io/http": minor
+---
+
+Unexpected errors can now go to your logger. New `onError` option on `createHttpApplication` and `createFetchHandler` receives every unexpected error (a controller, guard, interceptor or middleware throwing something that is not an `HttpException`, or a boot failure under `createFetchHandler`) with the `request`, the matched `route` and the `requestId`; without it the error is written with `console.error` as before, and an `onError` that throws is caught. New opt-in middleware: `requestId()` (keeps an acceptable client `x-request-id`, else a UUID; stored in the `RequestContext`, set on every response, readable with `currentRequestId()`) and `accessLog({ log })` (method, path without the query, status, duration, request id; every request, including a `404`). New helper `withResponseHeaders(response, headers)`, which copes with immutable response headers (`Response.redirect()`, a `fetch()` response) where `response.headers.set()` would throw. Exports `ErrorReport`, `ErrorReporter`, `AccessLogEntry`, `AccessLogOptions` and `RequestIdOptions`.

@@ -49,6 +49,9 @@ export {
 } from "./http-application.js";
 export { createFetchHandler, type FetchHandler } from "./fetch-handler.js";
 export { sendWebResponse, toWebRequest, type OriginOptions } from "./node-adapter.js";
+export { accessLog, type AccessLogEntry, type AccessLogOptions } from "./access-log.js";
+export type { ErrorReport, ErrorReporter } from "./error-report.js";
+export { currentRequestId, requestId, type RequestIdOptions, withResponseHeaders } from "./request-id.js";
 export type { ParamResolutionContext } from "./params.js";
 export { resolveHandlerArgs } from "./params.js";
 export { RequestContext, RequestContextError, runInRequestContext } from "./request-context.js";
