@@ -1,0 +1,35 @@
+{
+  "name": "saas-api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/main.js",
+    "migrate": "blix run db:migrate"
+  },
+  "dependencies": {
+    "@blixis-io/auth": "workspace:*",
+    "@blixis-io/commands": "workspace:*",
+    "@blixis-io/config": "workspace:*",
+    "@blixis-io/core": "workspace:*",
+    "@blixis-io/db": "workspace:*",
+    "@blixis-io/di": "workspace:*",
+    "@blixis-io/health": "workspace:*",
+    "@blixis-io/http": "workspace:*",
+    "@blixis-io/logging": "workspace:*",
+    "@blixis-io/openapi": "workspace:*",
+    "@blixis-io/security": "workspace:*",
+    "@blixis-io/tenancy": "workspace:*",
+    "drizzle-orm": "^0.45.3",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@blixis-io/cli": "workspace:*",
+    "@blixis-io/deploy": "workspace:*"
+  }
+}
