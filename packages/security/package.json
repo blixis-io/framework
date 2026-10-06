@@ -1,0 +1,43 @@
+{
+  "name": "@blixis-io/security",
+  "version": "0.0.0",
+  "description": "An optional production baseline for @blixis-io/http: CORS with explicit origins, security headers, rate limiting with a pluggable shared store, and a proxy-aware client address. Plain middleware, nothing on by default.",
+  "license": "MIT",
+  "author": "Michael Voeten <michael@voeten.online>",
+  "homepage": "https://blixis-io.github.io/framework/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/blixis-io/framework.git",
+    "directory": "packages/security"
+  },
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "keywords": ["cors", "security-headers", "rate-limit", "middleware", "typescript"],
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": ["dist"],
+  "exports": {
+    ".": {
+      "@blixis-io/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "build": "rolldown -c"
+  },
+  "peerDependencies": {
+    "@blixis-io/http": "workspace:^"
+  },
+  "devDependencies": {
+    "@blixis-io/core": "workspace:*",
+    "@blixis-io/di": "workspace:*",
+    "@blixis-io/http": "workspace:*",
+    "@types/pg": "^8.23.1",
+    "pg": "^8.23.0"
+  }
+}

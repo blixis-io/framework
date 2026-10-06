@@ -39,6 +39,7 @@ export function createProjectConfig(name: string, config: UserProjectConfigExpor
           blixisAlias("cli"),
           blixisAlias("tenancy"),
           blixisAlias("events"),
+          blixisAlias("security"),
         ],
       },
       test: {
