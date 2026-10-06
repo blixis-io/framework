@@ -71,7 +71,9 @@ Legend: `[me]` an agent can do it unattended, `[you]` needs your hands (npm, Git
 - [ ] **X-15 Outbox example** in the reference app: outbox table in the same transaction, poller, idempotent consumer. No queue abstraction before something needs it. [me] M
 - [ ] **X-16 Database operations guide:** migration generation and order, no migration race across replicas at boot, pool sizing across replicas, query deadlines, transaction nesting. [me] M
 - [ ] **X-17 Real-socket benchmark:** validation and auth on; tail latency, memory, cold start; environment and limits recorded. No CI budget yet. [me] M
-- [ ] **X-18 Property tests** for the router (right after X-1) and the other hand-written parsers (TST-1). [me] M
+- [ ] **X-18 Property tests** (TST-1) [me] M
+  - [x] router: 7 properties with `fast-check` against a brute-force model of the documented rules (winner, 405 with the right `Allow`, 404, registration-order independence, single decoding, malformed escapes), 11 000 generated cases; they fail on the pre-#96 router with a small counterexample (this PR)
+  - [ ] the other hand-written parsers: the JSONC stripper in `cli/doctor.ts`, the PHC hash parser in `auth`, the YAML and Dockerfile renderers in `deploy`
 - [ ] Deferred, unchanged: uploads, WebSockets, caching, more ORMs/runtimes, Node-only entry split.
 
 ## Decisions (all approved as recommended)
