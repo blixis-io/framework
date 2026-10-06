@@ -72,7 +72,7 @@ Legend: `[me]` an agent can do it unattended, `[you]` needs your hands (npm, Git
 ## Phase 3: when demand or measurements justify it
 
 - [ ] **X-15 Outbox example** in the reference app: outbox table in the same transaction, poller, idempotent consumer. No queue abstraction before something needs it. [me] M
-- [ ] **X-16 Database operations guide:** migration generation and order, no migration race across replicas at boot, pool sizing across replicas, query deadlines, transaction nesting. [me] M
+- [x] **X-16 Database operations guide** (this PR): `guides/database-operations.md` (migrations as a deploy step and the empty-database race, old and new versions running together, pool sizing across replicas, deadlines with `statement_timeout` shorter than `requestTimeout`, transactions, recovery), backed by 3 new real-Postgres tests of the pool settings; claims that are general Postgres practice and not run here are labelled
 - [ ] **X-17 Real-socket benchmark:** validation and auth on; tail latency, memory, cold start; environment and limits recorded. No CI budget yet. [me] M
 - [ ] **X-18 Property tests** (TST-1) [me] M
   - [x] router: 7 properties with `fast-check` against a brute-force model of the documented rules (winner, 405 with the right `Allow`, 404, registration-order independence, single decoding, malformed escapes), 11 000 generated cases; they fail on the pre-#96 router with a small counterexample (this PR)
