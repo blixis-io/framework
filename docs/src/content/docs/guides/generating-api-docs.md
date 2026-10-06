@@ -39,6 +39,21 @@ Neither Swagger UI nor Redoc are bundled — both work as static HTML pages that
 
 Or run one locally against it (`npx @redocly/cli preview-docs http://localhost:3000/openapi.json`) without adding anything to your app at all.
 
+## Describing authentication
+
+The document says nothing about authentication until you declare it. Pass `securitySchemes` and a document-wide `security`, and mark public routes with `@ApiSecurity(false)`:
+
+```ts
+serveOpenApi(app, "/openapi.json", {
+  title: "my-api",
+  version: "1.0.0",
+  securitySchemes: { bearerAuth: { type: "http", scheme: "bearer", bearerFormat: "JWT" } },
+  security: ["bearerAuth"],
+});
+```
+
+This only describes; your guards still decide. See [Documenting authentication](/framework/concepts/api-documentation/#documenting-authentication). To make a build fail (or log) when a schema can't be expressed instead of documenting it as open, set `onUnrepresentable`: see [Failing the build on an open schema](/framework/concepts/api-documentation/#failing-the-build-on-an-open-schema).
+
 ## Enriching routes as you go
 
 `@ApiOperation`/`@ApiTags` are both optional — add them where a bare, derived `operationId` isn't descriptive enough. See [API Documentation](/framework/concepts/api-documentation/#enriching-a-route-with-apioperation-and-apitags).
