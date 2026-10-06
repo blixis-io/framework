@@ -114,6 +114,58 @@ importers:
         specifier: workspace:*
         version: link:../../packages/testing
 
+  examples/saas-api:
+    dependencies:
+      '@blixis-io/auth':
+        specifier: workspace:*
+        version: link:../../packages/auth
+      '@blixis-io/commands':
+        specifier: workspace:*
+        version: link:../../packages/commands
+      '@blixis-io/config':
+        specifier: workspace:*
+        version: link:../../packages/config
+      '@blixis-io/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@blixis-io/db':
+        specifier: workspace:*
+        version: link:../../packages/db
+      '@blixis-io/di':
+        specifier: workspace:*
+        version: link:../../packages/di
+      '@blixis-io/health':
+        specifier: workspace:*
+        version: link:../../packages/health
+      '@blixis-io/http':
+        specifier: workspace:*
+        version: link:../../packages/http
+      '@blixis-io/logging':
+        specifier: workspace:*
+        version: link:../../packages/logging
+      '@blixis-io/openapi':
+        specifier: workspace:*
+        version: link:../../packages/openapi
+      '@blixis-io/security':
+        specifier: workspace:*
+        version: link:../../packages/security
+      '@blixis-io/tenancy':
+        specifier: workspace:*
+        version: link:../../packages/tenancy
+      drizzle-orm:
+        specifier: ^0.45.3
+        version: 0.45.3(@types/pg@8.23.1)(pg@8.23.0)
+      zod:
+        specifier: ^4.6.5
+        version: 4.6.5
+    devDependencies:
+      '@blixis-io/cli':
+        specifier: workspace:*
+        version: link:../../packages/cli
+      '@blixis-io/deploy':
+        specifier: workspace:*
+        version: link:../../packages/deploy
+
   packages/auth:
     dependencies:
       jose:

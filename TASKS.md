@@ -59,11 +59,14 @@ Legend: `[me]` an agent can do it unattended, `[you]` needs your hands (npm, Git
 - [x] **X-13 Stability policy and contribution guide** (#110): `start-here/stability.md` (audience, support, `0.x` rules, deprecation, 1.0 checklist), `CONTRIBUTING.md`, README status section; nothing like it existed before
   - [ ] public issue-sized milestones on GitHub [you]: not something the repository can hold
   - [ ] the policy wording (one-minor deprecation, "Behaviour change" convention) is a proposal written from current practice; the maintainer should adjust it
-- [ ] **X-14 Reference application** [after X-7, X-9, X-10] L
-  - [ ] `examples/saas-api` (separate from `hello-api`); fixed scope: sign-in, refresh store, orgs/spaces/memberships, one tenant resource with a child, migrations, one transaction, error contract, OpenAPI with security, request-id logs, `/readyz`, Docker via `blix deploy`
-  - [ ] tests include denied cases (non-member 404, cross-tenant id 404, rate limit 429)
-  - [ ] README walkthrough; a fresh checkout reaches a working API with documented commands
-  - [ ] CI runs it, and runs it against the previous release to check the upgrade path
+- [x] **X-14 Reference application** [after X-7, X-9, X-10] L (this PR)
+  - [x] `examples/saas-api` (separate from `hello-api`): sign-in and sign-up (one transaction), refresh store with families, orgs/spaces/memberships, a tenant resource with a child, migrations (`blix run db:migrate`), error contract, OpenAPI with security, request-id logs, `/readyz` and draining, CORS and security headers, per-client rate limits shared across instances
+  - [x] 44 tests against a real Postgres including the denied cases (non-member 404, cross-tenant id 404, forged tenant, the database's own refusal, the 429) and one limit across two instances
+  - [x] README walkthrough and a docs page; the built app was smoke-tested (sign-up, `/me`, request ids in the log, SIGTERM to `503` readiness to exit 0)
+  - [x] `blix.config.ts` with a Docker target; `blix deploy --dry-run` and `deploy doctor` work
+  - [ ] a Docker image built from a copy of the example (it depends on workspace packages and on the unpublished security and health packages, so not here yet)
+  - [ ] CI runs it against the previous *release* to check the upgrade path: needs the registry mode of the fresh-install job (X-12) and the two new packages published
+  - [ ] invitations, password reset and email verification are out of scope on purpose
 
 ## Phase 3: when demand or measurements justify it
 
