@@ -619,3 +619,61 @@ describe("createHttpApplication: a boot that fails while building the handler", 
     error.mockRestore();
   });
 });
+
+describe("HttpApplication: draining", () => {
+  @Controller("drain")
+  class DrainController {
+    static seen: boolean[] = [];
+    static app: { draining: boolean } | undefined;
+    static release: (() => void) | undefined;
+
+    @Get("slow")
+    async slow() {
+      await new Promise<void>((resolve) => {
+        DrainController.release = resolve;
+      });
+      DrainController.seen.push(DrainController.app?.draining ?? false);
+      return { ok: true };
+    }
+  }
+
+  @Module({ controllers: [DrainController] })
+  class DrainModule {}
+
+  it("is false while serving normally", async () => {
+    const app = await createHttpApplication(DrainModule);
+
+    expect(app.draining).toBe(false);
+    await app.close();
+  });
+
+  it("is true after startDraining(), while the application keeps serving", async () => {
+    const app = await createHttpApplication(GreetingModule);
+    const { port } = await app.listen(0, "127.0.0.1");
+
+    app.startDraining();
+
+    expect(app.draining).toBe(true);
+    expect((await fetch(`http://127.0.0.1:${port}/greet/ada`)).status).toBe(200);
+    await app.close();
+  });
+
+  it("is true from the moment close() is called, so a request still being served sees it, and after close", async () => {
+    DrainController.seen = [];
+    const app = await createHttpApplication(DrainModule, { shutdownTimeout: 5000 });
+    DrainController.app = app;
+    const { port } = await app.listen(0, "127.0.0.1");
+    const pending = fetch(`http://127.0.0.1:${port}/drain/slow`);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    expect(app.draining).toBe(false);
+    const closing = app.close();
+    expect(app.draining).toBe(true);
+    DrainController.release?.();
+    await closing;
+
+    expect((await pending).status).toBe(200);
+    expect(DrainController.seen).toEqual([true]);
+    expect(app.draining).toBe(true);
+  });
+});

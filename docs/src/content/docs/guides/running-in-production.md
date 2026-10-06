@@ -35,6 +35,21 @@ process.on("SIGTERM", () => {
 
 `listen()` can only be called once per application: a second call while it is listening, or after `close()`, rejects with an error instead of leaving the first server running without a handle.
 
+### Telling the load balancer first
+
+`close()` stops accepting connections at once. A load balancer that has not noticed yet will still send traffic to an instance that now refuses it. So on a shutdown signal, first mark the application as draining, wait for the balancer's health check to notice, and only then close:
+
+```ts
+process.on("SIGTERM", () => {
+  app.startDraining(); // app.draining is true; a readiness check can now answer "not ready"
+  setTimeout(() => {
+    void app.close("SIGTERM").then(() => process.exit(0));
+  }, 10_000); // a little longer than the balancer's check interval
+});
+```
+
+`app.draining` is also `true` from the moment `close()` is called, for the requests still being served. `startDraining()` changes nothing else: the application keeps serving. Read it from a readiness endpoint, so it answers "not ready" during the drain.
+
 ## Malformed requests
 
 On `listen()`, Node's HTTP parser rejects broken framing before a controller ever runs, and the server keeps serving other connections:
