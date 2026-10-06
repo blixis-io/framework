@@ -1,0 +1,61 @@
+name: Fresh install
+
+# What a stranger's first hour looks like, against what this repository would publish: pack every package, scaffold
+# an app with create-blixis, install the tarballs with a real package manager, build, start, call, stop. Inside the
+# monorepo a source alias hides a wrong `exports` entry, a missing file or a peer range nothing satisfies; here none
+# of that is hidden. Weekly as well, because Node, TypeScript and the package managers move without us.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "23 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fresh-install:
+    name: fresh install (${{ matrix.os }}, ${{ matrix.pm }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        pm: [pnpm, npm]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm run build
+
+      - run: node scripts/fresh-install.mjs --pm ${{ matrix.pm }}
+
+  package-exports:
+    name: package exports and types
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm run build
+
+      - run: node scripts/check-exports.mjs
