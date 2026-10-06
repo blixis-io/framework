@@ -68,43 +68,62 @@ function decodeSegment(segment: string): string | undefined {
 }
 
 interface WalkResult<T> {
-  node: TrieNode<T>;
+  route: RouteEntry<T>;
   /** The captured values in path order: one per `:param` segment, then the wildcard's rest if there is one. */
   values: string[];
 }
 
 /**
- * Depth-first with backtracking: a static/param branch that leads to a dead
- * end (no route registered there) must not block a sibling branch — e.g.
- * `/posts/new` (static, POST only) must not swallow `/posts/:id` (GET) when
- * someone requests GET /posts/new.
+ * Depth-first with backtracking, static before param before wildcard. A branch only counts as a match when it has a
+ * route for the requested method: `/posts/new` (static, POST only) must not swallow `GET /posts/new` when
+ * `GET /posts/:id` exists. Every branch that matched the path but not the method adds its methods to `allowed`, so a
+ * request nothing can serve gets a 405 listing what the path does accept, and one that matched no path gets a 404.
  */
-function walk<T>(node: TrieNode<T>, segments: readonly string[], index: number, values: readonly string[]): WalkResult<T> | undefined {
+function walk<T>(
+  node: TrieNode<T>,
+  segments: readonly string[],
+  index: number,
+  values: readonly string[],
+  method: HttpMethod,
+  allowed: Set<HttpMethod>,
+): WalkResult<T> | undefined {
   if (index === segments.length) {
-    return node.routes.size > 0 ? { node, values: [...values] } : undefined;
+    return endAt(node, [...values], method, allowed);
   }
 
   const segment = segments[index] as string;
 
   const staticChild = node.staticChildren.get(segment);
   if (staticChild) {
-    const result = walk(staticChild, segments, index + 1, values);
+    const result = walk(staticChild, segments, index + 1, values, method, allowed);
     if (result) {
       return result;
     }
   }
 
   if (node.paramChild) {
-    const result = walk(node.paramChild, segments, index + 1, [...values, segment]);
+    const result = walk(node.paramChild, segments, index + 1, [...values, segment], method, allowed);
     if (result) {
       return result;
     }
   }
 
-  if (node.wildcardChild && node.wildcardChild.routes.size > 0) {
-    return { node: node.wildcardChild, values: [...values, segments.slice(index).join("/")] };
+  if (node.wildcardChild) {
+    return endAt(node.wildcardChild, [...values, segments.slice(index).join("/")], method, allowed);
   }
 
+  return undefined;
+}
+
+/** The route `node` has for `method`, or `undefined` after noting the methods it does have (a node with no routes is only a prefix). */
+function endAt<T>(node: TrieNode<T>, values: string[], method: HttpMethod, allowed: Set<HttpMethod>): WalkResult<T> | undefined {
+  const route = node.routes.get(method);
+  if (route) {
+    return { route, values };
+  }
+  for (const other of node.routes.keys()) {
+    allowed.add(other);
+  }
   return undefined;
 }
 
@@ -152,20 +171,16 @@ export class Router<T> {
     if (segments.length !== decoded.length) {
       return { kind: "malformed-path" };
     }
-    const result = walk(this.#root, segments, 0, []);
+    const allowed = new Set<HttpMethod>();
+    const result = walk(this.#root, segments, 0, [], method, allowed);
 
     if (!result) {
-      return { kind: "not-found" };
-    }
-
-    const route = result.node.routes.get(method);
-    if (!route) {
-      return { kind: "method-not-allowed", allowed: [...result.node.routes.keys()] };
+      return allowed.size > 0 ? { kind: "method-not-allowed", allowed: [...allowed] } : { kind: "not-found" };
     }
 
     // Names come from the matched route itself, so a path position shared with another method's route can't rename them.
     // One value was captured per name along this route's own path, so every position is filled.
-    const params = Object.fromEntries(route.paramNames.map((name, position) => [name, result.values[position] as string]));
-    return { kind: "found", handler: route.handler, params };
+    const params = Object.fromEntries(result.route.paramNames.map((name, position) => [name, result.values[position] as string]));
+    return { kind: "found", handler: result.route.handler, params };
   }
 }

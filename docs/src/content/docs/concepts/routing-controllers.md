@@ -51,7 +51,7 @@ The router is a segment trie, not a list of regexes checked in order. Each path 
 - **Param** — `:id` — matches any single segment, captured by name.
 - **Wildcard** — `*` — matches and captures everything remaining in the path; must be the last segment.
 
-Precedence when more than one pattern could match the same request is **static beats param beats wildcard**, evaluated per segment with backtracking — a static match that turns out to be a dead end (no route registered there) doesn't block a param or wildcard route that *would* have matched:
+Precedence when more than one pattern could match the same request is **static beats param beats wildcard**, evaluated per segment with backtracking — a static match that turns out to be a dead end (no route registered there **for this method**) doesn't block a param or wildcard route that *would* have matched:
 
 ```ts
 @Get("new")     // static — wins for GET /posts/new
@@ -88,7 +88,7 @@ Empty segments are ignored, so `/posts/`, `//posts` and `/posts//42` reach the s
 ## What you get back
 
 - **No route matches the path at all** → `404` (`application/problem+json`).
-- **The path matches, but not for this method** → `405`, with an `Allow` header listing the methods that *are* registered there.
+- **The path matches, but not for this method** → `405`, with an `Allow` header listing the methods registered on every route that matches the path. A route is only a match for the method it was registered with: with `@Post("new")` and `@Get(":id")` on `/posts`, `GET /posts/new` reaches `:id` (with `id = "new"`), and only `DELETE /posts/new` is a `405`, listing both `GET` and `POST`.
 - **The path and method both match** → the controller method runs. See [Request Validation](/framework/concepts/request-validation/) for how its arguments are built, and [Error Handling](/framework/concepts/error-handling/) for exactly how the return value (or a thrown error) becomes a `Response`. For a redirect or a non-JSON content type, see the [Cookbook](/framework/examples/cookbook/#returning-a-raw-response-and-setting-a-content-type).
 
 ## Building the app
