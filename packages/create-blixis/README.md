@@ -9,7 +9,7 @@ yarn create blixis my-app
 bun create blixis my-app
 ```
 
-Writes a runnable starter (service, controller, module, `main.ts`, `tsconfig.json` with the decorator settings Blixis needs), then installs `@blixis-io/core`, `@blixis-io/di`, `@blixis-io/http`, `typescript`, `@types/node` and `concurrently` with whichever package manager invoked it.
+Writes a runnable starter (service, controller, module, `main.ts`, `tsconfig.json` with the decorator settings Blixis needs), then installs `@blixis-io/core`, `@blixis-io/di`, `@blixis-io/http`, `typescript` and `@types/node` with whichever package manager invoked it.
 
 ```bash
 cd my-app
