@@ -1,5 +1,6 @@
 import type { PackageManager } from "@blixis-io/cli";
 import { ACTION_PINS } from "./action-pins.js";
+import { assertSafeName, BRANCH_NAME, BRANCH_NAME_RULE, ENV_NAME, ENV_NAME_RULE, TARGET_NAME, TARGET_NAME_RULE } from "./safe-names.js";
 
 export interface CiRenderOptions {
   target: string;
@@ -23,6 +24,19 @@ export interface CiProvider {
   render(options: CiRenderOptions): string;
 }
 
+/** Every name that is about to be copied into a generated CI file, checked once, whichever provider renders it. */
+function assertRenderable({ target, branch, secrets, registry }: CiRenderOptions): void {
+  assertSafeName("The target name", target, TARGET_NAME, TARGET_NAME_RULE);
+  assertSafeName("The branch", branch, BRANCH_NAME, BRANCH_NAME_RULE);
+  for (const name of secrets) {
+    assertSafeName("The environment variable", name, ENV_NAME, ENV_NAME_RULE);
+  }
+  if (registry) {
+    assertSafeName("The registry username variable", registry.usernameEnv, ENV_NAME, ENV_NAME_RULE);
+    assertSafeName("The registry password variable", registry.passwordEnv, ENV_NAME, ENV_NAME_RULE);
+  }
+}
+
 const SETUP: Record<PackageManager, { actions: string[]; cache: string; install: string; exec: string }> = {
   pnpm: { actions: [`      - uses: ${ACTION_PINS.pnpm}`], cache: "pnpm", install: "pnpm install --frozen-lockfile", exec: "pnpm exec" },
   npm: { actions: [], cache: "npm", install: "npm ci", exec: "npx" },
@@ -37,7 +51,9 @@ export const githubActions: CiProvider = {
   label: "GitHub Actions",
   filePath: ".github/workflows/deploy.yml",
 
-  render({ target, packageManager, nodeVersion, branch, secrets, registry }) {
+  render(options) {
+    assertRenderable(options);
+    const { target, packageManager, nodeVersion, branch, secrets, registry } = options;
     const setup = SETUP[packageManager];
     const usesGhcr = registry?.host === GHCR;
 
@@ -68,7 +84,7 @@ name: Deploy
 
 on:
   push:
-    branches: [${branch}]
+    branches: [${JSON.stringify(branch)}]
   workflow_dispatch:
 
 concurrency:
@@ -116,7 +132,9 @@ export const gitlabCi: CiProvider = {
   label: "GitLab CI",
   filePath: ".gitlab-ci.yml",
 
-  render({ target, packageManager, nodeVersion, branch, secrets, registry, docker }) {
+  render(options) {
+    assertRenderable(options);
+    const { target, packageManager, nodeVersion, branch, secrets, registry, docker } = options;
     const { prepare, install, exec } = SCRIPT[packageManager];
     const usesGitlabRegistry = registry?.host === GITLAB_REGISTRY;
 
@@ -158,7 +176,9 @@ export const bitbucketPipelines: CiProvider = {
   label: "Bitbucket Pipelines",
   filePath: "bitbucket-pipelines.yml",
 
-  render({ target, packageManager, nodeVersion, branch, secrets, registry, docker }) {
+  render(options) {
+    assertRenderable(options);
+    const { target, packageManager, nodeVersion, branch, secrets, registry, docker } = options;
     const { prepare, install, exec } = SCRIPT[packageManager];
     const needed = [
       ...(registry ? [registry.usernameEnv, registry.passwordEnv] : []),
@@ -175,7 +195,7 @@ export const bitbucketPipelines: CiProvider = {
       "",
       "pipelines:",
       "  branches:",
-      `    ${branch}:`,
+      `    ${JSON.stringify(branch)}:`,
       "      - step:",
       `          name: Deploy ${target}`,
       ...(docker ? ["          services:", "            - docker"] : []),

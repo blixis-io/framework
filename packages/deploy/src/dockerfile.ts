@@ -43,7 +43,7 @@ COPY --from=build /app/dist ./dist
 COPY package.json ./
 USER node
 EXPOSE 3000
-CMD ["node", "${entry}"]
+CMD ["node", ${JSON.stringify(entry)}]
 `;
 }
 

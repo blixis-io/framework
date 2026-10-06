@@ -19,7 +19,7 @@ name: Deploy
 
 on:
   push:
-    branches: [main]
+    branches: ["main"]
   workflow_dispatch:
 
 concurrency:
@@ -95,7 +95,7 @@ jobs:
   it("uses the given branch and node version", () => {
     const yaml = githubActions.render({ ...base, packageManager: "npm", branch: "release", nodeVersion: "26", registry: undefined });
 
-    expect(yaml).toContain("branches: [release]");
+    expect(yaml).toContain('branches: ["release"]');
     expect(yaml).toContain("node-version: 26");
   });
 });

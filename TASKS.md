@@ -75,8 +75,10 @@ Legend: `[me]` an agent can do it unattended, `[you]` needs your hands (npm, Git
 - [x] **X-16 Database operations guide** (this PR): `guides/database-operations.md` (migrations as a deploy step and the empty-database race, old and new versions running together, pool sizing across replicas, deadlines with `statement_timeout` shorter than `requestTimeout`, transactions, recovery), backed by 3 new real-Postgres tests of the pool settings; claims that are general Postgres practice and not run here are labelled
 - [ ] **X-17 Real-socket benchmark:** validation and auth on; tail latency, memory, cold start; environment and limits recorded. No CI budget yet. [me] M
 - [ ] **X-18 Property tests** (TST-1) [me] M
+  - found by the deploy properties and fixed in the same PR: `--entry` was copied into the Dockerfile `CMD` unescaped (a quote added an argument, a newline added an instruction), a target name went into a shell command line unchecked, and a branch named `1.0` was written into the workflow as the YAML number 1 (a branch `-` did not parse)
   - [x] router: 7 properties with `fast-check` against a brute-force model of the documented rules (winner, 405 with the right `Allow`, 404, registration-order independence, single decoding, malformed escapes), 11 000 generated cases; they fail on the pre-#96 router with a small counterexample (this PR)
-  - [ ] the other hand-written parsers: the JSONC stripper in `cli/doctor.ts`, the PHC hash parser in `auth`, the YAML and Dockerfile renderers in `deploy`
+  - [x] the YAML and Dockerfile renderers in `deploy` (this PR): 13 properties that parse the generated files with `yaml` and throw hostile names at them; they found real bugs (see below)
+  - [ ] the JSONC stripper in `cli/doctor.ts` and the PHC hash parser in `auth`
 - [ ] Deferred, unchanged: uploads, WebSockets, caching, more ORMs/runtimes, Node-only entry split.
 
 ## Decisions (all approved as recommended)

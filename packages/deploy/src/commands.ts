@@ -6,6 +6,7 @@ import { CLI_PACKAGE_FOR_TARGET, DEFAULT_CLI_VERSIONS } from "./cli-versions.js"
 import { DeployConfigError, RESERVED_TARGET_NAMES, TargetSchema, parseDeployConfig, selectTarget, type DeployConfig } from "./config.js";
 import { renderConfigFile, renderTarget } from "./config-file.js";
 import { DockerfileError } from "./dockerfile.js";
+import { BRANCH_NAME, BRANCH_NAME_RULE, TARGET_NAME, TARGET_NAME_RULE, UnsafeNameError } from "./safe-names.js";
 import { formatStep } from "./runner.js";
 import { adapterFor, initPlanFor, isTargetType, TARGET_TYPES, type Phase } from "./targets.js";
 import type { Env, Runner, Step } from "./types.js";
@@ -101,7 +102,7 @@ export async function runDeploy(context: CommandContext, deps: DeployDeps): Prom
         return await runPlan(context, first, "deploy", parsed.flags.has("dry-run"), deps);
     }
   } catch (error) {
-    if (error instanceof DeployConfigError || error instanceof DockerfileError) {
+    if (error instanceof DeployConfigError || error instanceof DockerfileError || error instanceof UnsafeNameError) {
       return fail(error.message);
     }
     throw error;
@@ -191,7 +192,15 @@ async function runInit(context: CommandContext, parsed: ParsedArgs, deps: Deploy
   if ((RESERVED_TARGET_NAMES as readonly string[]).includes(name)) {
     return fail(`"${name}" can't be a target name: it's a blix deploy command (${RESERVED_TARGET_NAMES.join(", ")}).`);
   }
+  if (!TARGET_NAME.test(name)) {
+    return fail(`${JSON.stringify(name)} can't be a target name: ${TARGET_NAME_RULE}.`);
+  }
   const ciId = flag(parsed, "ci");
+  const branchFlag = flag(parsed, "branch") ?? "main";
+  if (ciId && !BRANCH_NAME.test(branchFlag)) {
+    // Before anything is written: a half-initialised project is worse than a refusal.
+    return fail(`The branch ${JSON.stringify(branchFlag)} can't go into a generated file: ${BRANCH_NAME_RULE}.`);
+  }
   const ci = ciId ? ciProviderFor(ciId) : undefined;
   if (ciId && !ci) {
     return fail(`Unknown CI provider "${ciId}". Providers: ${CI_PROVIDER_IDS.join(", ")}.`);

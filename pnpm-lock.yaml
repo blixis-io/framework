@@ -256,6 +256,12 @@ importers:
       '@blixis-io/cli':
         specifier: workspace:*
         version: link:../cli
+      fast-check:
+        specifier: ^4.10.2
+        version: 4.10.2
+      yaml:
+        specifier: ^2.9.1
+        version: 2.9.1
 
   packages/di:
     dependencies:
