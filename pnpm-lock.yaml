@@ -220,6 +220,18 @@ importers:
         specifier: workspace:*
         version: link:../di
 
+  packages/health:
+    devDependencies:
+      '@blixis-io/core':
+        specifier: workspace:*
+        version: link:../core
+      '@blixis-io/di':
+        specifier: workspace:*
+        version: link:../di
+      '@blixis-io/http':
+        specifier: workspace:*
+        version: link:../http
+
   packages/http:
     devDependencies:
       '@blixis-io/core':

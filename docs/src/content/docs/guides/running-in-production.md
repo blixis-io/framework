@@ -48,7 +48,7 @@ process.on("SIGTERM", () => {
 });
 ```
 
-`app.draining` is also `true` from the moment `close()` is called, for the requests still being served. `startDraining()` changes nothing else: the application keeps serving. Read it from a readiness endpoint, so it answers "not ready" during the drain.
+`app.draining` is also `true` from the moment `close()` is called, for the requests still being served. `startDraining()` changes nothing else: the application keeps serving. Read it from a readiness endpoint, so it answers "not ready" during the drain: [`@blixis-io/health`](/framework/guides/health-checks/) does.
 
 ## Malformed requests
 

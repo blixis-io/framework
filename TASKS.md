@@ -36,9 +36,8 @@ Legend: `[me]` an agent can do it unattended, `[you]` needs your hands (npm, Git
 - [ ] **X-10 Observability and health**
   - [x] first half (#104): `onError`, `requestId()`, `accessLog()`, `withResponseHeaders()`
   - [x] route `@blixis-io/events` listener failures (`onHandlerError`) and `@blixis-io/core` rollback failures (`onRollbackError`, forwarded by `http` to `onError`) through injectable hooks (REL-5, MNT-3) (this PR)
-  - [ ] `HttpApplication` exposes a draining state [me] S
-  - [ ] new package `@blixis-io/health` (D-8): `/livez` and `/readyz`, readiness checks registered by providers, not ready while draining [me; `[you]` npm placeholder and trusted publisher]
-  - [ ] test: readiness flips while draining and liveness doesn't
+  - [x] `HttpApplication.draining` and `startDraining()` (#124)
+  - [x] new package `@blixis-io/health` (D-8): `/livez` and `/readyz`, readiness checks registered by providers, not ready while draining; tested that readiness flips while draining and liveness doesn't (health package PR). Private until `[you]` publish a placeholder and set up the trusted publisher, as for `@blixis-io/security`
 - [ ] **X-11 Finish release hardening** [me, then you] S to M
   - [x] actions pinned to commit SHAs in every workflow and in the generated deploy workflow; every SHA checked against its tag with the GitHub API (this PR)
   - [x] Dependabot for actions and npm, `audit.yml` (`pnpm audit --prod --audit-level high`, on dependency changes and weekly), `codeql.yml`, `SECURITY.md` (this PR)
