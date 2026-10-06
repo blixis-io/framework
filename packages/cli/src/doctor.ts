@@ -20,7 +20,7 @@ export interface DoctorOptions {
 const MIN_NODE_MAJOR = 24;
 
 /** Removes `//` and block comments and trailing commas, so a tsconfig (JSONC) parses with `JSON.parse`. */
-function stripJsonc(text: string): string {
+export function stripJsonc(text: string): string {
   let out = "";
   let inString = false;
   for (let index = 0; index < text.length; index++) {
