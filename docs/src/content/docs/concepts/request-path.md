@@ -88,12 +88,12 @@ Anything thrown in stages 5 to 8 is caught in one place:
 
 ## 10. Disconnects and timeouts, while the work runs
 
-Interceptors and the handler run in a race against the request's signal:
+Everything after routing (guards, argument parsing, interceptors and the handler) runs in a race against the request's signal:
 
 - If the **client disconnects**, the response is a `499`. Nobody receives it, since the connection is gone; it only marks the outcome as a client abort rather than a success or a server error.
 - If **`requestTimeout`** fires first, the response is a `504`.
 
-The race does not cancel the work. A handler that ignores `request.signal` keeps running to its end, in its own `RequestContext` scope, and its late result is discarded. Guards are not part of the race.
+The race does not cancel the work. A guard or handler that ignores `request.signal` keeps running to its end, in its own `RequestContext` scope, and its late result is discarded. What does stop is the *next step*: once the deadline has passed or the client has left, the next guard and the controller method are not called, so a guard that settles late cannot trigger a handler whose client already got the `504`. This applies when `requestTimeout` is set; without it a request always runs to completion. A route registered with `mount()` gets the same deadline.
 
 ## 11. The `Response` goes back out
 

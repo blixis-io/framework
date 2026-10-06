@@ -521,6 +521,51 @@ describe("HttpApplication.mount()", () => {
   });
 });
 
+describe("HttpApplication.mount(): requestTimeout", () => {
+  it("answers 504 when a mounted handler outlives the deadline, and hands it the deadline through request.signal", async () => {
+    const app = await createHttpApplication(GreetingModule, { requestTimeout: 20 });
+    let seen: AbortSignal | undefined;
+    app.mount("GET", "/slow", (request) => {
+      seen = request.signal;
+      return new Promise<Response>(() => {});
+    });
+
+    const res = await app.handle(new Request("http://localhost/slow"));
+
+    expect(res.status).toBe(504);
+    expect(res.headers.get("content-type")).toBe("application/problem+json");
+    expect(seen?.aborted).toBe(true);
+    await app.close();
+  });
+
+  it("answers 499 when the client leaves while a mounted handler is running", async () => {
+    const app = await createHttpApplication(GreetingModule, { requestTimeout: 1000 });
+    app.mount("GET", "/slow", () => new Promise<Response>(() => {}));
+    const controller = new AbortController();
+
+    const pending = app.handle(new Request("http://localhost/slow", { signal: controller.signal }));
+    controller.abort();
+
+    expect((await pending).status).toBe(499);
+    await app.close();
+  });
+
+  it("leaves a mounted handler that finishes in time, and one with no requestTimeout, alone", async () => {
+    const timed = await createHttpApplication(GreetingModule, { requestTimeout: 1000 });
+    timed.mount("GET", "/status", () => new Response("up"));
+    const untimed = await createHttpApplication(GreetingModule);
+    untimed.mount("GET", "/status", async () => {
+      await new Promise((resolve) => setTimeout(resolve, 30));
+      return new Response("up");
+    });
+
+    expect(await (await timed.handle(new Request("http://localhost/status"))).text()).toBe("up");
+    expect(await (await untimed.handle(new Request("http://localhost/status"))).text()).toBe("up");
+    await timed.close();
+    await untimed.close();
+  });
+});
+
 describe("createHttpApplication: a boot that fails while building the handler", () => {
   const closed: string[] = [];
 

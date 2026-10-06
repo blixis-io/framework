@@ -495,6 +495,123 @@ describe("createHandler: requestTimeout", () => {
   });
 });
 
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+describe("createHandler: requestTimeout covers guards", () => {
+  const calls: string[] = [];
+  let guardSignal: AbortSignal | undefined;
+
+  @Injectable()
+  class HangingGuard implements CanActivate {
+    canActivate(): Promise<boolean> {
+      return new Promise<boolean>(() => {});
+    }
+  }
+
+  @Injectable()
+  class LateGuard implements CanActivate {
+    async canActivate({ request }: ExecutionContext): Promise<boolean> {
+      guardSignal = request.signal;
+      await new Promise((resolve) => setTimeout(resolve, 60));
+      calls.push("late guard settled");
+      return true;
+    }
+  }
+
+  @Injectable()
+  class SecondGuard implements CanActivate {
+    canActivate(): boolean {
+      calls.push("second guard ran");
+      return true;
+    }
+  }
+
+  @Controller("hang")
+  @UseGuards(HangingGuard)
+  class HangingController {
+    @Get()
+    ping() {
+      calls.push("handler ran");
+      return { ok: true };
+    }
+  }
+
+  @Controller("late")
+  @UseGuards(LateGuard, SecondGuard)
+  class LateController {
+    @Get()
+    ping() {
+      calls.push("handler ran");
+      return { ok: true };
+    }
+  }
+
+  async function handlerFor(requestTimeout?: number) {
+    @Module({ providers: [HangingGuard, LateGuard, SecondGuard], controllers: [HangingController, LateController] })
+    class AppModule {}
+    const app = await createApplication(AppModule);
+    return createHandler(app.controllers, app, requestTimeout === undefined ? {} : { requestTimeout });
+  }
+
+  beforeEach(() => {
+    calls.length = 0;
+    guardSignal = undefined;
+  });
+
+  it("answers 504 within the budget when a guard never settles", async () => {
+    const handle = await handlerFor(30);
+
+    const outcome = await Promise.race([handle(new Request("http://localhost/hang")), sleep(1000).then(() => "no response")]);
+
+    expect(outcome).toBeInstanceOf(Response);
+    expect((outcome as Response).status).toBe(504);
+    expect((outcome as Response).headers.get("content-type")).toBe("application/problem+json");
+    expect(calls).toEqual([]);
+  });
+
+  it("does not start the next guard or the controller after the deadline has passed", async () => {
+    const handle = await handlerFor(20);
+
+    const res = await handle(new Request("http://localhost/late"));
+    await sleep(120);
+
+    expect(res.status).toBe(504);
+    expect(calls).toEqual(["late guard settled"]);
+  });
+
+  it("gives guards the deadline through request.signal", async () => {
+    const handle = await handlerFor(20);
+
+    await handle(new Request("http://localhost/late"));
+    await sleep(120);
+
+    expect(guardSignal?.aborted).toBe(true);
+  });
+
+  it("answers 499 when the client leaves during a guard, and does not run the controller", async () => {
+    const handle = await handlerFor(1000);
+    const controller = new AbortController();
+
+    const pending = handle(new Request("http://localhost/late", { signal: controller.signal }));
+    await sleep(10);
+    controller.abort();
+    const res = await pending;
+    await sleep(120);
+
+    expect(res.status).toBe(499);
+    expect(calls).toEqual(["late guard settled"]);
+  });
+
+  it("is unchanged when requestTimeout is unset: a slow guard still lets the request through", async () => {
+    const handle = await handlerFor();
+
+    const res = await handle(new Request("http://localhost/late"));
+
+    expect(res.status).toBe(200);
+    expect(calls).toEqual(["late guard settled", "second guard ran", "handler ran"]);
+  });
+});
+
 describe("createHandler: buildRouter", () => {
   it("throws NotAControllerError when a listed controller has no @Controller()", async () => {
     @Injectable()
