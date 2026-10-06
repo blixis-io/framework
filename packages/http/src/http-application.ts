@@ -1,7 +1,7 @@
 import { createApplication, Module, type Application, type CreateApplicationOptions, type ModuleRef } from "@blixis-io/core";
 import type { Class, Token } from "@blixis-io/di";
 import { createServer, type Server } from "node:http";
-import { createHandler, type HandlerOptions } from "./handler.js";
+import { createHandler, runWithDeadline, type HandlerOptions } from "./handler.js";
 import { listenOrigin, resolveOrigin, sendWebResponse, toWebRequest, type OriginOptions } from "./node-adapter.js";
 import { RequestContext } from "./request-context.js";
 
@@ -39,17 +39,25 @@ export class HttpApplication {
   readonly #app: Application;
   readonly #handle: (request: Request) => Promise<Response>;
   readonly #shutdownTimeout: number;
+  readonly #requestTimeout: number | undefined;
   readonly #origin: OriginOptions;
   readonly #mounted = new Map<string, MountedHandler>();
   #server: Server | undefined;
   #listening = false;
   #closing: Promise<void> | undefined;
 
-  private constructor(app: Application, handle: (request: Request) => Promise<Response>, shutdownTimeout: number, origin: OriginOptions) {
+  private constructor(
+    app: Application,
+    handle: (request: Request) => Promise<Response>,
+    shutdownTimeout: number,
+    origin: OriginOptions,
+    requestTimeout: number | undefined,
+  ) {
     this.#app = app;
     this.#handle = handle;
     this.#shutdownTimeout = shutdownTimeout;
     this.#origin = origin;
+    this.#requestTimeout = requestTimeout;
   }
 
   static async create(rootModule: ModuleRef, options: HttpApplicationOptions = {}): Promise<HttpApplication> {
@@ -69,7 +77,7 @@ export class HttpApplication {
     return new HttpApplication(app, handle, options.shutdownTimeout ?? DEFAULT_SHUTDOWN_TIMEOUT, {
       ...(options.trustHostHeader === undefined ? {} : { trustHostHeader: options.trustHostHeader }),
       ...(options.trustProxy === undefined ? {} : { trustProxy: options.trustProxy }),
-    });
+    }, options.requestTimeout);
   }
 
   /** Fetches an already-resolved provider directly, bypassing HTTP entirely. */
@@ -101,7 +109,7 @@ export class HttpApplication {
     if (this.#mounted.size > 0) {
       const mounted = this.#mounted.get(`${request.method} ${new URL(request.url).pathname}`);
       if (mounted) {
-        return mounted(request);
+        return runWithDeadline(request, this.#requestTimeout, async (timed) => mounted(timed));
       }
     }
     return this.#handle(request);

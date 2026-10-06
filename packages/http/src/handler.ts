@@ -26,9 +26,12 @@ const DEFAULT_BODY_LIMIT = 1024 * 1024; // 1 MiB
 export interface HandlerOptions {
   bodyLimit?: number;
   /**
-   * Milliseconds a request may take before the client gets a 504. Off by default. The handler (and
-   * anything it awaits) is not killed — it sees the timeout through `request.signal` (`@Req()`), and
-   * must pass that signal on to cancellable work (`fetch`, DB queries) to actually stop.
+   * Milliseconds a request may take before the client gets a 504. Off by default. The budget covers the whole
+   * request: routing, guards, argument parsing, interceptors and the handler, and a handler passed to `mount()`.
+   * Nothing is killed: the work keeps running and sees the timeout through `request.signal` (`@Req()`, and the
+   * `request` a guard or interceptor receives), and must pass that signal on to cancellable work (`fetch`, DB
+   * queries) to actually stop. What the framework does stop is *starting* more: once the budget has run out (or the
+   * client has left), the next guard and the controller method are not called.
    */
   requestTimeout?: number;
   /**
@@ -253,6 +256,22 @@ function raceAbort(work: Promise<Response>, signal: AbortSignal, clientSignal: A
   });
 }
 
+/**
+ * Runs `run` against `incoming`, giving it the `requestTimeout` budget (none when `undefined`). The request `run`
+ * receives carries the deadline in its `signal`; a late result is ignored. Shared by the router and by `mount()`.
+ */
+export function runWithDeadline(
+  incoming: Request,
+  requestTimeout: number | undefined,
+  run: (request: Request) => Promise<Response>,
+): Promise<Response> {
+  if (requestTimeout === undefined) {
+    return run(incoming);
+  }
+  const request = withTimeout(incoming, requestTimeout);
+  return raceAbort(run(request), request.signal, incoming.signal);
+}
+
 /** Builds a single `(Request) => Promise<Response>` function serving every controller's routes. */
 export function createHandler(
   controllers: readonly Class[],
@@ -265,66 +284,77 @@ export function createHandler(
   const requestTimeout = options.requestTimeout;
   const validateByDefault = options.responseValidation !== "never";
 
-  return async function handle(incoming: Request): Promise<Response> {
-    const request = requestTimeout === undefined ? incoming : withTimeout(incoming, requestTimeout);
-    const url = new URL(request.url);
-    const match = router.match(request.method as HttpMethod, url.pathname);
+  return function handle(incoming: Request): Promise<Response> {
+    return runWithDeadline(incoming, requestTimeout, async (request) => {
+      const url = new URL(request.url);
+      const match = router.match(request.method as HttpMethod, url.pathname);
 
-    if (match.kind === "malformed-path") {
-      return problemResponse(400, "Malformed percent-encoding in the request path");
-    }
-
-    if (match.kind === "not-found") {
-      return problemResponse(404, "No route matches this path");
-    }
-    if (match.kind === "method-not-allowed") {
-      const response = problemResponse(405, `Allowed methods: ${match.allowed.join(", ")}`);
-      response.headers.set("allow", match.allowed.join(", "));
-      return response;
-    }
-
-    const route = match.handler;
-
-    return runInRequestContext(async () => {
-      try {
-        // Sequential and short-circuiting on purpose: a later guard must not
-        // run once an earlier one has already denied the request.
-        for (const guardClass of route.guards) {
-          const guard = application.get(guardClass);
-          const allowed = await guard.canActivate({ request, params: match.params, controller: route.controller, handler: route.propertyKey });
-          if (!allowed) {
-            throw new ForbiddenException();
-          }
-        }
-
-        const invoke = async (): Promise<Response> => {
-          let cachedBody: { value: unknown } | undefined;
-          const args = await resolveHandlerArgs(route.paramSources, {
-            request,
-            routeParams: match.params,
-            getBody: async () => {
-              cachedBody ??= { value: await readJsonBody(request, bodyLimit) };
-              return cachedBody.value;
-            },
-          });
-
-          const instance = application.get(route.controller) as Record<PropertyKey, (...args: unknown[]) => unknown>;
-          const result: unknown = await instance[route.propertyKey]?.(...args);
-
-          return toResponse(result, route.httpCode, route.responseSchema, route.validateResponse ?? validateByDefault);
-        };
-
-        // Class-level interceptors wrap outermost, method-level innermost —
-        // built right-to-left so the first entry ends up as the outer call.
-        const pipeline = route.interceptors.reduceRight<() => Promise<Response>>((next, interceptorClass) => {
-          const interceptor = application.get(interceptorClass);
-          return async () => interceptor.intercept({ request, params: match.params, controller: route.controller, handler: route.propertyKey }, next);
-        }, invoke);
-
-        return await (requestTimeout === undefined ? pipeline() : raceAbort(pipeline(), request.signal, incoming.signal));
-      } catch (error) {
-        return exceptionToResponse(error);
+      if (match.kind === "malformed-path") {
+        return problemResponse(400, "Malformed percent-encoding in the request path");
       }
+
+      if (match.kind === "not-found") {
+        return problemResponse(404, "No route matches this path");
+      }
+      if (match.kind === "method-not-allowed") {
+        const response = problemResponse(405, `Allowed methods: ${match.allowed.join(", ")}`);
+        response.headers.set("allow", match.allowed.join(", "));
+        return response;
+      }
+
+      const route = match.handler;
+
+      // With a deadline set, an aborted signal (budget spent, or the client gone) means nobody will read the result, so
+      // a guard or handler that settles late must not start more work. Without one, a request runs to completion as before.
+      const stopIfAbandoned = (): void => {
+        if (requestTimeout !== undefined && request.signal.aborted) {
+          throw new GatewayTimeoutException();
+        }
+      };
+
+      return runInRequestContext(async () => {
+        try {
+          // Sequential and short-circuiting on purpose: a later guard must not
+          // run once an earlier one has already denied the request.
+          for (const guardClass of route.guards) {
+            const guard = application.get(guardClass);
+            const allowed = await guard.canActivate({ request, params: match.params, controller: route.controller, handler: route.propertyKey });
+            stopIfAbandoned();
+            if (!allowed) {
+              throw new ForbiddenException();
+            }
+          }
+
+          const invoke = async (): Promise<Response> => {
+            let cachedBody: { value: unknown } | undefined;
+            const args = await resolveHandlerArgs(route.paramSources, {
+              request,
+              routeParams: match.params,
+              getBody: async () => {
+                cachedBody ??= { value: await readJsonBody(request, bodyLimit) };
+                return cachedBody.value;
+              },
+            });
+            stopIfAbandoned();
+
+            const instance = application.get(route.controller) as Record<PropertyKey, (...args: unknown[]) => unknown>;
+            const result: unknown = await instance[route.propertyKey]?.(...args);
+
+            return toResponse(result, route.httpCode, route.responseSchema, route.validateResponse ?? validateByDefault);
+          };
+
+          // Class-level interceptors wrap outermost, method-level innermost —
+          // built right-to-left so the first entry ends up as the outer call.
+          const pipeline = route.interceptors.reduceRight<() => Promise<Response>>((next, interceptorClass) => {
+            const interceptor = application.get(interceptorClass);
+            return async () => interceptor.intercept({ request, params: match.params, controller: route.controller, handler: route.propertyKey }, next);
+          }, invoke);
+
+          return await pipeline();
+        } catch (error) {
+          return exceptionToResponse(error);
+        }
+      });
     });
   };
 }

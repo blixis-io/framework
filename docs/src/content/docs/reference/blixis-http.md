@@ -61,7 +61,7 @@ interface HandlerOptions {
 }
 ```
 
-`requestTimeout` answers `504 Gateway Timeout` (problem+json) once a request has run that long. It does **not** kill the handler: `request.signal` (via `@Req()`) aborts at the deadline, and the handler must pass it to cancellable work (`fetch`, DB queries) to actually stop. The same `request.signal` also aborts when the client disconnects; with `requestTimeout` set, that case answers `499`. `GatewayTimeoutException` is exported for custom use.
+`requestTimeout` answers `504 Gateway Timeout` (problem+json) once a request has run that long. The budget covers routing, guards, argument parsing, interceptors, the handler and handlers registered with `mount()`. It does **not** kill running work (though a guard that settles after the deadline will not start the next guard or the controller): `request.signal` (via `@Req()`) aborts at the deadline, and the handler must pass it to cancellable work (`fetch`, DB queries) to actually stop. The same `request.signal` also aborts when the client disconnects; with `requestTimeout` set, that case answers `499`. `GatewayTimeoutException` is exported for custom use.
 
 The lower-level pieces `createHttpApplication` composes — `createHandler` builds the actual request-handling function from a resolved application's controllers; `buildRouter` alone builds just the route table (used internally, exposed for introspection). Throws `NotAControllerError` (naming the class) if a listed controller has no `@Controller()`, or `DuplicateRouteError` if two routes register the same method+path — a route table is built once at startup, so this fails fast at boot rather than silently letting the second registration replace the first.
 
