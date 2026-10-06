@@ -87,6 +87,10 @@ Legacy decorators are required (`experimentalDecorators` + `emitDecoratorMetadat
 | [`@blixis-io/events`](packages/events) | An in-process domain event bus. |
 | [`@blixis-io/testing`](packages/testing) | A thin testing layer on top of `@blixis-io/http` — real requests, fakeable providers. |
 
+## Status
+
+Pre-1.0: every package is `0.x` and a minor release can change behaviour. [Stability and Support](https://blixis-io.github.io/framework/start-here/stability/) says what that means, what is supported, and what 1.0 requires. See [CONTRIBUTING.md](CONTRIBUTING.md) to help.
+
 ## Docs
 
 Full documentation, concepts, guides, and tutorials: **[blixis-io.github.io/framework](https://blixis-io.github.io/framework/)**.

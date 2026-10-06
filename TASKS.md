@@ -56,10 +56,9 @@ Legend: `[me]` an agent can do it unattended, `[you]` needs your hands (npm, Git
   - [ ] repeat with npm; then macOS and Windows for the CLI packages (TST-5)
   - [ ] `publint` and `attw` for exports and types (MNT-8)
   - [ ] unsupported toolchain (decorator metadata dropped) fails with an actionable message; check `blix doctor` first
-- [ ] **X-13 Stability policy and contribution guide** [me] S
-  - [ ] check whether any of this already exists in README or docs
-  - [ ] audience, supported Node, stable APIs, pre-1.0 breaking-change rule, deprecation approach, package compatibility table, 1.0 checklist
-  - [ ] `CONTRIBUTING.md`; issue-sized public milestones
+- [x] **X-13 Stability policy and contribution guide** (this PR): `start-here/stability.md` (audience, support, `0.x` rules, deprecation, 1.0 checklist), `CONTRIBUTING.md`, README status section; nothing like it existed before
+  - [ ] public issue-sized milestones on GitHub [you]: not something the repository can hold
+  - [ ] the policy wording (one-minor deprecation, "Behaviour change" convention) is a proposal written from current practice; the maintainer should adjust it
 - [ ] **X-14 Reference application** [after X-7, X-9, X-10] L
   - [ ] `examples/saas-api` (separate from `hello-api`); fixed scope: sign-in, refresh store, orgs/spaces/memberships, one tenant resource with a child, migrations, one transaction, error contract, OpenAPI with security, request-id logs, `/readyz`, Docker via `blix deploy`
   - [ ] tests include denied cases (non-member 404, cross-tenant id 404, rate limit 429)
