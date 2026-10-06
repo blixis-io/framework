@@ -236,7 +236,7 @@ export class Application {
 
       return app;
     } catch (error) {
-      await rollBack(container);
+      await rollBack(container, options.onRollbackError);
       throw error;
     }
   }
@@ -293,16 +293,31 @@ async function runShutdownHooks(entries: ReadonlyArray<readonly [Token, unknown]
  * a constructor). Closes everything that was constructed, dependents first, with no signal since nothing stopped
  * it from outside. The boot's own error is what the caller needs to see, so failures here are logged, not thrown.
  */
-async function rollBack(container: Container): Promise<void> {
+async function rollBack(container: Container, onRollbackError: ((error: unknown) => void) | undefined): Promise<void> {
   const failures = await runShutdownHooks(container.getResolvedEntries().toReversed(), undefined);
   for (const failure of failures) {
-    console.error("[@blixis-io/core] an onApplicationShutdown hook failed while rolling back a failed boot:", failure);
+    if (!onRollbackError) {
+      console.error("[@blixis-io/core] an onApplicationShutdown hook failed while rolling back a failed boot:", failure);
+      continue;
+    }
+    try {
+      onRollbackError(failure);
+    } catch (hookError) {
+      console.error("[@blixis-io/core] onRollbackError threw:", hookError);
+      console.error("[@blixis-io/core] an onApplicationShutdown hook failed while rolling back a failed boot:", failure);
+    }
   }
 }
 
 export interface CreateApplicationOptions {
   /** Providers to swap in for the module graph's own, matched by token — the seam `@blixis-io/testing` uses for mocking. */
   overrides?: Provider[] | undefined;
+  /**
+   * Called for each `onApplicationShutdown` hook that fails while a failed boot is being rolled back. The boot's own
+   * error is what `createApplication` rejects with; these are secondary. Without it they are written with
+   * `console.error`. A hook that throws is caught and both failures are written to `console.error`.
+   */
+  onRollbackError?: ((error: unknown) => void) | undefined;
 }
 
 export async function createApplication(

@@ -941,6 +941,66 @@ describe("createApplication: a boot that fails", () => {
     logged.mockRestore();
   });
 
+  it("hands a rollback failure to onRollbackError instead of console.error, still rejecting with the boot error", async () => {
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    const seen: unknown[] = [];
+
+    @Injectable()
+    class Resource {
+      onApplicationShutdown(): void {
+        throw new Error("close failed too");
+      }
+    }
+
+    @Injectable()
+    class Broken {
+      onModuleInit(): void {
+        throw new Error("init failed");
+      }
+    }
+
+    @Module({ providers: [Resource, Broken] })
+    class AppModule {}
+
+    await expect(createApplication(AppModule, { onRollbackError: (error) => seen.push(error) })).rejects.toThrow("init failed");
+
+    expect(seen).toEqual([expect.objectContaining({ message: "close failed too" })]);
+    expect(logged).not.toHaveBeenCalled();
+    logged.mockRestore();
+  });
+
+  it("survives an onRollbackError that throws, writing both failures", async () => {
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    @Injectable()
+    class Resource {
+      onApplicationShutdown(): void {
+        throw new Error("close failed too");
+      }
+    }
+
+    @Injectable()
+    class Broken {
+      onModuleInit(): void {
+        throw new Error("init failed");
+      }
+    }
+
+    @Module({ providers: [Resource, Broken] })
+    class AppModule {}
+
+    await expect(
+      createApplication(AppModule, {
+        onRollbackError: () => {
+          throw new Error("logger is down");
+        },
+      }),
+    ).rejects.toThrow("init failed");
+
+    expect(logged).toHaveBeenCalledTimes(2);
+    logged.mockRestore();
+  });
+
   it("calls shutdown hooks with no signal, as it was not a signal that stopped it", async () => {
     const seen: unknown[] = [];
 

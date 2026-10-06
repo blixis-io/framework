@@ -61,6 +61,7 @@ interface BootstrapContext {
 
 interface CreateApplicationOptions {
   overrides?: Provider[]; // replace a provider from the module graph before resolution, matched by token
+  onRollbackError?: (error: unknown) => void; // a shutdown hook failing while a failed boot is rolled back; default console.error
 }
 
 function createApplication(rootModule: ModuleRef, options?: CreateApplicationOptions): Promise<Application>;

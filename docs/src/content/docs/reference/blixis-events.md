@@ -24,6 +24,13 @@ function defineEventsModule<Events extends Record<string, unknown>>(): {
 
 interface EventsForRootOptions {
   global?: boolean; // default false
+  onHandlerError?: (failure: EventHandlerFailure) => void; // default: console.error
+}
+
+interface EventHandlerFailure {
+  type: string; // the event
+  error: unknown; // what the handler threw or rejected with
+  payload: unknown; // what it was given; may hold personal data
 }
 ```
 
@@ -46,7 +53,7 @@ Resolve it via `@Inject(EVENT_BUS)`, typed as `EventBus<AppEvents>`.
 
 ### `emit(type, payload)`
 
-Runs every handler registered for `type` concurrently. Resolves once all of them have settled, whether they succeeded or threw — `emit()` itself never rejects. A handler with no listeners resolves immediately as a no-op. Each handler's own failure is caught individually and logged (`console.error`) without affecting sibling handlers or the caller.
+Runs every handler registered for `type` concurrently. Resolves once all of them have settled, whether they succeeded or threw — `emit()` itself never rejects. A handler with no listeners resolves immediately as a no-op. Each handler's own failure is caught individually and handed to `onHandlerError` (by default written with `console.error`) without affecting sibling handlers or the caller. A hook that throws is caught too, and both failures are written to `console.error`.
 
 No persistence, no delivery guarantee across a process crash, no cross-process delivery — see [Events](/framework/concepts/events/#what-emit-actually-does--and-doesnt) for what this does and doesn't guarantee.
 

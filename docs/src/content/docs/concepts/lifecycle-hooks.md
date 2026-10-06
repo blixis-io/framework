@@ -84,7 +84,7 @@ The application counts as closed either way, so calling `close()` again does not
 
 If creating the application throws part-way (a provider's constructor, an `onModuleInit` or an `onApplicationBootstrap` fails), the providers that were already built may hold resources: a connection pool opened in a constructor, a timer, a file handle. `createApplication` closes them before it rejects: every provider that was constructed gets its `onApplicationShutdown` called, dependents first, **including the provider whose own `onModuleInit` threw**, and with no `signal` since nothing outside stopped it. A provider that was never constructed has nothing to close.
 
-You still get the error that failed the boot, unchanged. If a shutdown hook also fails during this clean-up, that failure is written to `console.error` rather than replacing the boot error.
+You still get the error that failed the boot, unchanged. If a shutdown hook also fails during this clean-up, that failure is written to `console.error` rather than replacing the boot error. Pass `onRollbackError` to `createApplication` to take those failures yourself (`createHttpApplication` does, and hands them to its `onError`).
 
 `createHttpApplication` and `createFetchHandler` follow the same rule for the step after that: if building the HTTP handler fails (a duplicate route, a class in `controllers` without `@Controller()`), the already-initialised providers are shut down before the error is thrown.
 

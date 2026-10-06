@@ -138,3 +138,67 @@ describe("InProcessEventBus", () => {
     expect(a.EVENT_BUS).not.toBe(b.EVENT_BUS);
   });
 });
+
+async function busWith(onHandlerError: Parameters<ReturnType<typeof defineEventsModule<TestEvents>>["EventsModule"]["forRoot"]>[0]) {
+  const { EventsModule, EVENT_BUS } = defineEventsModule<TestEvents>();
+  const app = await createApplication(EventsModule.forRoot(onHandlerError));
+  return app.get(EVENT_BUS);
+}
+
+describe("InProcessEventBus: onHandlerError", () => {
+  it("hands a failing handler's error, event type and payload to the hook, and keeps going", async () => {
+    const failures: unknown[] = [];
+    const bus = await busWith({ onHandlerError: (failure) => failures.push(failure) });
+    const sibling = vi.fn<(payload: TestEvents["thing.happened"]) => void>();
+    bus.on("thing.happened", () => {
+      throw new Error("handler boom");
+    });
+    bus.on("thing.happened", sibling);
+
+    await expect(bus.emit("thing.happened", { id: "7" })).resolves.toBeUndefined();
+
+    expect(sibling).toHaveBeenCalledWith({ id: "7" });
+    expect(failures).toEqual([{ type: "thing.happened", error: expect.objectContaining({ message: "handler boom" }), payload: { id: "7" } }]);
+  });
+
+  it("also reports a handler that rejects", async () => {
+    const failures: unknown[] = [];
+    const bus = await busWith({ onHandlerError: (failure) => failures.push(failure) });
+    bus.on("thing.happened", () => Promise.reject(new Error("async boom")));
+
+    await bus.emit("thing.happened", { id: "1" });
+
+    expect(failures).toHaveLength(1);
+  });
+
+  it("does not write to console.error when a hook takes the failure", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const bus = await busWith({ onHandlerError: () => {} });
+    bus.on("thing.happened", () => {
+      throw new Error("handler boom");
+    });
+
+    await bus.emit("thing.happened", { id: "1" });
+
+    expect(consoleError).not.toHaveBeenCalled();
+    consoleError.mockRestore();
+  });
+
+  it("survives a hook that throws, writing both failures to console.error", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const bus = await busWith({
+      onHandlerError: () => {
+        throw new Error("logger is down");
+      },
+    });
+    bus.on("thing.happened", () => {
+      throw new Error("handler boom");
+    });
+
+    await expect(bus.emit("thing.happened", { id: "1" })).resolves.toBeUndefined();
+
+    const written = consoleError.mock.calls.flat().map((entry) => (entry instanceof Error ? entry.message : String(entry)));
+    expect(written).toEqual(expect.arrayContaining(["logger is down", "handler boom"]));
+    consoleError.mockRestore();
+  });
+});

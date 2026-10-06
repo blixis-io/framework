@@ -63,4 +63,10 @@ With the setup above, one request id appears in the access-log entry and in the 
 
 ## Not covered yet
 
-Metrics and tracing integrations, a readiness endpoint that reflects dependencies and shutdown, and routing the shutdown-hook failures `@blixis-io/core` reports and `@blixis-io/events` listener failures through your logger. `@blixis-io/core` and `@blixis-io/events` still write those with `console.error`.
+Metrics and tracing integrations, and a readiness endpoint that reflects dependencies and shutdown (`@blixis-io/health`, next).
+
+Two more places take a hook of their own: a shutdown hook that fails while a failed boot is rolled back reaches `onError` with `phase: "shutdown"` (for `createHttpApplication`, and as `onRollbackError` on `createApplication` from `@blixis-io/core`), and a failing event listener goes to `onHandlerError` on `EventsModule.forRoot()` from `@blixis-io/events`:
+
+```ts
+EventsModule.forRoot({ onHandlerError: ({ type, error }) => logger.error("event handler failed", { type, err: error }) });
+```

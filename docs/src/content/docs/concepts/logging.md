@@ -109,7 +109,7 @@ class AppModule {}
 
 ## What's out of scope for now
 
-`@blixis-io/http` takes an `onError` option, so unexpected errors in a request (and a failed boot under `createFetchHandler`) can go to your logger with the request, the route and the request id; see [Logging requests and errors](/framework/guides/logging-requests-and-errors/). Still on `console.error`: the shutdown-hook failures `@blixis-io/core` reports while rolling back a failed boot, and `@blixis-io/events` listener failures; neither takes an injected logger yet.
+`@blixis-io/http` takes an `onError` option, so unexpected errors in a request (and a failed boot under `createFetchHandler`) can go to your logger with the request, the route and the request id; see [Logging requests and errors](/framework/guides/logging-requests-and-errors/). The other two places the framework used to write with `console.error` take a hook as well: `createApplication`'s `onRollbackError` (shutdown hooks failing while a failed boot is rolled back; `createHttpApplication` passes them to `onError` with `phase: "shutdown"`) and `EventsModule.forRoot`'s `onHandlerError` (a failing event listener).
 
 ## Next
 
