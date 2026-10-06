@@ -1,6 +1,6 @@
 {
   "name": "@blixis-io/testing",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "A thin testing layer on top of @blixis-io/http. Build a real application in a test, override providers with fakes, hit it with real requests.",
   "license": "MIT",
   "author": "Michael Voeten <michael@voeten.online>",

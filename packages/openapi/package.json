@@ -1,6 +1,6 @@
 {
   "name": "@blixis-io/openapi",
-  "version": "0.4.1",
+  "version": "0.5.0",
   "description": "Generates an OpenAPI 3.1 document from a running app's real controllers. Built on @blixis-io/http's decorator metadata; no serving mechanism or bundled UI of its own.",
   "license": "MIT",
   "author": "Michael Voeten <michael@voeten.online>",
