@@ -5,8 +5,6 @@ sidebar:
   order: 8.6
 ---
 
-> **Not on npm yet.** The package is in the repository and fully tested, but it is marked private until its npm placeholder and trusted publisher exist; the install command below will work once it is published. Until then, copy the pieces you need from `packages/security/src`.
-
 `@blixis-io/security` is an optional baseline of plain [middleware](/framework/concepts/middleware/) for the things a browser-facing API needs and the framework deliberately does not do on its own. Nothing is on by default; you add what you want to the `middleware` array.
 
 ```bash

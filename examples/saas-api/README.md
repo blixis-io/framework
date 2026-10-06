@@ -62,5 +62,5 @@ Tests (real Postgres on :5434, nothing mocked): `pnpm exec vitest run` in this d
 
 - **One application per process.** The membership lookup (`src/tenancy/tenancy.ts`) holds the booted database in a module-level holder, because `defineTenancyModule` wants a plain function. Fine for a service; tests that start several applications put them in separate files.
 - **No invitations, password reset, email verification or roles beyond `owner`/`member`.** Real products need them; the pattern would not change.
-- **The packages `@blixis-io/security` and `@blixis-io/health` are not on npm yet** (their placeholders are pending), so this example only runs inside the monorepo for now.
+- **`@blixis-io/security` and `@blixis-io/health` are published as `0.1.0` with the next release**; until then they are workspace packages, and this example runs inside the monorepo.
 - The Docker image was not built here (see above), and nothing was run behind a real proxy or CDN.
