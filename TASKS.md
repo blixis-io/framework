@@ -46,7 +46,7 @@ Legend: `[me]` an agent can do it unattended, `[you]` needs your hands (npm, Git
   - [x] CI-4: the release job runs `gh workflow run ci.yml --ref changeset-release/main` (`workflow_dispatch` is the one event the workflow token may start), replacing the manual empty commit; `ci.yml` gained `workflow_dispatch`. **Unverified until the next Version Packages PR**: check that the `ci` check appears on it
   - [x] Dependabot is enabled and working (it opened PRs within minutes of the merge); rules added so it does not propose `@types/node` past Node 24 or TypeScript 7 for the docs site (astro check needs 5)
   - [ ] [you] enable CodeQL in repo settings (the workflow ran green); verify branch protection and npm account settings
-  - [ ] [you] remove `NPM_TOKEN` plumbing from `release.yml` once OIDC is confirmed for every package (MNT-6)
+  - [x] `NPM_TOKEN` removed (MNT-6): the secret is gone, `release.yml` no longer references it and its comment now describes trusted publishing; `NODE_AUTH_TOKEN` is empty on purpose (this PR). Confirmed by the 2026-10-07 release, which published with both empty. [you] still to do: `npm token list` and delete any old token, and set each package's publishing access to "require 2FA and disallow tokens".
 
 ## Phase 2: adoption
 

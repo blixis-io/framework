@@ -51,32 +51,22 @@ jobs:
           # The EditorConfig wrapper downloads its binary through the GitHub API.
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # Each package's first publish still needs NPM_TOKEN (npm Trusted
-      # Publishing/OIDC requires the package to already exist before it
-      # can be configured on npmjs.com). Move each package to Trusted
-      # Publishing right after its first successful publish, then this
-      # token requirement — and the NPM_TOKEN secret itself, once every
-      # package has switched — can go away. id-token: write above is
-      # already granted so OIDC works the moment a package is switched.
+      # Publishing uses npm trusted publishing (OIDC): every package has `release.yml` configured as its trusted publisher
+      # on npmjs.com (`npm trust list <package>`), `id-token: write` above lets the job prove who it is, and there is no
+      # npm token anywhere, in this repository or in its secrets. A package that is new to npm needs a one-time `0.0.0`
+      # placeholder published by hand and `npm trust github <package> --repo blixis-io/framework --file release.yml
+      # --allow-publish`, because trust can only be configured for a package that exists.
       #
-      # Both env vars below point at the same secret, for two different
-      # readers: changesets/action itself checks specifically for a var
-      # named NPM_TOKEN to decide whether to use token auth or fall back
-      # to OIDC (confirmed by its own log: with only NODE_AUTH_TOKEN set,
-      # it logged "No NPM_TOKEN found... using npm trusted publishing"
-      # and silently published nothing, since OIDC wasn't configured for
-      # a package that doesn't exist yet). NODE_AUTH_TOKEN is what
-      # npm/pnpm's own .npmrc-based auth (wired up by setup-node's
-      # registry-url above) actually reads to authenticate the publish
-      # request itself.
+      # NODE_AUTH_TOKEN is empty on purpose. `setup-node` with `registry-url` writes an .npmrc that reads it, and when it
+      # is not set at all `setup-node` fills it with a placeholder; an empty value leaves npm to use OIDC. (The release
+      # of 2026-10-07 published `@blixis-io/security` and `@blixis-io/health` this way.)
       - id: changesets
         uses: changesets/action@ae32849d5ba541f9ae29e40e22a623bc13562f51 # v1
         with:
           publish-script: pnpm run release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ""
 
       # The "Version Packages" pull request is opened with the workflow token, and GitHub doesn't start
       # `pull_request` workflows for events caused by that token, so the PR would sit with no checks and could not
