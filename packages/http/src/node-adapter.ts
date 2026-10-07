@@ -162,9 +162,13 @@ export async function sendWebResponse(response: Response, res: ServerResponse): 
 
 /** Resolves when the socket can take more, or when it is gone (a `drain` that will never come). */
 function drained(res: ServerResponse): Promise<void> {
+  /* v8 ignore start -- @preserve: defensive. The caller has just seen `res.destroyed` be false and `write` cannot destroy
+  the response synchronously, so this is not reachable today; it is here because waiting for a `close` that has already
+  happened would hang the request forever. */
   if (res.destroyed) {
     return Promise.resolve();
   }
+  /* v8 ignore stop */
   return new Promise((resolve) => {
     const done = (): void => {
       res.off("drain", done);
