@@ -66,7 +66,7 @@ Legend: `[me]` an agent can do it unattended, `[you]` needs your hands (npm, Git
   - [x] README walkthrough and a docs page; the built app was smoke-tested (sign-up, `/me`, request ids in the log, SIGTERM to `503` readiness to exit 0)
   - [x] `blix.config.ts` with a Docker target; `blix deploy --dry-run` and `deploy doctor` work
   - [ ] a Docker image built from a copy of the example (it depends on workspace packages ; the security and health packages are published now)
-  - [ ] CI runs it against the previous *release* to check the upgrade path: needs the registry mode of the fresh-install job (X-12) and the two new packages published
+  - [x] upgrade path: `scripts/upgrade-path.mjs` + the `upgrade-path` job in `fresh-install.yml` take `examples/saas-api` as it was at the last "Version Packages" commit, install packages packed from the checkout in place of the released ones, type-check (tests included), build and run its tests against Postgres. Checked by removing `Public` from `@blixis-io/auth`'s exports (fails with TS2305). Not a required check: a deliberate breaking change fails until the next release moves the baseline.
   - [ ] invitations, password reset and email verification are out of scope on purpose
 
 ## Phase 3: when demand or measurements justify it
