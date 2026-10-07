@@ -4,6 +4,7 @@ import { tenantScope, type TenantContext } from "@blixis-io/tenancy";
 import { and, eq } from "drizzle-orm";
 import { DATABASE, type Database } from "../db/index.js";
 import { projects, tasks } from "../db/schema.js";
+import { enqueue } from "../outbox/outbox.js";
 import type { CreateProjectInput, CreateTaskInput } from "./project.schema.js";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -38,12 +39,18 @@ export class ProjectsService {
   }
 
   async create(tenant: TenantContext, input: CreateProjectInput) {
+    // The project and the event that says it exists are one transaction (the outbox): both happen or neither does.
     // The tenant columns come from the guard's tenant, never from the request body.
-    const [project] = await this.db
-      .insert(projects)
-      .values({ id: crypto.randomUUID(), title: input.title, organizationId: tenant.organizationId, spaceId: tenant.spaceId })
-      .returning();
-    return project;
+    return this.db.transaction(async (tx) => {
+      const [project] = await tx
+        .insert(projects)
+        .values({ id: crypto.randomUUID(), title: input.title, organizationId: tenant.organizationId, spaceId: tenant.spaceId })
+        .returning();
+      if (project) {
+        await enqueue(tx, "project.created", { projectId: project.id, title: project.title, organizationId: tenant.organizationId, spaceId: tenant.spaceId });
+      }
+      return project;
+    });
   }
 
   async update(tenant: TenantContext, id: string, input: CreateProjectInput) {

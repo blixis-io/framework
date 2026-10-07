@@ -28,6 +28,10 @@ Concepts: [Middleware](/framework/concepts/middleware/), [Securing the API](/fra
 
 `TenantScopedGuard` checks the caller belongs to the `:spaceId` in the URL and answers `404`, never `403`, to a non-member. The service then puts `tenantScope()` in **every** query, takes the tenant as an argument (so a background job can call it with a tenant it builds), takes the tenant columns of a new row from the guard and never the body, and treats an id that is not a uuid as a `404`. The schema backs it up: a task's composite foreign key `(project_id, space_id)` means the database refuses a task whose project is in another space. The tests attack each of these. See [Tenancy](/framework/concepts/tenancy/#the-pattern-for-every-kind-of-query).
 
+## Events that must not be lost, `src/outbox/`
+
+Creating a project also writes a `project.created` row to `saas.outbox` in the same transaction; a relay delivers it to a consumer that writes the space's activity feed (`GET /spaces/:spaceId/activity`). Read [The transactional outbox](/framework/guides/transactional-outbox/) for the guarantees and the trade-offs.
+
 ## 4. Operations
 
 - **Migrations** are plain SQL files applied by `blix run db:migrate`, each in a transaction, under an advisory lock. Run it once per release, before the new version starts.

@@ -10,12 +10,13 @@ import { MigrateCommand } from "./db/migrate.command.js";
 import { DrizzleModule } from "./db/index.js";
 import { DatabaseHealth } from "./platform/database-health.js";
 import { HealthModule } from "./platform/health.js";
+import { OutboxModule } from "./outbox/outbox.module.js";
 import { ProjectsModule } from "./projects/projects.module.js";
 import { SpacesController } from "./spaces/spaces.controller.js";
 import { MembershipDirectoryWiring } from "./tenancy/wiring.js";
 
 /** The whole module graph for one environment. A function, because the database and the auth secret come from config. */
-export function createAppModule(env: Record<string, string | undefined>): Class {
+export function createAppModule(env: Record<string, string | undefined>, hooks: { onOutboxError?: (error: unknown) => void } = {}): Class {
   const config = AppConfigSchema.parse(env);
   const imports: DynamicModule[] = [
     ConfigModule.forRoot(env),
@@ -28,6 +29,7 @@ export function createAppModule(env: Record<string, string | undefined>): Class 
       issuing: { credentialStore: DrizzleCredentialStore, refreshTokenStore: DrizzleRefreshTokenStore },
     }),
     HealthModule.forRoot(),
+    OutboxModule.forRoot({ pollMs: config.OUTBOX_POLL_MS, maxAttempts: config.OUTBOX_MAX_ATTEMPTS, ...(hooks.onOutboxError ? { onError: hooks.onOutboxError } : {}) }),
   ];
 
   @Module({

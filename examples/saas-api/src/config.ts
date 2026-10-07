@@ -18,6 +18,10 @@ export const AppConfigSchema = z.object({
   RATE_LIMIT_PER_MINUTE: z.coerce.number().int().min(1).default(300),
   /** Sign-in, sign-up and refresh attempts per minute per client address. Much stricter: this is where guessing happens. */
   AUTH_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().min(1).default(10),
+  /** How long the outbox relay waits when nothing is due. `0` turns the relay off in this process (run it elsewhere, or only in tests). */
+  OUTBOX_POLL_MS: z.coerce.number().int().min(0).default(1000),
+  /** Failed deliveries before an event is parked for a human. */
+  OUTBOX_MAX_ATTEMPTS: z.coerce.number().int().min(1).default(5),
 });
 export type AppConfig = z.infer<typeof AppConfigSchema>;
 

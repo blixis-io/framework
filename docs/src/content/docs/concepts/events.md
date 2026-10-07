@@ -105,13 +105,11 @@ This means:
 - **No durability across a crash.** If the process dies between writing a domain change to the database and calling `emit()`, the event is lost — the write and the emit aren't in the same transaction.
 - **No cross-process delivery.** Handlers only see events emitted in the same process. This is a pub-sub bus for one running app, not a message broker.
 
-## Why not build the outbox pattern now
+## When you need durability: the outbox
 
-The old CMS this framework's `bundle-cms` rebuild is replacing used an **outbox pattern**: write the domain event in the same database transaction as the domain change it describes, so a crash between the two can never lose the event, then dispatch it out-of-band. That's a real, valuable guarantee — and deliberately not what's built here yet.
+This package is deliberately the in-process bus, with no persistence. The **outbox pattern** gives the durability: write the event as a row in the same database transaction as the change it describes, so a crash between the two can never lose it, then deliver the rows out-of-band, at least once, to consumers that tolerate a repeat.
 
-Building it now would mean designing table ownership, a dispatcher, and retry/idempotency semantics against a *hypothetical* consumer — no code in this framework or `bundle-cms` yet needs the durability guarantee enough to justify that design surface. The in-process bus is what today's consumers (search indexing, cache invalidation, webhooks fired best-effort) actually need. When `bundle-cms`'s `content` or `webhooks` modules reach a point where losing an event on crash is unacceptable, that's the point to design the outbox — against real requirements instead of guessed ones.
-
-If you're building something today that truly can't tolerate losing an event, don't reach for this package as-is: write directly to your own outbox table in the same transaction as the domain change, and dispatch it yourself.
+It is not a package, because the table, the consumers and the meaning of a retry are your decisions. [The transactional outbox](/framework/guides/transactional-outbox/) is a worked, tested example (`examples/saas-api`) you can copy: `enqueue()` inside the transaction, a relay that claims rows with `for update skip locked` so several replicas can run it, backoff, parking after too many attempts, and an idempotent consumer.
 
 ## Next
 
