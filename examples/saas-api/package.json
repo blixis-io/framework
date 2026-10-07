@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@blixis-io/auth": "workspace:*",
+    "@blixis-io/cli": "workspace:*",
     "@blixis-io/commands": "workspace:*",
     "@blixis-io/config": "workspace:*",
     "@blixis-io/core": "workspace:*",
@@ -29,7 +30,6 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
-    "@blixis-io/cli": "workspace:*",
     "@blixis-io/deploy": "workspace:*"
   }
 }

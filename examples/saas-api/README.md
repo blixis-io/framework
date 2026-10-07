@@ -30,6 +30,19 @@ curl -s localhost:3000/readyz        # 200 while healthy, 503 while draining
 curl -s localhost:3000/openapi.json  # public, with bearer security declared
 ```
 
+## Run it as a container
+
+`Dockerfile` builds the production image: it builds with every dependency, then ships `dist/`, `migrations/` and the production dependencies only, as the non-root `node` user. This folder lives in a workspace (`workspace:*` dependencies, no lockfile of its own), so build from a **copy** of it with real versions and a `package-lock.json`:
+
+```bash
+cp -r examples/saas-api /tmp/saas-api && cd /tmp/saas-api   # then set the @blixis-io/* versions and the tsconfig `extends`
+npm install && docker build -t saas-api .
+docker run --rm -e DATABASE_URL=... -e JWT_SECRET=... saas-api npx blix run db:migrate   # a deploy step, once per release
+docker run -p 3000:3000 -e DATABASE_URL=... -e JWT_SECRET=... saas-api
+```
+
+`node scripts/docker-image.mjs` at the repository root does exactly that on every pull request (packages from this checkout, a throwaway Postgres): it migrates with the image twice, boots it, signs a user up, calls an authenticated route, checks the user is not root, and stops it with `SIGTERM` expecting the drain and exit 0. It needs Docker. Not checked: your registry, your orchestrator's probes and signal handling, TLS (terminate it at the proxy).
+
 Tests (real Postgres on :5434, nothing mocked): `pnpm exec vitest run` in this directory. `pnpm run ci` at the root runs them with everything else.
 
 ## Where each thing is
