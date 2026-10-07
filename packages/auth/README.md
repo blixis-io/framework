@@ -22,6 +22,8 @@ export const { AuthModule, JwtAuthGuard, createRolesGuard, getCurrentUser } = de
 class PostsModule {}
 ```
 
+API keys for machine clients: `AuthModule.forRoot({ secret, apiKeys: { store } })` accepts `x-api-key: blx_<id>_<secret>` checked against your store, resolving to the same claims as a token. Keys are stored as a SHA-256, compared in constant time, can expire, be revoked and be limited to networks (`allowedCidrs`), and every failure is the same `401`; a store error is a `503`, never an allow. See the [reference](https://blixis-io.github.io/framework/reference/blixis-auth/#api-keys).
+
 ```ts
 @UseGuards(JwtAuthGuard)
 @Get("me")

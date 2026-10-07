@@ -11,6 +11,7 @@ import {
 } from "@blixis-io/http";
 import { jwtVerify } from "jose";
 import type { ZodType, z } from "zod";
+import { API_KEY_HEADER, createApiKeyVerifier, type ApiKeyOptions, type ApiKeyStore, type ApiKeyVerifier } from "./api-keys.js";
 import {
   createAuthServiceClass,
   type AuthService,
@@ -90,6 +91,13 @@ export interface AuthModuleOptions<Claims = unknown> {
   protectAllRoutes?: boolean;
   /** Omit for a verify-only app (the original scope). Set to enable `AUTH_SERVICE` — password sign-in, refresh rotation, sign-out. */
   issuing?: IssuingOptions<Claims> | undefined;
+  /**
+   * Also accept an API key in the `x-api-key` header (`blx_<id>_<secret>`), checked against your store. A key resolves to
+   * the same claims as a token, so `@Roles`, `getCurrentUser` and tenancy work unchanged. **When `x-api-key` is present it
+   * is the credential, and the `Authorization` header is not looked at**: a bad key is a 401, never a fall back to a token.
+   * Omit for tokens only (the `x-api-key` header is then ignored).
+   */
+  apiKeys?: ApiKeyOptions | undefined;
 }
 
 // `Symbol.for`, so metadata set with one copy of this package is read by another.
@@ -149,6 +157,10 @@ export function defineAuthModule<Schema extends ZodType>(
   getCurrentUser: (ctx: RequestContext) => z.infer<Schema> | undefined;
   /** Resolvable only when `forRoot({ issuing })` was set — otherwise `MissingProviderError` at boot. */
   AUTH_SERVICE: InjectionToken<AuthService>;
+  /** The API key that authenticated the current request (`undefined` for a token, or before the guard has run). */
+  getCurrentApiKey: (ctx: RequestContext) => { id: string; scopes: readonly string[] } | undefined;
+  /** Resolvable only when `forRoot({ apiKeys })` was set. For code that has to check a key itself. */
+  API_KEY_STORE: InjectionToken<ApiKeyStore>;
 } {
   type Claims = z.infer<Schema>;
   const AUTH_OPTIONS = new InjectionToken<NormalizedAuthOptions>("blixis.auth.options");
@@ -156,7 +168,16 @@ export function defineAuthModule<Schema extends ZodType>(
   const CREDENTIAL_STORE = new InjectionToken<CredentialStore<Claims>>("blixis.auth.credentialStore");
   const REFRESH_TOKEN_STORE = new InjectionToken<RefreshTokenStore>("blixis.auth.refreshTokenStore");
   const AUTH_SERVICE = new InjectionToken<AuthService>("blixis.auth.service");
-  const CURRENT_USER_KEY = `blixis.auth.currentUser.${authInstanceCounter++}`;
+  const API_KEY_STORE = new InjectionToken<ApiKeyStore>("blixis.auth.apiKeyStore");
+  /** `null` when API keys are not configured, so the guards can always inject it. */
+  const API_KEY_VERIFIER = new InjectionToken<ApiKeyVerifier<Claims> | null>("blixis.auth.apiKeyVerifier");
+  const instance = authInstanceCounter++;
+  const CURRENT_USER_KEY = `blixis.auth.currentUser.${instance}`;
+  const CURRENT_API_KEY = `blixis.auth.currentApiKey.${instance}`;
+
+  function getCurrentApiKey(ctx: RequestContext): { id: string; scopes: readonly string[] } | undefined {
+    return ctx.get<{ id: string; scopes: readonly string[] }>(CURRENT_API_KEY);
+  }
 
   /** Reads the claims `JwtAuthGuard` verified for the current request, or `undefined` outside a request (or before the guard has run). */
   function getCurrentUser(ctx: RequestContext): Claims | undefined {
@@ -164,7 +185,15 @@ export function defineAuthModule<Schema extends ZodType>(
   }
 
   /** Verifies the bearer token, validates its claims, and stores them as the current user. Throws `UnauthorizedException`. */
-  async function authenticate(request: Request, options: NormalizedAuthOptions, ctx: RequestContext): Promise<Claims> {
+  async function authenticate(request: Request, options: NormalizedAuthOptions, ctx: RequestContext, apiKeys: ApiKeyVerifier<Claims> | null): Promise<Claims> {
+    // An API key, when configured and presented, is the credential: a bad one is a 401 and never falls back to a token.
+    if (apiKeys && request.headers.has(API_KEY_HEADER)) {
+      const key = await apiKeys.verify(request);
+      ctx.set(CURRENT_USER_KEY, key.claims);
+      ctx.set(CURRENT_API_KEY, { id: key.id, scopes: key.scopes });
+      return key.claims;
+    }
+
     // RFC 7235: the scheme is case-insensitive and may be followed by more than one space.
     const token = /^bearer[ \t]+(\S+)[ \t]*$/i.exec(request.headers.get("authorization") ?? "")?.[1];
     if (!token) {
@@ -201,10 +230,11 @@ export function defineAuthModule<Schema extends ZodType>(
     constructor(
       @Inject(AUTH_OPTIONS) private readonly options: NormalizedAuthOptions,
       private readonly ctx: RequestContext,
+      @Inject(API_KEY_VERIFIER) private readonly apiKeys: ApiKeyVerifier<Claims> | null,
     ) {}
 
     async canActivate({ request }: ExecutionContext): Promise<boolean> {
-      await authenticate(request, this.options, this.ctx);
+      await authenticate(request, this.options, this.ctx, this.apiKeys);
       return true;
     }
   }
@@ -216,6 +246,7 @@ export function defineAuthModule<Schema extends ZodType>(
       constructor(
         @Inject(AUTH_OPTIONS) private readonly options: NormalizedAuthOptions,
         private readonly ctx: RequestContext,
+        @Inject(API_KEY_VERIFIER) private readonly apiKeys: ApiKeyVerifier<Claims> | null,
       ) {}
 
       async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -223,7 +254,7 @@ export function defineAuthModule<Schema extends ZodType>(
           return true;
         }
 
-        const user = await authenticate(context.request, this.options, this.ctx);
+        const user = await authenticate(context.request, this.options, this.ctx, this.apiKeys);
 
         const required = getRouteMetadata(ROLES_METADATA, context);
         if (isStringArray(required) && required.length > 0) {
@@ -287,6 +318,35 @@ export function defineAuthModule<Schema extends ZodType>(
       const providers: Provider[] = [{ provide: AUTH_OPTIONS, useValue: normalized }, JwtAuthGuard, AuthGuard];
       const exports: Token[] = [AUTH_OPTIONS, JwtAuthGuard, AuthGuard];
 
+      if (options.apiKeys) {
+        const apiKeyOptions = options.apiKeys;
+        for (const [name, value] of [["cacheSeconds", apiKeyOptions.cacheSeconds], ["lastUsedIntervalSeconds", apiKeyOptions.lastUsedIntervalSeconds]] as const) {
+          if (value !== undefined && (!Number.isFinite(value) || value < 0)) {
+            throw new AuthConfigError(`AuthModule.forRoot(): apiKeys.${name} must be a number of seconds, 0 or more (got ${value}).`);
+          }
+        }
+        imports.push(...(apiKeyOptions.imports ?? []));
+        providers.push(
+          { provide: API_KEY_STORE, useClass: apiKeyOptions.store },
+          {
+            provide: API_KEY_VERIFIER,
+            useFactory: (store: ApiKeyStore) =>
+              createApiKeyVerifier<Claims>({
+                store,
+                options: { clientIp: apiKeyOptions.clientIp, cacheSeconds: apiKeyOptions.cacheSeconds, lastUsedIntervalSeconds: apiKeyOptions.lastUsedIntervalSeconds },
+                parseClaims: async (value) => {
+                  const parsed = await claimsSchema.safeParseAsync(value);
+                  return parsed.success ? { success: true, data: parsed.data } : { success: false };
+                },
+              }),
+            inject: [API_KEY_STORE],
+          },
+        );
+        exports.push(API_KEY_STORE);
+      } else {
+        providers.push({ provide: API_KEY_VERIFIER, useValue: null });
+      }
+
       if (options.protectAllRoutes) {
         providers.push(GlobalAuthGuard);
       }
@@ -324,5 +384,5 @@ export function defineAuthModule<Schema extends ZodType>(
     }
   }
 
-  return { AuthModule, JwtAuthGuard, AuthGuard, createRolesGuard, getCurrentUser, AUTH_SERVICE };
+  return { AuthModule, JwtAuthGuard, AuthGuard, createRolesGuard, getCurrentUser, getCurrentApiKey, AUTH_SERVICE, API_KEY_STORE };
 }

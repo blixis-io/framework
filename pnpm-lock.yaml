@@ -193,6 +193,9 @@ importers:
 
   packages/auth:
     dependencies:
+      '@blixis-io/security':
+        specifier: workspace:^
+        version: link:../security
       jose:
         specifier: ^6.2.12
         version: 6.2.12
