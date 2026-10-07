@@ -73,6 +73,10 @@ create table rate_limits (key text primary key, count integer not null, reset_at
 
 It is tested against a real database: 40 simultaneous hits on one key get 40 different counts, and two application instances sharing it enforce one limit (4 of 6 requests pass, where two in-memory stores would let all 6 through). Delete rows with `reset_at < now()` from a scheduled job.
 
+## Machine clients
+
+Services and scripts should not share a person's sign-in. Give each its own [API key](/framework/guides/api-keys/): scoped to what it needs, optionally limited to its networks and an expiry, revocable on its own. Count its rate limit **after** the key is verified, never on the id in the header.
+
 ## The client's address
 
 ```ts

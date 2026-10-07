@@ -7,6 +7,8 @@ sidebar:
 
 `@blixis-io/auth`'s `issuing` option needs two small stores. This walks through a real [Drizzle](https://orm.drizzle.team) implementation on top of [`@blixis-io/db`](/framework/concepts/database/) — the same pattern works with any database, `@blixis-io/auth` never depends on Drizzle itself. See [Authentication § Issuing tokens](/framework/concepts/authentication/#issuing-tokens) for the concepts and fail-closed rules this builds on.
 
+This guide is for **people** signing in. For services and scripts, which need a credential that does not expire in minutes, see [API keys for machines](/framework/guides/api-keys/).
+
 ## 1. The schema
 
 ```ts title="src/db/schema.ts"

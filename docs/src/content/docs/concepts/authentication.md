@@ -1,6 +1,6 @@
 ---
 title: Authentication
-description: JWT verification and role-based access control via JwtAuthGuard and createRolesGuard.
+description: JWT verification, role-based access control, password sign-in with refresh tokens, and API keys for machines, via defineAuthModule.
 sidebar:
   order: 14
 ---
@@ -148,6 +148,30 @@ AuthModule.forRoot({ secret, global: true })
 
 Same default as `@blixis-io/db`'s `DrizzleModule`, for the same reason: most apps only need `JwtAuthGuard` in the modules that actually have protected routes, so encapsulation is the better default. Pass `global: true` if most of your app sits behind auth.
 
+## API keys, for machines
+
+A service or script needs a credential that does not expire in minutes and can be turned off on its own. Pass `apiKeys` to `forRoot()` and the same module also accepts an `x-api-key` header, checked against a store you write. A key resolves to the **same claims** as a token, so `@Roles`, `getCurrentUser` and [tenancy](/framework/concepts/tenancy/) work unchanged.
+
+```ts
+AuthModule.forRoot({ secret, protectAllRoutes: true, apiKeys: { store: MyApiKeyStore, scopedRoutesOnly: true } });
+```
+
+```ts
+@RequireScopes("projects:read")     // a key must hold every scope a route lists, or it gets a 403
+@Controller("projects")
+class ProjectsController {}
+```
+
+The rules worth knowing before you read the guide:
+
+- **`x-api-key` present means it is the credential.** A bad key is a `401` and never falls back to the `Authorization` header.
+- **Every failure is the same `401`**; a store that fails is a `503`, never an allow.
+- **Scopes limit keys only.** A person's permissions come from roles and membership. With `scopedRoutesOnly: true` a key is refused on any route that declares no scopes.
+- **`JwtAuthGuard` accepts tokens only**; `AuthGuard` (what `protectAllRoutes` applies) accepts both and enforces scopes.
+- Only a SHA-256 of the secret is stored; it is compared in constant time.
+
+Creating, rotating, revoking, logging and limiting keys by network: [API keys for machines](/framework/guides/api-keys/). Every option: [reference](/framework/reference/blixis-auth/#api-keys).
+
 ## Issuing tokens
 
 Pass `issuing` to `forRoot()` to turn on `AUTH_SERVICE` — password sign-in, refresh-token rotation, and sign-out. `@blixis-io/auth` stays **storage-agnostic**: you implement two small interfaces as ordinary DI classes, the package never depends on `@blixis-io/db` or any particular ORM.
@@ -245,3 +269,4 @@ This is a first pass, scoped to match what a real caller needs today rather than
 - The guard primitive this is built on: [Guards & Authorization](/framework/concepts/guards-and-authorization/).
 - Where verified claims live between guards, interceptors, and the handler: [Request Context](/framework/concepts/request-context/).
 - A full Drizzle-backed implementation: [Issuing Tokens guide](/framework/guides/issuing-tokens/).
+- Keys for services and scripts: [API keys for machines](/framework/guides/api-keys/).
