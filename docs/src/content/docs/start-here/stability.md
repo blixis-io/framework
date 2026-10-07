@@ -49,12 +49,12 @@ Behaviour that has a test and a document describing it is what the project tries
 
 `1.0.0` means the public API is committed to and breaking changes need a major. It will not happen until:
 
-- [ ] every package's public exports are checked automatically (`publint`, `attw`, an exports snapshot), so a breaking change cannot ship by accident;
-- [ ] a scaffolded app is installed from the packed packages, built, started, probed and stopped in CI on Linux, macOS and Windows, with pnpm and npm;
-- [ ] a complete multi-tenant reference application is maintained, with its upgrade path tested;
+- [ ] every package's public exports are checked automatically (`publint` and `attw` run on every pull request; a snapshot of the export list, which is what would catch a removed export, does not exist yet), so a breaking change cannot ship by accident;
+- [x] a scaffolded app is installed from the packed packages, built, started, probed and stopped in CI on Linux, macOS and Windows, with pnpm and npm (the same check also runs weekly against what is published on npm);
+- [x] a complete multi-tenant reference application is maintained (`examples/saas-api`), with its upgrade path tested: a pull request builds and tests the app as it was at the last release against the packages it would publish next (not a required check, since a deliberate breaking change fails it until the next release);
 - [ ] `blix doctor` reports unmet peer ranges (pnpm only warns about them today);
 - [ ] there is a stated position on standard decorators and the legacy-decorator requirement;
-- [ ] the production baseline exists and is documented: security headers, CORS, rate limiting, health and readiness (see [Running in Production](/framework/guides/running-in-production/));
+- [x] the production baseline exists and is documented: security headers, CORS, rate limiting, health and readiness (see [Running in Production](/framework/guides/running-in-production/) and [Securing the API](/framework/guides/securing-the-api/));
 - [ ] at least one outside application has run on it in production and reported what hurt.
 
 ## Contributing

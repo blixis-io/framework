@@ -40,6 +40,10 @@ If your `package.json` has no `"packageManager"` field, the image installs which
 
 For Vercel or Netlify, see [Vercel and Netlify](#vercel-and-netlify) below. Everything from "Look before you run" on works the same for every target.
 
+### When the image has to run migrations
+
+The generated `Dockerfile` ships `dist/` and the production dependencies, and nothing else. An app that applies its migrations from the same image (`blix run db:migrate`) also needs its `migrations/` folder, `blix.config.ts` and `@blixis-io/cli` in the runtime image, so write your own `Dockerfile` and set `dockerfile` on the target. `examples/saas-api/Dockerfile` is one that does, and CI builds it from a copy of the example outside the repository, migrates a throwaway Postgres with it twice, calls it, checks it does not run as root and stops it with `SIGTERM`, expecting a graceful exit (`node scripts/docker-image.mjs`). Run migrations as a deploy step, once, not from every replica: see [Database operations](/framework/guides/database-operations/).
+
 ## 3. Look before you run
 
 ```bash

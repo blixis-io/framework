@@ -21,6 +21,8 @@ export class ApiKeyGuard implements CanActivate {
 }
 ```
 
+This one compares a single hard-coded string, which is enough to show the shape of a guard and **nothing more**: no per-client identity, expiry or revocation, and `===` is not a constant-time comparison. For real API keys use [`@blixis-io/auth`'s](/framework/guides/api-keys/).
+
 `ExecutionContext` is `{ request, params, controller, handler }`: the `Request`, the matched route params (the same ones the controller method receives via `@Param`), the controller class, and the name of the method handling the request. The last two are what let a guard read metadata attached to the route (see [Route metadata](#route-metadata)). `canActivate` can be sync or async, and can return `false` to deny or throw its own `HttpException` (an `UnauthorizedException`, say) for a more specific status than the default.
 
 ## `@UseGuards`
@@ -108,5 +110,6 @@ export class AuthGuard implements CanActivate {
 ## Next
 
 - A full worked guard, wired into a module and tested both ways: [Protecting Routes with Guards](/framework/guides/protecting-routes-with-guards/).
+- API keys, with scopes and revocation, built on a guard like this: [API keys for machines](/framework/guides/api-keys/).
 - The full tutorial: [Add Authentication](/framework/tutorials/add-authentication/).
 - How a guard's `false`/thrown error becomes a response: [Error Handling](/framework/concepts/error-handling/).

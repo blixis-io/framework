@@ -150,6 +150,19 @@ What the tests establish, and what to watch:
 - RLS does nothing for a connection that is a **superuser or has `BYPASSRLS`** (the test shows it seeing both tenants). The application must connect as an ordinary role, and run migrations as another.
 - The guard still runs first: RLS answers "which rows", not "may this user be in this space".
 
+## Machine credentials stay in one tenant
+
+A person can belong to several spaces; a service key should not. In `examples/saas-api` an [API key](/framework/guides/api-keys/)'s claims carry the `spaceId` it was created for, and `resolveMembership` checks that first:
+
+```ts
+resolveMembership: (actor, spaceId) =>
+  actor.spaceId === undefined
+    ? directory.find(actor.sub, spaceId)                    // a person: by membership
+    : findForKey(directory.db, actor.spaceId, spaceId),     // a key: its own space, and nothing else
+```
+
+A key asking for another space gets the same `404` as a non-member, even holding every scope. The reference app's tests check it, including that the other space's data is not in the response.
+
 ## Testing cross-tenant isolation
 
 Seed two organizations and spaces with distinct data, then attack every kind of operation as a member of the *other* one and assert both the response (`404`) and the database (the victim's rows unchanged). The suite linked above does this for read, update, delete, insert, joins, id substitution, a user in both spaces, malformed ids and jobs with no tenant, and includes a **control**: a deliberately unscoped route that does leak, so you can see the suite would notice. Break the code on purpose now and then (drop a `tenantScope()` from an update) and confirm a test fails; that is how the suite was checked. Build yours with [`@blixis-io/testing`](/framework/concepts/testing/)'s `Test.createModule().compile()`, a real application and real requests, no mocking the guard.

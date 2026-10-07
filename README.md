@@ -76,7 +76,7 @@ Legacy decorators are required (`experimentalDecorators` + `emitDecoratorMetadat
 | [`@blixis-io/logging`](packages/logging) | A multi-transport logger, injectable like any other provider. HTTP-independent. |
 | [`@blixis-io/config`](packages/config) | Zod-validated environment config, also HTTP-independent. |
 | [`@blixis-io/db`](packages/db) | [Drizzle](https://orm.drizzle.team)-backed Postgres persistence, connected/disconnected via lifecycle hooks. |
-| [`@blixis-io/auth`](packages/auth) | JWT verification and role checks, plus optional password sign-in and refresh-token rotation. |
+| [`@blixis-io/auth`](packages/auth) | JWT verification and role checks, plus optional password sign-in, refresh-token rotation and API keys with scopes. |
 | [`@blixis-io/method-hooks`](packages/method-hooks) | `@Before`/`@After`/`@Around` method decorators for adding behavior without editing a method's body. |
 | [`@blixis-io/openapi`](packages/openapi) | Generates an OpenAPI 3.1 document from a running app's real controllers. |
 | [`@blixis-io/cli`](packages/cli) | The `blix` binary — scaffolds controller/service/module/guard/interceptor files from a template. |
@@ -86,7 +86,7 @@ Legacy decorators are required (`experimentalDecorators` + `emitDecoratorMetadat
 | [`@blixis-io/tenancy`](packages/tenancy) | Request-scoped multi-tenant access control — mechanism only, no data model. |
 | [`@blixis-io/events`](packages/events) | An in-process domain event bus. |
 | [`@blixis-io/health`](packages/health) | Liveness and readiness endpoints, with readiness checks registered by the providers and not-ready while draining. |
-| [`@blixis-io/security`](packages/security) | Optional CORS, security headers, rate limiting and a proxy-aware client address, as middleware. |
+| [`@blixis-io/security`](packages/security) | Optional CORS, security headers, rate limiting, a proxy-aware client address and CIDR matching, as middleware and helpers. |
 | [`@blixis-io/testing`](packages/testing) | A thin testing layer on top of `@blixis-io/http` — real requests, fakeable providers. |
 
 ## Status
