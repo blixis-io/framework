@@ -32,7 +32,7 @@ Legend: `[me]` an agent can do it unattended, `[you]` needs your hands (npm, Git
   - [ ] apply to sign-in and refresh routes in the reference app (X-14)
 - [x] **X-8 Tenant isolation: tested patterns** (#105): real-Postgres isolation suite, RLS suite, docs; no library change needed
 - [x] **X-9 Refresh tokens: resilience** (#106): safe write order, optional `rotate()` and `revokeFamily()`, `refreshReuseGraceSeconds` (D-4), Postgres reference store tested
-  - [ ] cookie and CSRF guidance (not in #106)
+  - [x] cookie and CSRF guidance (this PR): `guides/cookies-and-csrf.md` and a tested copy-in recipe (`packages/security/src/cookies.example.ts`: strict `serializeCookie`/`clearCookie`/`parseCookies`; `csrf.example.ts`: `originCheck` on `Sec-Fetch-Site`/`Origin`, `cookieToBearer`). 57 tests through the real app and a real socket, plus fuzzing; eight mutations each failed tests. Verified on the way: the Node adapter sends several `Set-Cookie` headers as separate headers. Not tested: a real browser, older browsers, a proxy that rewrites `Host`, the bridge together with `AuthGuard` in one request.
 - [ ] **X-10 Observability and health**
   - [x] first half (#104): `onError`, `requestId()`, `accessLog()`, `withResponseHeaders()`
   - [x] route `@blixis-io/events` listener failures (`onHandlerError`) and `@blixis-io/core` rollback failures (`onRollbackError`, forwarded by `http` to `onError`) through injectable hooks (REL-5, MNT-3) (this PR)
