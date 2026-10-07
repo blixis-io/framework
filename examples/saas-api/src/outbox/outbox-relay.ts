@@ -15,7 +15,17 @@ export interface OutboxOptions {
   onError?: (error: unknown, event?: { id: string; topic: string; attempts: number }) => void;
   /** Topic to consumer. Default: the example's consumers. */
   handlers?: Readonly<Record<string, OutboxHandler>>;
+  /**
+   * Delivered rows older than this many days are deleted by `purge()`. `0` (or unset) keeps them forever. Parked rows
+   * (`failed_at`) and rows still waiting are never deleted: they are for a human.
+   */
+  retentionDays?: number;
+  /** How often the loop purges. Default one hour; the first purge is one interval after start, not at boot. */
+  purgeIntervalMs?: number;
 }
+
+/** Rows deleted per statement: small enough that no single delete holds many locks or runs for long. */
+const PURGE_BATCH = 500;
 
 export const OUTBOX_OPTIONS = new InjectionToken<OutboxOptions>("OUTBOX_OPTIONS");
 
@@ -43,6 +53,7 @@ interface Claimed extends Record<string, unknown> {
 export class OutboxRelay implements OnModuleInit, OnApplicationShutdown {
   readonly #handlers: Readonly<Record<string, OutboxHandler>>;
   #stopping = false;
+  #lastPurge = Date.now();
   #loop: Promise<void> | undefined;
   #wake: (() => void) | undefined;
 
@@ -109,6 +120,37 @@ export class OutboxRelay implements OnModuleInit, OnApplicationShutdown {
     });
   }
 
+  /**
+   * Deletes delivered rows older than `retentionDays`, in batches of 500, and returns how many it deleted. Without it the
+   * table only grows. Like `runOnce`, it only concerns the topics this relay has a consumer for: a delivered row of another
+   * topic belongs to whoever consumes that topic, who decides how long to keep it. Each batch skips rows another replica is
+   * already deleting (`skip locked`), so any number of relays may purge at once and each row is deleted once. Parked rows
+   * (`failed_at`), rows still waiting, and the activity the consumer wrote (which has a lifetime of its own) are never touched.
+   */
+  async purge(): Promise<number> {
+    const days = this.options.retentionDays ?? 0;
+    const topics = Object.keys(this.#handlers);
+    if (!(days > 0) || topics.length === 0) {
+      return 0;
+    }
+    let total = 0;
+    for (;;) {
+      const deleted = await this.db.execute(sql`
+        delete from saas.outbox where id in (
+          select id from saas.outbox
+          where processed_at is not null and processed_at < now() - interval '1 second' * ${days * 86_400}
+            and topic in (${sql.join(topics.map((topic) => sql`${topic}`), sql`, `)})
+          order by processed_at
+          limit ${PURGE_BATCH}
+          for update skip locked)
+        returning id`);
+      total += deleted.rows.length;
+      if (deleted.rows.length < PURGE_BATCH || this.#stopping) {
+        return total;
+      }
+    }
+  }
+
   async #run(): Promise<void> {
     while (!this.#stopping) {
       let handled = 0;
@@ -117,6 +159,14 @@ export class OutboxRelay implements OnModuleInit, OnApplicationShutdown {
       } catch (error) {
         // The database itself failed (not a consumer): report it and back off like an empty pass.
         this.options.onError?.(error);
+      }
+      if (Date.now() - this.#lastPurge >= (this.options.purgeIntervalMs ?? 3_600_000) && !this.#stopping) {
+        this.#lastPurge = Date.now();
+        try {
+          await this.purge();
+        } catch (error) {
+          this.options.onError?.(error);
+        }
       }
       if (handled === 0 && !this.#stopping) {
         await new Promise<void>((resolve) => {

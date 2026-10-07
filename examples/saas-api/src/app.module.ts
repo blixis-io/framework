@@ -38,7 +38,12 @@ export function createAppModule(env: Record<string, string | undefined>, hooks: 
       },
     }),
     HealthModule.forRoot(),
-    OutboxModule.forRoot({ pollMs: config.OUTBOX_POLL_MS, maxAttempts: config.OUTBOX_MAX_ATTEMPTS, ...(hooks.onOutboxError ? { onError: hooks.onOutboxError } : {}) }),
+    OutboxModule.forRoot({
+      pollMs: config.OUTBOX_POLL_MS,
+      maxAttempts: config.OUTBOX_MAX_ATTEMPTS,
+      retentionDays: config.OUTBOX_RETENTION_DAYS,
+      purgeIntervalMs: config.OUTBOX_PURGE_INTERVAL_MS,
+      ...(hooks.onOutboxError ? { onError: hooks.onOutboxError } : {}) }),
   ];
 
   @Module({

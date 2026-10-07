@@ -51,11 +51,26 @@ async function eventually(check: () => Promise<void>): Promise<void> {
   }
 }
 
+/** A promise and the function that settles it, for coordinating two things in a test. */
+function deferred(): { promise: Promise<void>; resolve: () => void } {
+  const box: { resolve?: () => void } = {};
+  const promise = new Promise<void>((resolve) => {
+    box.resolve = resolve;
+  });
+  return { promise, resolve: () => box.resolve?.() };
+}
+
 const topic = () => `test.${crypto.randomUUID()}`;
 
 /** A relay that only knows the given topics, with its own limits, over the application's database. */
-const relayFor = (handlers: Record<string, OutboxHandler>, options: { maxAttempts?: number; batchSize?: number } = {}) =>
-  new OutboxRelay(db(), { pollMs: 0, maxAttempts: options.maxAttempts ?? 5, batchSize: options.batchSize ?? 20, handlers });
+const relayFor = (handlers: Record<string, OutboxHandler>, options: { maxAttempts?: number; batchSize?: number; retentionDays?: number } = {}) =>
+  new OutboxRelay(db(), {
+    pollMs: 0,
+    maxAttempts: options.maxAttempts ?? 5,
+    batchSize: options.batchSize ?? 20,
+    handlers,
+    ...(options.retentionDays === undefined ? {} : { retentionDays: options.retentionDays }),
+  });
 
 beforeAll(async () => {
   test = await startApp();
@@ -287,5 +302,110 @@ describe("many relays", () => {
     const undelivered = await db().execute(sql`select 1 from saas.outbox where topic = ${t} and processed_at is null`);
     expect(undelivered.rows).toHaveLength(0);
     expect(ids).toHaveLength(40);
+  });
+});
+
+const noop: OutboxHandler = async () => {};
+
+/** Makes `count` rows of `topic`, delivered `deliveredDaysAgo` (or not delivered), parked or not. */
+async function age(t: string, options: { count?: number; deliveredDaysAgo?: number; parked?: boolean }): Promise<void> {
+  const delivered = options.deliveredDaysAgo === undefined ? sql`null` : sql`now() - interval '1 day' * ${options.deliveredDaysAgo}`;
+  const parked = options.parked ? sql`now() - interval '20 days'` : sql`null`;
+  await db().execute(sql`
+    insert into saas.outbox (id, topic, payload, created_at, processed_at, failed_at)
+    select gen_random_uuid(), ${t}, '{}'::jsonb, now() - interval '30 days', ${delivered}, ${parked}
+    from generate_series(1, ${options.count ?? 1})`);
+}
+
+const remaining = async (t: string): Promise<number> => Number((await db().execute<{ n: string }>(sql`select count(*) as n from saas.outbox where topic = ${t}`)).rows[0]?.n);
+
+// A relay that handles only `t`, so its purge can only ever concern `t`: other tests, and other processes, age rows of their own.
+const purger = (t: string, retentionDays?: number) => relayFor({ [t]: noop }, retentionDays === undefined ? {} : { retentionDays });
+
+describe("purging delivered rows", () => {
+  it("deletes delivered rows past the retention and keeps the younger ones, at the edge too", async () => {
+    const t = topic();
+    await age(t, { deliveredDaysAgo: 8 });
+    await age(t, { deliveredDaysAgo: 7.01 });
+    await age(t, { deliveredDaysAgo: 6.99 });
+    await age(t, { deliveredDaysAgo: 0.1 });
+
+    const deleted = await purger(t, 7).purge();
+
+    expect(deleted).toBe(2);
+    expect(await remaining(t)).toBe(2);
+  });
+
+  it("never deletes a row that has not been delivered, or one that was parked, however old", async () => {
+    const t = topic();
+    await age(t, {}); // still waiting, created 30 days ago
+    await age(t, { parked: true }); // parked 20 days ago: for a human
+
+    expect(await purger(t, 1).purge()).toBe(0);
+    expect(await remaining(t)).toBe(2);
+  });
+
+  it("only concerns the topics it has a consumer for: a delivered row of another topic is left to whoever owns it", async () => {
+    const mine = topic();
+    const theirs = topic();
+    await age(mine, { deliveredDaysAgo: 30 });
+    await age(theirs, { deliveredDaysAgo: 30 });
+
+    const deleted = await purger(mine, 7).purge();
+
+    expect(deleted).toBe(1);
+    expect(await remaining(mine)).toBe(0);
+    expect(await remaining(theirs)).toBe(1);
+  });
+
+  it("does nothing when retention is 0 or not set, or when it handles no topic at all", async () => {
+    const t = topic();
+    await age(t, { deliveredDaysAgo: 400 });
+
+    expect(await purger(t, 0).purge()).toBe(0);
+    expect(await purger(t).purge()).toBe(0);
+    expect(await relayFor({}, { retentionDays: 7 }).purge()).toBe(0);
+    expect(await remaining(t)).toBe(1);
+  });
+
+  it("deletes more rows than fit in one batch", async () => {
+    const t = topic();
+    await age(t, { count: 1200, deliveredDaysAgo: 30 });
+
+    const deleted = await purger(t, 7).purge();
+
+    expect(deleted).toBe(1200);
+    expect(await remaining(t)).toBe(0);
+  });
+
+  it("is safe to run on several replicas at once: every row is deleted exactly once", async () => {
+    const t = topic();
+    await age(t, { count: 1200, deliveredDaysAgo: 30 });
+    const relays = Array.from({ length: 3 }, () => purger(t, 7));
+
+    const counts = await Promise.all(relays.map((each) => each.purge()));
+
+    expect(counts.reduce((sum, n) => sum + n, 0)).toBe(1200);
+    expect(await remaining(t)).toBe(0);
+  });
+
+  it("does not wait for rows another transaction holds: it deletes the rest and leaves those", async () => {
+    const t = topic();
+    await age(t, { count: 40, deliveredDaysAgo: 30 });
+    const held = deferred();
+    const locked = deferred();
+    const holder = db().transaction(async (tx) => {
+      await tx.execute(sql`select id from saas.outbox where topic = ${t} order by id limit 5 for update`);
+      locked.resolve();
+      await held.promise;
+    });
+    await locked.promise;
+
+    const outcome = await Promise.race([purger(t, 7).purge(), new Promise<"waited">((resolve) => setTimeout(() => resolve("waited"), 2_000))]);
+    held.resolve();
+    await holder;
+
+    expect(outcome).toBe(35);
+    expect(await remaining(t)).toBe(5);
   });
 });
