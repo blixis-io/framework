@@ -7,4 +7,14 @@ export {
   type RefreshTokenStore,
   type TokenPair,
 } from "./issuing.js";
+export {
+  API_KEY_HEADER,
+  generateApiKey,
+  hashApiKeySecret,
+  parseApiKey,
+  type ApiKeyOptions,
+  type ApiKeyRecord,
+  type ApiKeyStore,
+  type GeneratedApiKey,
+} from "./api-keys.js";
 export { hashPassword, verifyPassword } from "./password.js";

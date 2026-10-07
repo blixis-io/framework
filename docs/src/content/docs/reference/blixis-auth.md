@@ -222,6 +222,68 @@ Resolve via `@Inject(AUTH_SERVICE)`, typed as `AuthService` (it's not generic ov
 
 A claims value from `loadClaims` that fails your own `claimsSchema` throws a plain `Error` (not `UnauthorizedException`) from whichever method triggered it — a server bug (the guard that later verifies this token would reject it too), not a client error.
 
+## API keys
+
+Machine credentials: a key in the `x-api-key` header, checked against **your** store, resolving to the **same claims** as a token, so `@Roles`, `getCurrentUser` and tenancy work unchanged. Enable it with `apiKeys` on `forRoot`:
+
+```ts
+AuthModule.forRoot({
+  secret,
+  protectAllRoutes: true,
+  apiKeys: { store: PostgresApiKeyStore, imports: [PoolModule], clientIp: { trustedProxyHops: 1 }, cacheSeconds: 0 },
+});
+```
+
+### How a request is decided
+
+- **`x-api-key` present means it is the credential.** A bad key is a `401`, never a fall back to the `Authorization` header (that header is not looked at). With `apiKeys` unset the header is ignored and a token is required as before.
+- **Every failure is the same `401` with the same words** (`Invalid API key`): malformed, unknown id, wrong secret, revoked, expired, outside `allowedCidrs`, stored claims that fail your schema. A response never says which part was wrong.
+- **A store that throws is a `503`**, never an allow. So is a malformed network already sitting in a stored record.
+- A key that is not exactly `blx_<24 hex>_<43 base64url>` is refused **before** the store is asked, so junk cannot be used to hammer the database.
+
+### `generateApiKey()`, `parseApiKey(text)`, `hashApiKeySecret(secret)`
+
+`generateApiKey()` returns `{ id, key, secretHash }`: `key` is `blx_<id>_<secret>` (the id 12 random bytes in hex, the secret 32 random bytes in base64url, 256 bits from the system's CSPRNG). **Show `key` once and store only `id` and `secretHash`.** The hash is a plain SHA-256 on purpose: the secret has nothing to guess, and a slow password hash would only cost every request time. The comparison is constant time (`timingSafeEqual`), and an unknown id is compared against a dummy hash so it costs about what a wrong secret costs (by construction: not measured here).
+
+### `ApiKeyStore`
+
+```ts
+interface ApiKeyStore {
+  find(id: string): Promise<ApiKeyRecord | undefined>; // throwing means "cannot tell": a 503
+  touch?(id: string, at: Date): Promise<void>;                 // optional, best effort
+}
+
+interface ApiKeyRecord {
+  id: string;
+  secretHash: string;
+  claims: unknown;                      // validated by your claims schema, like a token's payload
+  scopes?: readonly string[];           // read back with getCurrentApiKey(ctx)
+  expiresAt?: Date | null;              // refused from this moment
+  revokedAt?: Date | null;              // refused from this moment; the row stays for audit
+  allowedCidrs?: readonly string[] | null; // empty or missing: from anywhere
+}
+```
+
+A reference Postgres store, with `create`, `revoke` and last-used tracking, is in the repository (`packages/auth/src/postgres-api-key-store.example.ts`, run against a real database by its test). It is not exported: copy it.
+
+### `apiKeys` options
+
+| Option | Meaning |
+| --- | --- |
+| `store` | Your store, a DI class. |
+| `imports` | Modules the store needs to see, as `issuing.imports`. |
+| `clientIp` | How the address for `allowedCidrs` is decided: the options of [`getClientIp`](/framework/reference/blixis-security/#getclientip). **Behind a proxy every client looks like the proxy until you set `trustedProxyHops`; set wrongly, or with the server reachable around the proxy, a client chooses its own address.** An unknown address is refused for a key that has `allowedCidrs`. |
+| `cacheSeconds` | Seconds a found record is remembered in this process (default `0`, off). **It is also the longest a revocation, expiry change or new network takes to apply** to a process holding the old record. The secret is still compared on every request; only the record is cached. Keys that were not found are never cached. |
+| `lastUsedIntervalSeconds` | `touch` at most once per key and process in this many seconds (default 300); a failing `touch` is ignored. |
+
+### `getCurrentApiKey(ctx)`
+
+`{ id, scopes }` of the key that authenticated the request, or `undefined` for a token. Log the **id**, never the key; and make sure your access log does not record the `x-api-key` header.
+
+### What this does not do
+
+No scopes enforcement yet (the scopes are stored and readable; a `RequireScopes` guard is planned), no 2FA (it does not apply to a machine credential: require it on the human sign-in that creates or rotates a key), no mTLS, request signing or OAuth client credentials, and no rate limit of its own (`rateLimit({ key })` from `@blixis-io/security` can limit per key id). Unknown ids are not rate limited by this package: put a limiter in front.
+
 ## `hashPassword` / `verifyPassword`
 
 ```ts
