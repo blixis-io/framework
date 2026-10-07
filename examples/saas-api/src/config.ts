@@ -24,6 +24,10 @@ export const AppConfigSchema = z.object({
   OUTBOX_POLL_MS: z.coerce.number().int().min(0).default(1000),
   /** Failed deliveries before an event is parked for a human. */
   OUTBOX_MAX_ATTEMPTS: z.coerce.number().int().min(1).default(5),
+  /** Delivered outbox rows older than this many days are deleted. `0` keeps them forever. Parked rows are never deleted. */
+  OUTBOX_RETENTION_DAYS: z.coerce.number().int().min(0).default(14),
+  /** How often the relay deletes them. */
+  OUTBOX_PURGE_INTERVAL_MS: z.coerce.number().int().min(1).default(3_600_000),
 });
 export type AppConfig = z.infer<typeof AppConfigSchema>;
 
