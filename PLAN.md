@@ -188,6 +188,37 @@ A separate small example (name proposal: `examples/saas-api`; `hello-api` stays 
 - **X-18 Property tests** for the router and parsers (TST-1). The router one is best done right after X-1.
 - Deferred, unchanged: uploads, WebSockets, caching, more ORMs or runtimes, a Node-only entry split (decision already open in the TODO).
 
+### Phase 4: API keys (machine credentials)
+
+Added 2026-10-07 after the question "can API keys be protected: 2FA, IP ranges, anything else?". Today the framework has **no** API key feature: the guards guide shows one shared secret in an environment variable, and `@blixis-io/auth` only verifies signed JWTs (stateless, so not revocable). `@blixis-io/security` has `getClientIp` and `rateLimit` (which accepts a `key`) but no CIDR matching.
+
+**Where it lives (decision D-9): inside `@blixis-io/auth`, not a new package.** An API key must resolve to the *same claims shape* as a JWT, so `Roles`, `createRolesGuard`, `getCurrentUser`, tenancy checks and the OpenAPI security description keep working unchanged. A separate package would need its own identity model or a dependency on auth's internals, and would split one concern (who is calling) across two packages. The CIDR helper is the one piece that is not about identity, so it goes in `@blixis-io/security` next to `getClientIp` (D-10). `auth` then depends on `security`; there is no cycle (`security` depends on `http`, not on `auth`). **No new package, so no npm placeholder or trusted-publisher step is needed**; if D-9 is reversed later, a new package would need both **[you]**.
+
+#### X-19 CIDR matching in `@blixis-io/security`
+
+`parseCidr` / `ipInCidrs(ip, cidrs)` for IPv4 and IPv6 (including IPv4-mapped IPv6 and `/0` to `/32`/`/128`), rejecting malformed input at construction time rather than silently matching nothing. **Tests:** property tests against a brute-force model (a CIDR matches exactly the addresses whose masked bits agree); hostile strings (leading zeros, `1.2.3.4/33`, `::ffff:` forms, zone ids). Size S.
+
+#### X-20 API key guard in `@blixis-io/auth`
+
+- Key format `blx_<id>_<secret>`: `id` is a lookup key, `secret` is at least 32 random bytes. Only a **SHA-256 of the secret** is stored (a slow password hash would make every request expensive for no gain on a high-entropy secret). Comparison is constant time. The secret is shown once, at creation.
+- `ApiKeyStore` interface (`find(id)`, `touch(id, at)`, `revoke(id)`) implemented by the app, with a Postgres example like the refresh-token store. The guard fails closed: a store error is a 503, never an allow.
+- Per key: `scopes`, `expiresAt`, `revokedAt`, optional `allowedCidrs`, `lastUsedAt` (best effort, never blocks a request).
+- `defineAuthModule(...).forRoot({ apiKeys })` makes one module accept a Bearer JWT **or** an `x-api-key` header; a key resolves to the claims the store returns for it.
+- An unknown id, a wrong secret, a revoked or expired key and a disallowed address all answer the same 401 with no hint which, and cost about the same time.
+- Optional short in-process cache of positive lookups (default off), so revocation latency is a documented, bounded number.
+
+**Tests:** wrong secret, truncated and oversized keys, revoked, expired, outside the allowed range, store failure (fail closed), timing equality between "unknown id" and "wrong secret" within a tolerance, a real Postgres store test. Mutation checks on the comparison and the CIDR gate. Size L.
+
+#### X-21 Rate limits and scopes for keys
+
+`rateLimit({ key })` per key id (an example, not new code), a `RequireScopes(...)` decorator and guard, and the reference app's use of both. Size S.
+
+#### X-22 Operating keys: rotation, audit, docs
+
+A guide: creating a key (show-once), rotating with overlap (two active keys per client), revoking, what to log (key id, never the secret; the access log must redact `x-api-key`), where 2FA belongs (on the human sign-in that creates or rotates a key, not on the key itself), and the proxy and `trustedProxyHops` setup an IP allowlist depends on. Update `protecting-routes-with-guards.md` to point at it. Size M.
+
+**What this does not do, on purpose:** mTLS, request signing (HMAC) and OAuth client credentials are different mechanisms with their own trade-offs; none is planned until someone needs it.
+
 ## Decisions needed
 
 | ID | Question | Recommendation |
@@ -200,6 +231,9 @@ A separate small example (name proposal: `examples/saas-api`; `hello-api` stays 
 | D-6 | Access-token revocation hook in the auth guard? | Not now. Document short TTLs. |
 | D-7 | Security baseline: new package or inside `http`? | New package `@blixis-io/security` (already the TODO's recommendation). |
 | D-8 | Health: its own package or part of security? | Own small package; liveness and readiness are not security. |
+| D-9 | API keys: new package or inside `@blixis-io/auth`? | Inside `auth`: a key must resolve to the same claims as a JWT so roles, tenancy and OpenAPI keep working. |
+| D-10 | Where does CIDR matching live? | `@blixis-io/security`, next to `getClientIp`; `auth` depends on `security`. |
+| D-11 | Store only a SHA-256 of the key secret, or a slow password hash? | SHA-256: the secret is 32+ random bytes, and a slow hash would only cost every request time. |
 
 ## Sequence and dependencies
 
@@ -211,6 +245,7 @@ Phase 1:  X-6 ──> X-7 ──> (rate limit on auth routes)
 Phase 2:  X-12, X-13                         (any time after phase 0)
           X-14 needs X-9, X-10 (and X-7 for rate limits)
 Phase 3:  X-15..X-18 as demand and measurements justify
+Phase 4:  X-19 ──> X-20 ──> X-21 ──> X-22   (API keys; X-19 and the store interface can start any time)
 ```
 
 ## How we know it worked
