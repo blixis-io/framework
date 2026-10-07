@@ -1,5 +1,19 @@
 # @blixis-io/auth
 
+## 0.7.0
+
+### Minor Changes
+
+- [#147](https://github.com/blixis-io/framework/pull/147) [`cb22a44`](https://github.com/blixis-io/framework/commit/cb22a44f8e8d8ff61229e0298bba45beb0514f2e) Thanks [@EmVeeNL](https://github.com/EmVeeNL)! - Add API keys. `AuthModule.forRoot({ apiKeys: { store } })` also accepts an `x-api-key: blx_<id>_<secret>` header, checked against your `ApiKeyStore`, and a key resolves to the same claims as a token so `@Roles`, `getCurrentUser` and tenancy work unchanged. Only a SHA-256 of the secret is stored and it is compared in constant time; keys can expire, be revoked and be limited to networks (`allowedCidrs`, using `@blixis-io/security`). Every failure is the same `401`, a store error is a `503` and never an allow, and a malformed key is refused before the store is asked. New exports: `generateApiKey`, `parseApiKey`, `hashApiKeySecret`, `API_KEY_HEADER`, the `ApiKey*` types, and `getCurrentApiKey` from `defineAuthModule`. `@blixis-io/auth` now depends on `@blixis-io/security`.
+
+- [#148](https://github.com/blixis-io/framework/pull/148) [`f6c8aff`](https://github.com/blixis-io/framework/commit/f6c8aff7769345405133c6f8113816ab6ef104f1) Thanks [@EmVeeNL](https://github.com/EmVeeNL)! - Add `RequireScopes(...scopes)` and `apiKeys.scopedRoutesOnly`. An API key must hold all of a route's scopes or the request is a 403; a request authenticated with a token is not held to scopes. With `scopedRoutesOnly: true` a key is refused on any route that does not declare scopes. `JwtAuthGuard` now accepts tokens only (an API key has to come through `AuthGuard`, which checks scopes).
+
+### Patch Changes
+
+- Updated dependencies [[`f70a9dd`](https://github.com/blixis-io/framework/commit/f70a9ddbddefd3b518aa7f7488c92cfefe8eba81), [`a5ea292`](https://github.com/blixis-io/framework/commit/a5ea29254c20628b17618d6f9eacc419afe48e72)]:
+  - @blixis-io/http@0.9.1
+  - @blixis-io/security@0.2.0
+
 ## 0.6.0
 
 ### Minor Changes
