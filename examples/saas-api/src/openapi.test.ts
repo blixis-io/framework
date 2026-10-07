@@ -55,7 +55,7 @@ describe("the OpenAPI document", () => {
   it("has an operation id for every route, and none twice", () => {
     const ids = operationIds(document);
 
-    expect(ids.length).toBe(12);
+    expect(ids.length).toBe(13);
     expect(new Set(ids).size).toBe(ids.length);
   });
 });

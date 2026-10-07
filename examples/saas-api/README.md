@@ -58,6 +58,7 @@ Tests (real Postgres on :5434, nothing mocked): `pnpm exec vitest run` in this d
 | The database backs it up | `migrations/0001_init.sql` | the composite key `(project_id, space_id)` so a task cannot point at another space's project |
 | Membership check | `src/tenancy/` | `TenantScopedGuard`: 404, never 403, to a non-member |
 | Migrations | `src/db/migrate.ts` and `migrate.command.ts` | plain SQL files, each in a transaction, an advisory lock, `blix run db:migrate` as a deploy step |
+| Events that survive a crash | `src/outbox/`, `migrations/0002_outbox.sql`, `src/projects/projects.service.ts` | the event is a row written in the same transaction as the project; a relay delivers it at least once (`for update skip locked`, backoff, parking) to an idempotent consumer; see the [outbox guide](https://blixis-io.github.io/framework/guides/transactional-outbox/) |
 | Rate-limit counters shared by every replica | `src/platform/rate-limit-store.ts` | one upsert in the application's database |
 | Readiness | `src/platform/` | a database check registered by the provider that owns the database; `503 draining` on shutdown |
 | OpenAPI | `src/app.ts`, `src/auth/auth.controller.ts` | `securitySchemes`, `@ApiSecurity(false)` on the public routes |

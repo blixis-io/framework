@@ -1,5 +1,5 @@
 import { tenantColumns } from "@blixis-io/tenancy";
-import { boolean, integer, pgSchema, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { boolean, integer, jsonb, pgSchema, text, timestamp, uuid } from "drizzle-orm/pg-core";
 
 /** Mirrors `migrations/0001_init.sql`. The migrations are the source of truth; this is how the code queries them. */
 export const saas = pgSchema("saas");
@@ -62,4 +62,25 @@ export const rateLimits = saas.table("rate_limits", {
   resetAt: timestamp("reset_at", { withTimezone: true }).notNull(),
 });
 
-export const schema = { users, organizations, spaces, memberships, projects, tasks, refreshTokens, rateLimits };
+export const outbox = saas.table("outbox", {
+  id: uuid("id").primaryKey(),
+  topic: text("topic").notNull(),
+  payload: jsonb("payload").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  availableAt: timestamp("available_at", { withTimezone: true }).notNull().defaultNow(),
+  attempts: integer("attempts").notNull().default(0),
+  lastError: text("last_error"),
+  processedAt: timestamp("processed_at", { withTimezone: true }),
+  failedAt: timestamp("failed_at", { withTimezone: true }),
+});
+
+export const activity = saas.table("activity", {
+  id: uuid("id").primaryKey(),
+  eventId: uuid("event_id").notNull().unique(),
+  organizationId: uuid("organization_id").notNull(),
+  spaceId: uuid("space_id").notNull(),
+  message: text("message").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const schema = { users, organizations, spaces, memberships, projects, tasks, refreshTokens, rateLimits, outbox, activity };

@@ -14,6 +14,8 @@ export const BASE_ENV: Record<string, string> = {
   CORS_ORIGINS: TEST_ORIGIN,
   RATE_LIMIT_PER_MINUTE: "100000",
   AUTH_RATE_LIMIT_PER_MINUTE: "100000",
+  // The relay loop is off: tests that are not about it must not race it. The ones that are call `runOnce` or turn it on.
+  OUTBOX_POLL_MS: "0",
 };
 
 export interface TestApp {

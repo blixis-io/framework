@@ -43,7 +43,7 @@ export async function createApp(options: AppOptions = {}): Promise<HttpApplicati
   });
   const clientIp = { trustedProxyHops: config.TRUSTED_PROXY_HOPS };
 
-  const app = await createHttpApplication(createAppModule(env), {
+  const app = await createHttpApplication(createAppModule(env, { onOutboxError: (error) => logger.error("outbox delivery failed", { error }) }), {
     middleware: [
       health.middleware,
       requestId(),
