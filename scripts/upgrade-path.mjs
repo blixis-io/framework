@@ -49,6 +49,9 @@ function run(command, commandArgs, options = {}) {
   return result.stdout;
 }
 
+/** The dependencies that are not this repository's own packages. */
+const external = (deps) => Object.fromEntries(Object.entries(deps ?? {}).filter(([name]) => !name.startsWith("@blixis-io/")));
+
 const quiet = (command, commandArgs) => spawnSync(command, commandArgs, { cwd: root, encoding: "utf8" });
 
 function previousRelease() {
@@ -109,7 +112,6 @@ try {
   // Every packed package is a direct dependency, so npm resolves a package's own @blixis-io dependencies to the tarballs
   // and never to the registry's older copies.
   const blixis = Object.fromEntries(packages.map((pkg) => [pkg.name, `file:${tarball(pkg)}`]));
-  const external = (deps) => Object.fromEntries(Object.entries(deps ?? {}).filter(([name]) => !name.startsWith("@blixis-io/")));
   writeFileSync(
     join(app, "package.json"),
     JSON.stringify(
