@@ -1,3 +1,4 @@
+export { createIpMatcher, ipInCidrs, parseCidr, type Cidr } from "./cidr.js";
 export { clientIpFrom, getClientIp, type ClientIpOptions } from "./client-ip.js";
 export { cors, type CorsOptions } from "./cors.js";
 export { SecurityConfigError } from "./errors.js";
