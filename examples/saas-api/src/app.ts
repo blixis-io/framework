@@ -83,8 +83,12 @@ export async function createApp(options: AppOptions = {}): Promise<HttpApplicati
     title: "saas-api",
     version: "1.0.0",
     description: "A small multi-tenant API: accounts, spaces, projects and tasks. The framework's reference application.",
-    securitySchemes: { bearerAuth: { type: "http", scheme: "bearer", bearerFormat: "JWT" } },
-    security: ["bearerAuth"],
+    securitySchemes: {
+      bearerAuth: { type: "http", scheme: "bearer", bearerFormat: "JWT" },
+      apiKeyAuth: { type: "apiKey", in: "header", name: "x-api-key" },
+    },
+    // Either one: a person's token, or an API key (routes say which scope a key needs).
+    security: ["bearerAuth", "apiKeyAuth"],
   });
   return app;
 }

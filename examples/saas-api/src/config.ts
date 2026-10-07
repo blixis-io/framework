@@ -18,6 +18,8 @@ export const AppConfigSchema = z.object({
   RATE_LIMIT_PER_MINUTE: z.coerce.number().int().min(1).default(300),
   /** Sign-in, sign-up and refresh attempts per minute per client address. Much stricter: this is where guessing happens. */
   AUTH_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().min(1).default(10),
+  /** Requests per minute per API key, counted after the key is verified (a person is limited by address only). */
+  API_KEY_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().min(1).default(600),
   /** How long the outbox relay waits when nothing is due. `0` turns the relay off in this process (run it elsewhere, or only in tests). */
   OUTBOX_POLL_MS: z.coerce.number().int().min(0).default(1000),
   /** Failed deliveries before an event is parked for a human. */

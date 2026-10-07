@@ -102,6 +102,12 @@ export interface ApiKeyOptions {
    * has the old record. The secret is still compared on every request; only the record is cached.
    */
   cacheSeconds?: number | undefined;
+  /**
+   * When `true`, a key is refused (403) on any route that does not carry `@RequireScopes(...)`, so a key can only reach
+   * routes that say what they need. Default `false`. Turn it on: without it, a key that holds only `read` still reaches
+   * every route someone forgot to annotate.
+   */
+  scopedRoutesOnly?: boolean | undefined;
   /** At most one `touch` per key and process in this many seconds. Default 300. */
   lastUsedIntervalSeconds?: number | undefined;
 }
@@ -113,6 +119,8 @@ export interface VerifiedApiKey<Claims> {
 }
 
 export interface ApiKeyVerifier<Claims> {
+  /** `ApiKeyOptions.scopedRoutesOnly`, so the guard can apply it. */
+  readonly scopedRoutesOnly: boolean;
   /** Reads the key from the request and checks it. Throws `UnauthorizedException` (one message for every failure) or a 503. */
   verify(request: Request): Promise<VerifiedApiKey<Claims>>;
 }
@@ -208,6 +216,7 @@ export function createApiKeyVerifier<Claims>({ store, options, parseClaims, now 
   }
 
   return {
+    scopedRoutesOnly: options.scopedRoutesOnly === true,
     async verify(request) {
       const parsed = parseApiKey(request.headers.get(API_KEY_HEADER) ?? "");
       if (!parsed) {

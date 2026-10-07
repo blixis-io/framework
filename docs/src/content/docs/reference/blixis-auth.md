@@ -280,9 +280,27 @@ A reference Postgres store, with `create`, `revoke` and last-used tracking, is i
 
 `{ id, scopes }` of the key that authenticated the request, or `undefined` for a token. Log the **id**, never the key; and make sure your access log does not record the `x-api-key` header.
 
+### `RequireScopes(...scopes)` and `scopedRoutesOnly`
+
+```ts
+@Controller("projects")
+@RequireScopes("projects:read")          // every route needs it ...
+class ProjectsController {
+  @Post()
+  @RequireScopes("projects:write")       // ... unless the route names its own, which replaces it
+  create() {}
+}
+```
+
+An API key must hold **all** of the listed scopes (its `scopes` in the store), or the request is a **403**. Scopes limit **keys only**: a request authenticated with a token is never held to them, because a person's permissions come from their roles and membership. Like `@Roles`, `@RequireScopes` takes effect where `AuthGuard` runs (everywhere with `protectAllRoutes: true`).
+
+`apiKeys.scopedRoutesOnly: true` makes a key refused (403) on any route **without** `@RequireScopes`, so a key can only reach routes that say what they need. **Turn it on**: without it, a key holding only `read` still reaches every route nobody annotated. Public routes stay public.
+
+**`JwtAuthGuard` accepts tokens only**, on purpose: a key must not get in through a guard that cannot check scopes. Use `AuthGuard` (or `protectAllRoutes`) on routes that should accept keys.
+
 ### What this does not do
 
-No scopes enforcement yet (the scopes are stored and readable; a `RequireScopes` guard is planned), no 2FA (it does not apply to a machine credential: require it on the human sign-in that creates or rotates a key), no mTLS, request signing or OAuth client credentials, and no rate limit of its own (`rateLimit({ key })` from `@blixis-io/security` can limit per key id). Unknown ids are not rate limited by this package: put a limiter in front.
+No 2FA (it does not apply to a machine credential: require it on the human sign-in that creates or rotates a key), no mTLS, request signing or OAuth client credentials, and no rate limit of its own: `rateLimit({ key })` from `@blixis-io/security` runs **before** authentication, so keying it on the key id in the header would let anyone use up another key's allowance by sending its id without the secret. Count per key **after** the guard, as `examples/saas-api`'s `KeyRateLimitGuard` does. Unknown ids are not rate limited by this package: put a limiter in front.
 
 ## `hashPassword` / `verifyPassword`
 

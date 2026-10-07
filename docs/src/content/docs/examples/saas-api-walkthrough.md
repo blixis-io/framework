@@ -32,6 +32,10 @@ Concepts: [Middleware](/framework/concepts/middleware/), [Securing the API](/fra
 
 Creating a project also writes a `project.created` row to `saas.outbox` in the same transaction; a relay delivers it to a consumer that writes the space's activity feed (`GET /spaces/:spaceId/activity`). Read [The transactional outbox](/framework/guides/transactional-outbox/) for the guarantees and the trade-offs.
 
+## API keys for machines, `src/api-keys/`
+
+A space's owners create keys (`POST /spaces/:spaceId/api-keys`); the response is the only time the key is shown. A key carries scopes, an optional expiry and optional `allowedCidrs`, acts in **one** space (the tenancy guard answers 404 for any other), and can reach only routes that say which scope they need (`scopedRoutesOnly`), so `/me` and key management are closed to it. The limit per key is counted after the key is verified: see `key-rate-limit.guard.ts` for why it cannot be a middleware keyed on the header. [API keys reference](/framework/reference/blixis-auth/#api-keys).
+
 ## 4. Operations
 
 - **Migrations** are plain SQL files applied by `blix run db:migrate`, each in a transaction, under an advisory lock. Run it once per release, before the new version starts.
