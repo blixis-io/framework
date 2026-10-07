@@ -2,13 +2,16 @@ import { spawn, spawnSync, type ChildProcess } from "node:child_process";
 import { cpus, platform, release, totalmem } from "node:os";
 import { fileURLToPath } from "node:url";
 import autocannon from "autocannon";
-import { DESCRIPTIONS, SCENARIOS, type Scenario } from "./scenarios.js";
+import { DATABASE_DESCRIPTIONS, DATABASE_SCENARIOS, DATABASE_URL, databaseUnavailable, type DatabaseScenario } from "./database-scenarios.js";
+import { DESCRIPTIONS, SCENARIOS, type Running, type Scenario } from "./scenarios.js";
 
 /**
  * `pnpm --filter benchmarks bench`: drives each workload over real sockets and reports throughput, latency
  * percentiles, memory and cold start, with the environment, so a number is never separated from where it came from.
  *
  * Flags: `--duration <seconds>` (default 10), `--connections <n>` (default 64), `--only <scenario,...>`, `--cold <runs>` (default 5).
+ * The `database-*` workloads need Postgres (`BENCH_DATABASE_URL`, `DATABASE_URL`, or the compose database on :5434): they
+ * run when one answers, and are skipped, with the reason printed, when none does.
  *
  * Read the numbers with care. The load generator runs on the same machine as the server and competes with it for CPU,
  * so absolute figures are lower than a separate machine would show; compare scenarios with each other, and runs with
@@ -29,19 +32,34 @@ const duration = Number(flag("duration") ?? 10);
 const connections = Number(flag("connections") ?? 64);
 const coldRuns = Number(flag("cold") ?? 5);
 const only = flag("only")?.split(",");
-const scenarios = SCENARIOS.filter((scenario) => only === undefined || only.includes(scenario));
+type AnyScenario = Scenario | DatabaseScenario;
+const wanted = (scenario: string): boolean => only === undefined || only.includes(scenario);
+const scenarios: AnyScenario[] = SCENARIOS.filter(wanted);
+const databaseScenarios = DATABASE_SCENARIOS.filter(wanted);
+if (databaseScenarios.length > 0) {
+  const reason = await databaseUnavailable();
+  if (reason === undefined) {
+    scenarios.push(...databaseScenarios);
+  } else {
+    console.error(`skipping ${databaseScenarios.join(", ")}: no database at ${DATABASE_URL.replace(/\/\/[^@]*@/, "//***@")} (${reason}). Start one (\`docker compose up -d postgres\`) or set BENCH_DATABASE_URL.`);
+    if (only?.some((name) => name.startsWith("database"))) {
+      process.exitCode = 1; // asked for by name: not finding it is a failure, not a quiet skip
+    }
+  }
+}
+const ALL_DESCRIPTIONS: Record<AnyScenario, string> = { ...DESCRIPTIONS, ...DATABASE_DESCRIPTIONS };
 
 interface Started {
   child: ChildProcess;
   /** The server process's CPU time so far, in microseconds (it answers a SIGUSR2 with `CPU <n>`). */
   cpuMicroseconds: () => Promise<number>;
   port: number;
-  request: { method: "GET" | "POST"; path: string; headers?: Record<string, string>; body?: string };
+  request: Running["request"];
   startedAt: number;
   listeningAfterMs: number;
 }
 
-function start(scenario: Scenario): Promise<Started> {
+function start(scenario: AnyScenario): Promise<Started> {
   return new Promise((resolve, reject) => {
     const startedAt = performance.now();
     const child = spawn("node", [server, scenario], { stdio: ["ignore", "pipe", "inherit"] });
@@ -89,7 +107,7 @@ function rssMb(pid: number | undefined): number {
 const median = (values: number[]): number => values.toSorted((a, b) => a - b)[Math.floor(values.length / 2)] ?? 0;
 
 async function firstResponse(started: Started): Promise<number> {
-  const response = await fetch(`http://127.0.0.1:${started.port}${started.request.path}`, {
+  const response = await fetch(`http://127.0.0.1:${started.port}${started.request.path.replace("[<id>]", "1")}`, {
     method: started.request.method,
     ...(started.request.headers ? { headers: started.request.headers } : {}),
     ...(started.request.body === undefined ? {} : { body: started.request.body }),
@@ -100,7 +118,7 @@ async function firstResponse(started: Started): Promise<number> {
   return performance.now() - started.startedAt;
 }
 
-async function coldStart(scenario: Scenario): Promise<{ listening: number; firstResponse: number }> {
+async function coldStart(scenario: AnyScenario): Promise<{ listening: number; firstResponse: number }> {
   const listening: number[] = [];
   const first: number[] = [];
   for (let run = 0; run < coldRuns; run += 1) {
@@ -113,7 +131,7 @@ async function coldStart(scenario: Scenario): Promise<{ listening: number; first
 }
 
 interface Row {
-  scenario: Scenario;
+  scenario: AnyScenario;
   requestsPerSecond: number;
   /** CPU time the server process spent per request, in microseconds: the server's own cost, whatever the load generator could push. */
   cpuMicrosecondsPerRequest: number;
@@ -127,17 +145,37 @@ interface Row {
   coldFirstResponseMs: number;
 }
 
-async function measure(scenario: Scenario): Promise<Row> {
+async function measure(scenario: AnyScenario): Promise<Row> {
   const cold = await coldStart(scenario);
   const started = await start(scenario);
   await firstResponse(started);
-  const options = {
-    url: `http://127.0.0.1:${started.port}${started.request.path}`,
-    connections,
-    method: started.request.method,
-    ...(started.request.headers ? { headers: started.request.headers } : {}),
-    ...(started.request.body === undefined ? {} : { body: started.request.body }),
-  };
+  const { request } = started;
+  const base = `http://127.0.0.1:${started.port}`;
+  // A workload that must not hit one hot row names `[<id>]` in its path; the runner counts up, so every request differs.
+  let next = 0;
+  const options = request.varyId
+    ? {
+        url: base,
+        connections,
+        requests: [
+          {
+            method: request.method,
+            path: request.path,
+            ...(request.headers ? { headers: request.headers } : {}),
+            setupRequest: (outgoing: { path: string }) => {
+              next += 1;
+              return { ...outgoing, path: request.path.replace("[<id>]", String(next)) };
+            },
+          },
+        ],
+      }
+    : {
+        url: `${base}${request.path}`,
+        connections,
+        method: request.method,
+        ...(request.headers ? { headers: request.headers } : {}),
+        ...(request.body === undefined ? {} : { body: request.body }),
+      };
   await autocannon({ ...options, duration: 3 }); // warm up the JIT and the connections; not reported
   const cpuBefore = await started.cpuMicroseconds();
   const result = await autocannon({ ...options, duration });
@@ -179,7 +217,7 @@ console.log(`## Environment
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 ${rows.map((row) => `| ${row.scenario} | ${row.requestsPerSecond.toLocaleString("en-US")} | ${row.cpuMicrosecondsPerRequest.toFixed(1)} | ${row.p50} | ${row.p97_5} | ${row.p99} | ${row.max} | ${row.failures} | ${row.rssMb} | ${row.coldListeningMs} | ${row.coldFirstResponseMs} |`).join("\n")}
 
-${rows.map((row) => `- **${row.scenario}**: ${DESCRIPTIONS[row.scenario]}`).join("\n")}
+${rows.map((row) => `- **${row.scenario}**: ${ALL_DESCRIPTIONS[row.scenario]}`).join("\n")}
 `);
 
 if (rows.some((row) => row.failures > 0)) {

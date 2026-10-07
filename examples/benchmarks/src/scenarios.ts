@@ -52,7 +52,10 @@ export function makeToken(): string {
 export interface Running {
   port: number;
   /** What to send for one request of this scenario. */
-  request: { method: "GET" | "POST"; path: string; headers?: Record<string, string>; body?: string };
+  request: { method: "GET" | "POST"; path: string; headers?: Record<string, string>; body?: string;
+    /** The path holds `[<id>]`, which the runner replaces with a different whole number for every request. */
+    varyId?: boolean;
+  };
   close(): Promise<void>;
 }
 
