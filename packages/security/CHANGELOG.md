@@ -1,5 +1,16 @@
 # @blixis-io/security
 
+## 0.2.0
+
+### Minor Changes
+
+- [#145](https://github.com/blixis-io/framework/pull/145) [`a5ea292`](https://github.com/blixis-io/framework/commit/a5ea29254c20628b17618d6f9eacc419afe48e72) Thanks [@EmVeeNL](https://github.com/EmVeeNL)! - Add `createIpMatcher`, `ipInCidrs` and `parseCidr`: CIDR matching for IPv4, IPv6 and IPv4-mapped addresses. A malformed network, or one with bits set after the prefix (`192.168.1.5/24`), throws a `SecurityConfigError` when the matcher is built; an address that is not a valid IP is never inside. It fits `getClientIp`'s `isTrustedProxy` directly, and is the building block for IP allowlists.
+
+### Patch Changes
+
+- Updated dependencies [[`f70a9dd`](https://github.com/blixis-io/framework/commit/f70a9ddbddefd3b518aa7f7488c92cfefe8eba81)]:
+  - @blixis-io/http@0.9.1
+
 ## 0.1.0
 
 ### Minor Changes

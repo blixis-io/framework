@@ -1,6 +1,6 @@
 {
   "name": "@blixis-io/http",
-  "version": "0.9.0",
+  "version": "0.9.1",
   "description": "The HTTP layer built on @blixis-io/core \u2014 routing, controllers, request validation with Zod, guards, RFC 9457 error responses.",
   "license": "MIT",
   "author": "Michael Voeten <michael@voeten.online>",
