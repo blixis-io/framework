@@ -231,9 +231,9 @@ A guide: creating a key (show-once), rotating with overlap (two active keys per 
 | D-6 | Access-token revocation hook in the auth guard? | Not now. Document short TTLs. |
 | D-7 | Security baseline: new package or inside `http`? | New package `@blixis-io/security` (already the TODO's recommendation). |
 | D-8 | Health: its own package or part of security? | Own small package; liveness and readiness are not security. |
-| D-9 | API keys: new package or inside `@blixis-io/auth`? | Inside `auth`: a key must resolve to the same claims as a JWT so roles, tenancy and OpenAPI keep working. |
-| D-10 | Where does CIDR matching live? | `@blixis-io/security`, next to `getClientIp`; `auth` depends on `security`. |
-| D-11 | Store only a SHA-256 of the key secret, or a slow password hash? | SHA-256: the secret is 32+ random bytes, and a slow hash would only cost every request time. |
+| D-9 | API keys: new package or inside `@blixis-io/auth`? | **Approved:** inside `auth`: a key must resolve to the same claims as a JWT so roles, tenancy and OpenAPI keep working. |
+| D-10 | Where does CIDR matching live? | **Approved:** `@blixis-io/security`, next to `getClientIp`; `auth` depends on `security`. |
+| D-11 | Store only a SHA-256 of the key secret, or a slow password hash? | **Approved:** SHA-256: the secret is 32+ random bytes, and a slow hash would only cost every request time. |
 
 ## Sequence and dependencies
 

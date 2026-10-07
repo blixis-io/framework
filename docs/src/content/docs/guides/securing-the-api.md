@@ -76,11 +76,11 @@ It is tested against a real database: 40 simultaneous hits on one key get 40 dif
 ## The client's address
 
 ```ts
-import { getClientIp } from "@blixis-io/security";
+import { createIpMatcher, getClientIp } from "@blixis-io/security";
 
 getClientIp(request);                                       // the address that connected
 getClientIp(request, { trustedProxyHops: 1 });              // one reverse proxy in front: the last X-Forwarded-For entry
-getClientIp(request, { trustedProxyHops: 1, isTrustedProxy: (peer) => peer === "10.0.0.5" });
+getClientIp(request, { trustedProxyHops: 1, isTrustedProxy: createIpMatcher(["10.0.0.0/8", "fd00::/8"]) }); // proxies by network
 ```
 
 Behind a proxy the address that connected is the proxy, so a limiter keyed on it would count every user together. `X-Forwarded-For` has the user's address, but a client can send it too, so it is trusted **only** as far as you say:
@@ -88,6 +88,7 @@ Behind a proxy the address that connected is the proxy, so a limiter keyed on it
 - `trustedProxyHops` is how many proxies **you operate** in front (a load balancer is 1; behind a CDN, 2). The address is taken that many entries from the **end** of the header, the part your own proxies wrote. The left of the header, which a client controls, is never used.
 - Fewer entries than hops, or something that is not an address, falls back to the address that connected. It never guesses.
 - **The server must not be reachable around the proxy**, or a client can talk to it directly and send any header. `isTrustedProxy` narrows it: the header is read only when the connecting peer is one of your proxies.
+- `createIpMatcher` takes IPv4 and IPv6 networks in CIDR form (see the [reference](/framework/reference/blixis-security/#createipmatcher-ipincidrs-parsecidr)); it is also the building block for an IP allowlist on any route: `const internal = createIpMatcher(["10.0.0.0/8"])`, then `internal(getClientIp(request))`. An address it cannot read is never inside.
 - Make sure the proxy appends to or overwrites `X-Forwarded-For` instead of passing the client's value through untouched. Many do both depending on a setting.
 
 The address itself comes from [`currentRemoteAddress()`](/framework/guides/running-in-production/#who-is-connecting) in `@blixis-io/http`.
