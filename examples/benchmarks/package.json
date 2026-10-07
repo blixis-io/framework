@@ -14,12 +14,16 @@
   "dependencies": {
     "@blixis-io/auth": "workspace:*",
     "@blixis-io/core": "workspace:*",
+    "@blixis-io/db": "workspace:*",
     "@blixis-io/di": "workspace:*",
     "@blixis-io/http": "workspace:*",
     "@blixis-io/security": "workspace:*",
+    "drizzle-orm": "^0.45.3",
+    "pg": "^8.23.1",
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@types/pg": "^8.23.1",
     "autocannon": "^8.0.0"
   }
 }

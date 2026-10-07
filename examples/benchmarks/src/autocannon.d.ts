@@ -7,6 +7,15 @@ declare module "autocannon" {
     headers?: Record<string, string>;
     body?: string;
     pipelining?: number;
+    /** Used instead of `method`, `headers` and `body` when requests must differ from one another. */
+    requests?: Array<{
+      method: string;
+      path: string;
+      headers?: Record<string, string>;
+      body?: string;
+      /** Called before each request is sent; whatever it returns is sent. */
+      setupRequest?: (request: { path: string }) => { path: string };
+    }>;
   }
 
   interface Percentiles {
