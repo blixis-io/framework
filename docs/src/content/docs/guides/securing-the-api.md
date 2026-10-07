@@ -99,4 +99,4 @@ The address itself comes from [`currentRemoteAddress()`](/framework/guides/runni
 
 ## What this does not do
 
-No login lockout beyond what you configure, no bot detection, no WAF, no request-signing, no CSRF protection (a bearer-token API without cookies does not need it; if you use cookies, you do). It does not make the framework's other limits go away: `bodyLimit` and `requestTimeout` still matter. And headers and CORS are only as good as the proxy and DNS in front of them.
+No login lockout beyond what you configure, no bot detection, no WAF, no request-signing, no built-in CSRF protection (a bearer-token API without cookies does not need it; if you use cookies, you do: [Cookies and CSRF](/framework/guides/cookies-and-csrf/) is a tested recipe). It does not make the framework's other limits go away: `bodyLimit` and `requestTimeout` still matter. And headers and CORS are only as good as the proxy and DNS in front of them.
