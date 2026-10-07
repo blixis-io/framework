@@ -14,6 +14,8 @@ pnpm run ci                      # build, typecheck, lint, tests with coverage, 
 
 `pnpm run ci` is exactly what the CI job runs; if it passes locally the required check should pass. Tests for one package: `cd packages/http && npx vitest run`.
 
+Two more checks run on every pull request but are not required: the fresh-install jobs, and `upgrade-path`, which builds and tests `examples/saas-api` as it was at the last release against packages packed from your branch (`node scripts/upgrade-path.mjs` after `pnpm run build`, with Postgres running). If it fails, your change breaks an app written against the last release: fix it, or say in the pull request that the break is deliberate and put it in the changeset.
+
 ## What a good pull request looks like
 
 - **One change per pull request.** A fix and an unrelated cleanup are two pull requests.
