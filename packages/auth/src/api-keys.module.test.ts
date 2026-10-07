@@ -1,11 +1,11 @@
 import { Module } from "@blixis-io/core";
-import { Controller, createHttpApplication, Get, RequestContext } from "@blixis-io/http";
+import { Controller, createHttpApplication, Get, RequestContext, UseGuards } from "@blixis-io/http";
 import { createIpMatcher } from "@blixis-io/security";
 import { SignJWT } from "jose";
 import { afterEach, describe, expect, it } from "vitest";
 import { z } from "zod";
 import { generateApiKey, type ApiKeyRecord, type ApiKeyStore } from "./api-keys.js";
-import { Public, Roles, defineAuthModule } from "./module.js";
+import { Public, RequireScopes, Roles, defineAuthModule } from "./module.js";
 
 const SECRET = "test-secret-at-least-32-bytes-long!!";
 const ClaimsSchema = z.object({ sub: z.string(), roles: z.array(z.string()) });
@@ -51,22 +51,54 @@ class ThingsController {
   }
 }
 
-async function boot(options: { apiKeys?: boolean; clientIp?: { trustedProxyHops?: number; isTrustedProxy?: (peer: string) => boolean } } = {}) {
+@Controller("scoped")
+@RequireScopes("read")
+class ScopedController {
+  /** Inherits the controller's scope. */
+  @Get("read")
+  read() {
+    return { ok: true };
+  }
+
+  /** Replaces the controller's scope with its own. */
+  @Get("write")
+  @RequireScopes("write")
+  write() {
+    return { ok: true };
+  }
+
+  @Get("both")
+  @RequireScopes("read", "write")
+  both() {
+    return { ok: true };
+  }
+}
+
+@Controller("jwt-only")
+@UseGuards(auth.JwtAuthGuard)
+class JwtOnlyController {
+  @Get()
+  get() {
+    return { ok: true };
+  }
+}
+
+async function boot(options: { apiKeys?: boolean; scopedRoutesOnly?: boolean; clientIp?: { trustedProxyHops?: number; isTrustedProxy?: (peer: string) => boolean } } = {}) {
   @Module({
     imports: [
       auth.AuthModule.forRoot({
         secret: SECRET,
         protectAllRoutes: true,
-        ...(options.apiKeys === false ? {} : { apiKeys: { store: MapStore, ...(options.clientIp ? { clientIp: options.clientIp } : {}) } }),
+        ...(options.apiKeys === false ? {} : { apiKeys: { store: MapStore, scopedRoutesOnly: options.scopedRoutesOnly, ...(options.clientIp ? { clientIp: options.clientIp } : {}) } }),
       }),
     ],
-    controllers: [ThingsController],
+    controllers: [ThingsController, ScopedController, JwtOnlyController],
   })
   class TestModule {}
   const app = await createHttpApplication(TestModule);
   const { port } = await app.listen(0, "127.0.0.1");
   opened.push(app);
-  return { app, url: (path: string) => `http://127.0.0.1:${port}/things/${path}` };
+  return { app, url: (path: string) => `http://127.0.0.1:${port}/${/^(scoped|jwt-only|things)(\/|$)/.test(path) ? "" : "things/"}${path}` };
 }
 
 const opened: Array<{ close(): Promise<void> }> = [];
@@ -198,6 +230,75 @@ describe("apiKeys in the auth module", () => {
       expect(proxied.status).toBe(200);
       expect(forged.status).toBe(401); // the last entry is the one the proxy wrote; the left is the client's
     });
+  });
+});
+
+const get = (url: string, key: string) => fetch(url, { headers: { "x-api-key": key } });
+
+describe("RequireScopes", () => {
+  it("lets a key through only when it holds the scope, and says 403 (not 401) when it does not", async () => {
+    const { url } = await boot();
+    const reader = addKey({ scopes: ["read"] });
+    const nothing = addKey({ scopes: [] });
+
+    expect((await get(url("scoped/read"), reader)).status).toBe(200);
+    expect((await get(url("scoped/read"), nothing)).status).toBe(403);
+  });
+
+  it("a route's own scope replaces the controller's, it does not add to it", async () => {
+    const { url } = await boot();
+    const reader = addKey({ scopes: ["read"] });
+    const writer = addKey({ scopes: ["write"] });
+
+    expect((await get(url("scoped/write"), reader)).status).toBe(403);
+    expect((await get(url("scoped/write"), writer)).status).toBe(200);
+    expect((await get(url("scoped/read"), writer)).status).toBe(403); // the controller's `read`, which this key lacks
+  });
+
+  it("requires all of several scopes, not any", async () => {
+    const { url } = await boot();
+
+    expect((await get(url("scoped/both"), addKey({ scopes: ["read"] }))).status).toBe(403);
+    expect((await get(url("scoped/both"), addKey({ scopes: ["write"] }))).status).toBe(403);
+    expect((await get(url("scoped/both"), addKey({ scopes: ["write", "read", "extra"] }))).status).toBe(200);
+  });
+
+  it("does not apply to a request authenticated with a token", async () => {
+    const { url } = await boot();
+
+    const response = await fetch(url("scoped/both"), { headers: { authorization: `Bearer ${await token({ sub: "u", roles: [] })}` } });
+
+    expect(response.status).toBe(200);
+  });
+
+  it("leaves a key alone on a route without scopes by default", async () => {
+    const { url } = await boot();
+
+    expect((await get(url("things/whoami"), addKey({ scopes: [] }))).status).toBe(200);
+  });
+
+  it("scopedRoutesOnly refuses a key on a route that does not say what it needs, and nothing else", async () => {
+    const { url } = await boot({ scopedRoutesOnly: true });
+    const key = addKey({ scopes: ["read", "write"] });
+    const jwt = { authorization: `Bearer ${await token({ sub: "u", roles: [] })}` };
+
+    expect((await get(url("things/whoami"), key)).status).toBe(403); // unannotated
+    expect((await get(url("scoped/read"), key)).status).toBe(200); // annotated
+    expect((await fetch(url("things/whoami"), { headers: jwt })).status).toBe(200); // a token is not a key
+    expect((await fetch(url("things/open"), { headers: { "x-api-key": key } })).status).toBe(200); // public stays public
+  });
+});
+
+describe("JwtAuthGuard", () => {
+  it("accepts tokens only: a key cannot get in through a guard that does not check scopes", async () => {
+    const { url } = await boot();
+    const key = addKey({ scopes: ["read", "write"] });
+
+    const withKey = await fetch(url("jwt-only"), { headers: { "x-api-key": key } });
+    const withToken = await fetch(url("jwt-only"), { headers: { authorization: `Bearer ${await token({ sub: "u", roles: [] })}` } });
+
+    expect(withKey.status).toBe(401);
+    expect(withToken.status).toBe(200);
   });
 });
 

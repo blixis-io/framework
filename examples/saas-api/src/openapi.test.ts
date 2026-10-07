@@ -32,10 +32,12 @@ function operationIds(doc: unknown): string[] {
 }
 
 describe("the OpenAPI document", () => {
-  it("is public, and declares bearer authentication for the whole API", async () => {
+  it("is public, and declares bearer and API key authentication for the whole API", async () => {
     expect((await call(test.app, "GET", "/openapi.json")).status).toBe(200);
     expect(field(document, "components", "securitySchemes", "bearerAuth")).toMatchObject({ type: "http", scheme: "bearer" });
-    expect(field(document, "security")).toEqual([{ bearerAuth: [] }]);
+    expect(field(document, "components", "securitySchemes", "apiKeyAuth")).toMatchObject({ type: "apiKey", in: "header", name: "x-api-key" });
+    // Either a person's token or an API key satisfies a route.
+    expect(field(document, "security")).toEqual([{ bearerAuth: [] }, { apiKeyAuth: [] }]);
   });
 
   it("marks exactly the routes that are @Public() as needing no token", () => {
@@ -55,7 +57,7 @@ describe("the OpenAPI document", () => {
   it("has an operation id for every route, and none twice", () => {
     const ids = operationIds(document);
 
-    expect(ids.length).toBe(13);
+    expect(ids.length).toBe(16);
     expect(new Set(ids).size).toBe(ids.length);
   });
 });

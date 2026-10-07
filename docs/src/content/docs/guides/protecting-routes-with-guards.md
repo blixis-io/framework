@@ -28,7 +28,7 @@ export class ApiKeyGuard implements CanActivate {
 ```
 
 :::caution
-This is a **single shared secret** read from an environment variable: it teaches the guard mechanics and is fine for a private service-to-service hop. It has no per-client identity, scopes, expiry, revocation or IP restriction. Per-client API keys with those properties are planned in `@blixis-io/auth` (see `PLAN.md`, X-19 to X-22); nothing of that is released yet.
+This is a **single shared secret** read from an environment variable: it teaches the guard mechanics and is fine for a private service-to-service hop. It has no per-client identity, scopes, expiry, revocation or IP restriction. For per-client keys with those properties, use the API keys in `@blixis-io/auth` ([reference](/framework/reference/blixis-auth/#api-keys)): hashed storage, expiry, revocation, scopes and network limits.
 :::
 
 ## 2. Register it as a provider

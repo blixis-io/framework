@@ -83,4 +83,19 @@ export const activity = saas.table("activity", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-export const schema = { users, organizations, spaces, memberships, projects, tasks, refreshTokens, rateLimits, outbox, activity };
+export const apiKeys = saas.table("api_keys", {
+  id: text("id").primaryKey(),
+  secretHash: text("secret_hash").notNull(),
+  name: text("name").notNull(),
+  organizationId: uuid("organization_id").notNull(),
+  spaceId: uuid("space_id").notNull(),
+  createdBy: uuid("created_by").notNull(),
+  scopes: text("scopes").array().notNull().default([]),
+  allowedCidrs: text("allowed_cidrs").array().notNull().default([]),
+  expiresAt: timestamp("expires_at", { withTimezone: true }),
+  revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+});
+
+export const schema = { users, organizations, spaces, memberships, projects, tasks, refreshTokens, rateLimits, outbox, activity, apiKeys };

@@ -1,4 +1,6 @@
 import { ApiOperation, ApiTags, Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, RequestContext, Returns, UseGuards } from "@blixis-io/http";
+import { KeyRateLimitGuard } from "../api-keys/key-rate-limit.guard.js";
+import { RequireScopes } from "../auth/auth.js";
 import { requireTenant, TenantScopedGuard } from "../tenancy/tenancy.js";
 import {
   CreateProjectSchema,
@@ -18,7 +20,10 @@ import { ProjectsService } from "./projects.service.js";
  * URL, answering 404 (never 403) to a non-member, and puts the tenant where `requireTenant` finds it.
  */
 @ApiTags("projects")
-@UseGuards(TenantScopedGuard)
+@UseGuards(TenantScopedGuard, KeyRateLimitGuard)
+// An API key needs `projects:read` for anything here; the writes below replace that with `projects:write`. A person's
+// token is not held to scopes.
+@RequireScopes("projects:read")
 @Controller("spaces/:spaceId/projects")
 export class ProjectsController {
   constructor(
@@ -33,6 +38,7 @@ export class ProjectsController {
     return this.projects.list(requireTenant(this.ctx));
   }
 
+  @RequireScopes("projects:write")
   @Post()
   @HttpCode(201)
   @Returns(ProjectSchema)
@@ -48,6 +54,7 @@ export class ProjectsController {
     return this.projects.get(requireTenant(this.ctx), id);
   }
 
+  @RequireScopes("projects:write")
   @Patch(":id")
   @Returns(ProjectSchema)
   @ApiOperation({ summary: "Rename a project" })
@@ -55,6 +62,7 @@ export class ProjectsController {
     return this.projects.update(requireTenant(this.ctx), id, body);
   }
 
+  @RequireScopes("projects:write")
   @Delete(":id")
   @HttpCode(204)
   @ApiOperation({ summary: "Delete a project and its tasks" })
@@ -69,6 +77,7 @@ export class ProjectsController {
     return this.projects.listTasks(requireTenant(this.ctx), id);
   }
 
+  @RequireScopes("projects:write")
   @Post(":id/tasks")
   @HttpCode(201)
   @Returns(TaskSchema)

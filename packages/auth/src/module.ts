@@ -103,6 +103,7 @@ export interface AuthModuleOptions<Claims = unknown> {
 // `Symbol.for`, so metadata set with one copy of this package is read by another.
 const ROLES_METADATA = Symbol.for("blixis:auth:roles");
 const PUBLIC_METADATA = Symbol.for("blixis:auth:public");
+const SCOPES_METADATA = Symbol.for("blixis:auth:scopes");
 
 /**
  * Requires the authenticated user to hold at least one of `roles` (read from the token's `roles` claim).
@@ -112,6 +113,17 @@ const PUBLIC_METADATA = Symbol.for("blixis:auth:public");
  */
 export function Roles(...roles: readonly string[]): ClassDecorator & MethodDecorator {
   return SetRouteMetadata(ROLES_METADATA, [...roles]);
+}
+
+/**
+ * Requires an **API key** to hold **all** of `scopes` (the key's `scopes`, as stored). A key without one of them is a 403.
+ * It limits keys only: a request authenticated with a token is not affected, because a person's permissions come from
+ * their roles and membership, not from scopes. On a controller it covers every route in it; on a route it replaces the
+ * controller's. Like `@Roles`, it only takes effect where `AuthGuard` runs. Pair it with `apiKeys.scopedRoutesOnly` so a key
+ * cannot reach a route that forgot to say what it needs.
+ */
+export function RequireScopes(...scopes: readonly string[]): ClassDecorator & MethodDecorator {
+  return SetRouteMetadata(SCOPES_METADATA, [...scopes]);
 }
 
 /** Skips authentication for a route (or every route in a controller): the right place for a login or health endpoint when `protectAllRoutes` is on. */
@@ -230,11 +242,11 @@ export function defineAuthModule<Schema extends ZodType>(
     constructor(
       @Inject(AUTH_OPTIONS) private readonly options: NormalizedAuthOptions,
       private readonly ctx: RequestContext,
-      @Inject(API_KEY_VERIFIER) private readonly apiKeys: ApiKeyVerifier<Claims> | null,
     ) {}
 
     async canActivate({ request }: ExecutionContext): Promise<boolean> {
-      await authenticate(request, this.options, this.ctx, this.apiKeys);
+      // Tokens only, on purpose: scopes are enforced by `AuthGuard`, so a key must not get in through a guard that cannot check them.
+      await authenticate(request, this.options, this.ctx, null);
       return true;
     }
   }
@@ -255,6 +267,19 @@ export function defineAuthModule<Schema extends ZodType>(
         }
 
         const user = await authenticate(context.request, this.options, this.ctx, this.apiKeys);
+
+        const key = getCurrentApiKey(this.ctx);
+        if (key) {
+          // Only API keys are held to scopes. A key may reach a route only if the route says what it needs, when asked to.
+          const needed = getRouteMetadata(SCOPES_METADATA, context);
+          if (!isStringArray(needed) || needed.length === 0) {
+            if (this.apiKeys?.scopedRoutesOnly) {
+              return false;
+            }
+          } else if (!needed.every((scope) => key.scopes.includes(scope))) {
+            return false;
+          }
+        }
 
         const required = getRouteMetadata(ROLES_METADATA, context);
         if (isStringArray(required) && required.length > 0) {
@@ -333,7 +358,7 @@ export function defineAuthModule<Schema extends ZodType>(
             useFactory: (store: ApiKeyStore) =>
               createApiKeyVerifier<Claims>({
                 store,
-                options: { clientIp: apiKeyOptions.clientIp, cacheSeconds: apiKeyOptions.cacheSeconds, lastUsedIntervalSeconds: apiKeyOptions.lastUsedIntervalSeconds },
+                options: { clientIp: apiKeyOptions.clientIp, cacheSeconds: apiKeyOptions.cacheSeconds, lastUsedIntervalSeconds: apiKeyOptions.lastUsedIntervalSeconds, scopedRoutesOnly: apiKeyOptions.scopedRoutesOnly },
                 parseClaims: async (value) => {
                   const parsed = await claimsSchema.safeParseAsync(value);
                   return parsed.success ? { success: true, data: parsed.data } : { success: false };

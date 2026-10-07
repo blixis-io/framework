@@ -1,5 +1,6 @@
 import { Module, type DynamicModule } from "@blixis-io/core";
 import { type Class } from "@blixis-io/di";
+import { DrizzleApiKeyStore } from "./api-keys/api-key.store.js";
 import { AccountsService } from "./auth/accounts.service.js";
 import { AuthController } from "./auth/auth.controller.js";
 import { AuthModule } from "./auth/auth.js";
@@ -27,13 +28,21 @@ export function createAppModule(env: Record<string, string | undefined>, hooks: 
       // Every route needs a token unless it says `@Public()`: a controller added later cannot be forgotten and left open.
       protectAllRoutes: true,
       issuing: { credentialStore: DrizzleCredentialStore, refreshTokenStore: DrizzleRefreshTokenStore },
+      apiKeys: {
+        store: DrizzleApiKeyStore,
+        // A key may only reach routes that say which scope they need; a route nobody annotated is closed to keys.
+        scopedRoutesOnly: true,
+        // The address an `allowedCidrs` check sees: the same proxy rule as the rate limiter.
+        clientIp: { trustedProxyHops: config.TRUSTED_PROXY_HOPS },
+        lastUsedIntervalSeconds: 60,
+      },
     }),
     HealthModule.forRoot(),
     OutboxModule.forRoot({ pollMs: config.OUTBOX_POLL_MS, maxAttempts: config.OUTBOX_MAX_ATTEMPTS, ...(hooks.onOutboxError ? { onError: hooks.onOutboxError } : {}) }),
   ];
 
   @Module({
-    imports: [...imports, ProjectsModule],
+    imports: [...imports, ProjectsModule.forRoot({ keyRateLimitPerMinute: config.API_KEY_RATE_LIMIT_PER_MINUTE })],
     providers: [AccountsService, DatabaseHealth, MembershipDirectoryWiring, MigrateCommand],
     controllers: [AuthController, SpacesController],
   })
