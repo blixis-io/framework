@@ -10,16 +10,26 @@ See [Guards & Authorization](/framework/concepts/guards-and-authorization/) for 
 ## 1. Write the guard
 
 ```ts title="src/auth/api-key.guard.ts"
+import { createHash, timingSafeEqual } from "node:crypto";
 import type { CanActivate, ExecutionContext } from "@blixis-io/http";
 import { Injectable } from "@blixis-io/di";
+
+const digest = (value: string) => createHash("sha256").update(value).digest();
 
 @Injectable()
 export class ApiKeyGuard implements CanActivate {
   canActivate(context: ExecutionContext): boolean {
-    return context.request.headers.get("x-api-key") === process.env["API_KEY"];
+    const expected = process.env["API_KEY"];
+    const given = context.request.headers.get("x-api-key");
+    // Compare digests in constant time, so the response time does not reveal how much of a guess was right.
+    return expected !== undefined && given !== null && timingSafeEqual(digest(given), digest(expected));
   }
 }
 ```
+
+:::caution
+This is a **single shared secret** read from an environment variable: it teaches the guard mechanics and is fine for a private service-to-service hop. It has no per-client identity, scopes, expiry, revocation or IP restriction. Per-client API keys with those properties are planned in `@blixis-io/auth` (see `PLAN.md`, X-19 to X-22); nothing of that is released yet.
+:::
 
 ## 2. Register it as a provider
 

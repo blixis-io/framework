@@ -83,7 +83,24 @@ Legend: `[me]` an agent can do it unattended, `[you]` needs your hands (npm, Git
   - [x] the JSONC stripper in `cli/doctor.ts` (6 properties: comments and trailing commas anywhere, string contents untouched, identity on plain JSON, never throws, stable) and the PHC hash parser in `auth` (7: agrees with Node's own Argon2 on random small parameters, anything that is not a hash refused with the documented error, the limits hold at their edges and a hash asking for more is refused before any work); both agreed with their documented behaviour, no bug found (#135); mutating each (dropping the trailing-comma check, raising the pass limit) fails them
 - [ ] Deferred, unchanged: uploads, WebSockets, caching, more ORMs/runtimes, Node-only entry split.
 
-## Decisions (all approved as recommended)
+## Phase 4: API keys (not started; added 2026-10-07)
+
+Today there is **no** API key feature: the guards guide shows one shared secret, `auth` only verifies JWTs. Design and reasoning in `PLAN.md` (Phase 4). Decision D-9: inside `@blixis-io/auth`, **no new package** (so no npm placeholder or trusted publisher needed).
+
+- [ ] **X-19 CIDR matching** in `@blixis-io/security` (`parseCidr`, `ipInCidrs`; IPv4, IPv6, IPv4-mapped; malformed input refused at construction) with a property test against a brute-force model [me] S
+- [ ] **X-20 API key guard** in `@blixis-io/auth` [me] L
+  - [ ] `blx_<id>_<secret>`, SHA-256 of the secret stored, constant-time compare, secret shown once
+  - [ ] `ApiKeyStore` interface + Postgres example and test; fail closed on store errors
+  - [ ] scopes, `expiresAt`, `revokedAt`, optional `allowedCidrs`, best-effort `lastUsedAt`
+  - [ ] `apiKeys` option on `defineAuthModule`: Bearer JWT or `x-api-key`, same claims shape
+  - [ ] one 401 for every failure, similar timing for unknown id and wrong secret
+  - [ ] optional positive-lookup cache, default off; revocation latency documented
+- [ ] **X-21** per-key rate limit example, `RequireScopes`, used in the reference app [me] S
+- [ ] **X-22 Operating keys guide**: rotation with overlap, revocation, what to log (redact `x-api-key` in the access log), where 2FA belongs, proxy setup for IP allowlists [me] M
+- [x] the guards guide now compares the shared secret in constant time and says what it is not (this PR)
+- [ ] decisions: D-9 inside `auth`, D-10 CIDR in `security`, D-11 SHA-256 for the secret. Written as recommendations; **[you]** confirm or change before X-19 starts.
+
+## Decisions (D-1 to D-8 approved as recommended)
 
 | ID | Decision | Used by |
 | --- | --- | --- |
@@ -95,6 +112,9 @@ Legend: `[me]` an agent can do it unattended, `[you]` needs your hands (npm, Git
 | D-6 | access-token revocation hook: not now, document short TTLs | X-9 (done as docs) |
 | D-7 | security baseline in a new package `@blixis-io/security` | X-7 |
 | D-8 | health in its own package `@blixis-io/health` | X-10 |
+| D-9 | API keys inside `@blixis-io/auth`, no new package | X-20 (proposed) |
+| D-10 | CIDR matching in `@blixis-io/security` | X-19 (proposed) |
+| D-11 | store SHA-256 of the key secret, not a slow hash | X-20 (proposed) |
 
 ## Releases
 
