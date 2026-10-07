@@ -85,6 +85,7 @@ interface OnApplicationShutdown {
 }
 
 function hasOnModuleInit(instance: unknown): instance is OnModuleInit;
+function hasOnApplicationBootstrap(instance: unknown): instance is OnApplicationBootstrap;
 function hasOnApplicationShutdown(instance: unknown): instance is OnApplicationShutdown;
 ```
 

@@ -7,7 +7,7 @@ sidebar:
 
 Blixis is a TypeScript framework for building API-first backends: a dependency injection container, a decorator-based HTTP layer, and a module system, built from scratch rather than assembled from an existing framework.
 
-It's made of thirteen independent packages:
+It's made of eighteen packages: seventeen you add to an app, and `create-blixis`, which you run once to start one.
 
 - **`@blixis-io/di`** — the dependency injection container. `@Injectable`, `@Inject`, tokens, providers, singleton/transient scopes.
 - **`@blixis-io/core`** — the module system built on top of `@blixis-io/di`. `@Module`, lifecycle hooks, application bootstrapping.
@@ -21,9 +21,14 @@ It's made of thirteen independent packages:
 - **`@blixis-io/cli`** — the `blix` binary. `blix generate <type> <name>` scaffolds one controller/service/module/guard/interceptor file from a template. No `@blixis-io/*` dependency at all — a dev-time text-template tool, not a runtime library.
 - **`@blixis-io/tenancy`** — request-scoped multi-tenant access control (`TenantScopedGuard`, a fail-closed `tenantScope()` query helper). Owns the mechanism only — no Organization/Space/Membership data model — so it's reusable by any multi-tenant app, not just a CMS.
 - **`@blixis-io/events`** — an in-process domain event bus (`defineEventsModule`, `EventBus.emit`/`on`). Depends only on `@blixis-io/core`, like `@blixis-io/logging`/`@blixis-io/config`/`@blixis-io/db` — usable in any app, HTTP or not.
+- **`@blixis-io/commands`** — `@Command`: command-line tasks (a migration, a seed, a backfill) written as injectable classes and run with `blix run`, with the same container and providers as the server. Built on `@blixis-io/cli`, `core`, `di` and `http`.
+- **`@blixis-io/deploy`** — `blix deploy`: builds your app as a Docker image, pushes it, and generates a CI workflow; adapters for Vercel, Netlify and Cloudflare Workers. Depends on `@blixis-io/cli` only.
+- **`@blixis-io/security`** — optional middleware: CORS with explicit origins, security headers, rate limiting with a pluggable shared store, a proxy-aware client address, and CIDR matching for allowlists. Nothing is on by default. Needs `@blixis-io/http`.
+- **`@blixis-io/health`** — `/livez` and `/readyz`, with readiness checks registered by the providers that own the dependency, and "not ready" while the application drains. Needs `core`, `di` and `http`.
+- **`create-blixis`** — `pnpm create blixis my-app`: scaffolds a runnable starter app, installs it, and can set up deploy and CI.
 - **`@blixis-io/testing`** — a thin testing layer on top of `@blixis-io/http`. Build a real application in a test, override providers with fakes, hit it with real requests.
 
-Dependencies only point down: `di` depends on nothing; `core` depends on `di`; `http`, `logging`, `config`, `db`, and `events` all depend on `core` (and, transitively, `di`) but not on each other; `auth`, `openapi`, and `tenancy` all depend on `http`; `method-hooks` and `cli` both depend on nothing; `testing` depends on `http`. You can use `@blixis-io/di` — or `@blixis-io/di` + `@blixis-io/core` + `@blixis-io/logging`/`@blixis-io/config`/`@blixis-io/db`/`@blixis-io/events` — on their own without any of the HTTP machinery.
+Dependencies only point down: `di` depends on nothing; `core` depends on `di`; `http`, `logging`, `config`, `db`, and `events` all depend on `core` (and, transitively, `di`) but not on each other; `auth`, `openapi`, `tenancy`, `security` and `health` all depend on `http` (`health` also on `core`), and `auth` additionally carries `security` as a regular dependency, for the network limits on API keys; `commands` depends on `cli`, `core`, `di` and `http`, and `deploy` on `cli`; `method-hooks` and `cli` both depend on nothing; `testing` depends on `http`. You can use `@blixis-io/di` — or `@blixis-io/di` + `@blixis-io/core` + `@blixis-io/logging`/`@blixis-io/config`/`@blixis-io/db`/`@blixis-io/events` — on their own without any of the HTTP machinery.
 
 ## Why build this instead of using an existing framework
 
