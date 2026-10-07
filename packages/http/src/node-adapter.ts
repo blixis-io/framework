@@ -1,6 +1,5 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { Readable } from "node:stream";
-import { pipeline } from "node:stream/promises";
 import { recordRemoteAddress } from "./remote-address.js";
 
 /** What the client may tell the server about its own address. Everything is off by default: headers are client input. */
@@ -126,18 +125,53 @@ export async function sendWebResponse(response: Response, res: ServerResponse): 
     return;
   }
 
-  // `pipeline` (not `pipe`) so the streams are torn down together: a client that disconnects
-  // mid-response destroys the body, which cancels the web stream's source instead of leaving
-  // its producer (a DB cursor, a file handle) running. An early disconnect isn't an error.
+  // A plain reader loop, not `pipeline(Readable.fromWeb(body), res)`: `pipeline` builds an AbortController per call and
+  // aborts it when it finishes, which creates a DOMException (with a stack trace) on **every** response. In a profile
+  // that was about a tenth of the server's time for a small response. This keeps what `pipeline` gave us:
+  // - backpressure: wait for `drain` when the socket is full;
+  // - a client that disconnects mid-response cancels the body's source (a DB cursor, a file handle) and is not an error;
+  // - an error from the body destroys the response and is thrown to the caller.
+  const reader = response.body.getReader();
+  const cancel = (): void => {
+    reader.cancel().catch(() => {});
+  };
+  res.once("close", cancel);
   try {
-    await pipeline(Readable.fromWeb(response.body), res);
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done || res.destroyed) {
+        break;
+      }
+      if (!res.write(value)) {
+        await drained(res);
+      }
+    }
+    if (!res.destroyed) {
+      res.end();
+    }
   } catch (error) {
-    if (!isPrematureClose(error)) {
-      throw error;
+    res.destroy();
+    throw error;
+  } finally {
+    res.off("close", cancel);
+    if (res.destroyed) {
+      cancel();
     }
   }
 }
 
-function isPrematureClose(error: unknown): boolean {
-  return error instanceof Error && "code" in error && error.code === "ERR_STREAM_PREMATURE_CLOSE";
+/** Resolves when the socket can take more, or when it is gone (a `drain` that will never come). */
+function drained(res: ServerResponse): Promise<void> {
+  if (res.destroyed) {
+    return Promise.resolve();
+  }
+  return new Promise((resolve) => {
+    const done = (): void => {
+      res.off("drain", done);
+      res.off("close", done);
+      resolve();
+    };
+    res.once("drain", done);
+    res.once("close", done);
+  });
 }

@@ -216,11 +216,16 @@ export class HttpApplication {
     }
     this.#listening = true;
     return new Promise((resolve, reject) => {
+      // Built on the first request and kept: the address cannot change once the server is listening, and asking for it
+      // and formatting it on every request was measurable (about 2% of the server's time in a profile).
+      let listening: string | undefined;
       const server = createServer((req, res) => {
-        // The port actually bound, not the one asked for: listen(0) picks a free one.
-        const bound = server.address();
-        const boundPort = typeof bound === "object" && bound !== null ? bound.port : port;
-        const request = toWebRequest(req, resolveOrigin(req, listenOrigin(hostname, boundPort), this.#origin), res);
+        if (listening === undefined) {
+          // The port actually bound, not the one asked for: listen(0) picks a free one.
+          const bound = server.address();
+          listening = listenOrigin(hostname, typeof bound === "object" && bound !== null ? bound.port : port);
+        }
+        const request = toWebRequest(req, resolveOrigin(req, listening, this.#origin), res);
         this.handle(request)
           .then((response) => sendWebResponse(response, res))
           /* v8 ignore start -- @preserve: safety net for a write failure
