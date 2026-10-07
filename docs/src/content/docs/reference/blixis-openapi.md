@@ -22,7 +22,7 @@ interface OpenApiDocumentOptions {
   description?: string;
   securitySchemes?: Record<string, OpenApiSecurityScheme>; // declared under components.securitySchemes
   security?: (string | OpenApiSecurityRequirement)[]; // applies to every operation unless @ApiSecurity overrides it
-  onUnrepresentable?: "open" | "warn" | "throw"; // default "open"
+  onUnrepresentable?: UnrepresentableMode; // "open" | "warn" | "throw", default "open"
 }
 ```
 

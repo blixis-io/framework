@@ -35,12 +35,16 @@ The framework packages share state (decorator metadata, the DI container, `Reque
 | --- | --- |
 | `@blixis-io/core` | `@blixis-io/di` |
 | `@blixis-io/http` | `@blixis-io/core`, `@blixis-io/di`, `zod` |
-| `@blixis-io/auth`, `@blixis-io/tenancy`, `@blixis-io/testing` | `@blixis-io/http` (so also core, di, zod) |
+| `@blixis-io/auth`, `@blixis-io/tenancy`, `@blixis-io/testing`, `@blixis-io/security` | `@blixis-io/http` (so also core, di, zod) |
+| `@blixis-io/health` | `@blixis-io/core`, `@blixis-io/di`, `@blixis-io/http` |
 | `@blixis-io/openapi` | `@blixis-io/http`, `@blixis-io/di`, `zod` |
 | `@blixis-io/config` | `@blixis-io/core`, `@blixis-io/di`, `zod` |
 | `@blixis-io/events`, `@blixis-io/logging` | `@blixis-io/core`, `@blixis-io/di` |
 | `@blixis-io/db`, `@blixis-io/tenancy` | `drizzle-orm` (plus `pg` for db) |
-| `@blixis-io/commands`, `@blixis-io/deploy` | `@blixis-io/cli`; commands also `@blixis-io/core` and `@blixis-io/di` |
+| `@blixis-io/commands` | `@blixis-io/cli`, `@blixis-io/core`, `@blixis-io/di`, `@blixis-io/http` |
+| `@blixis-io/deploy` | `@blixis-io/cli` |
+
+`@blixis-io/auth` also depends on `@blixis-io/security` as an ordinary dependency (it uses it to limit API keys to networks), so installing `auth` installs `security` with it; there is nothing extra to add.
 
 pnpm and npm 7+ install missing peers for you; yarn and bun may only warn, so add them yourself (each package's README has the exact install line). `pnpm create blixis` installs them for you.
 

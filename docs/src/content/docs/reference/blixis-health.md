@@ -54,8 +54,10 @@ Without `onCheckFailed`, a check that starts failing is written once with `conso
 ```ts
 interface ReadinessReport {
   status: "ok" | "fail" | "draining";
-  checks: Record<string, { status: "ok" | "fail"; durationMs: number }>;
+  checks: Record<string, CheckResult>;
 }
+
+interface CheckResult { status: "ok" | "fail"; durationMs: number }
 ```
 
 `/readyz` answers this as JSON: `200` for `"ok"`, `503` otherwise. The error of a failing check is never in it. `/livez` answers `200 {"status":"ok"}` without running any check. Both send `Cache-Control: no-store`; `HEAD` gets the status without a body.

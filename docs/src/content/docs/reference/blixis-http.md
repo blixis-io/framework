@@ -22,7 +22,7 @@ interface MiddlewareOptions {
 
 interface HandlerOptions {
   // ... bodyLimit, requestTimeout, responseValidation
-  onError?: (report: ErrorReport) => void; // every unexpected error; default console.error(error)
+  onError?: ErrorReporter; // (report: ErrorReport) => void: every unexpected error; default console.error(error)
 }
 
 interface ErrorReport {
@@ -57,7 +57,7 @@ class HttpApplication {
   get<T>(token: Token<T>): T;
   get controllers(): readonly Class[];
   handle(request: Request): Promise<Response>;
-  mount(method: "GET" | "POST", path: string, handler: (request: Request) => Response | Promise<Response>): void;
+  mount(method: "GET" | "POST", path: string, handler: MountedHandler): void; // type MountedHandler = (request: Request) => Response | Promise<Response>
   listen(port: number, hostname?: string): Promise<ListenHandle>; // hostname defaults to "0.0.0.0"
   readonly draining: boolean; // true once startDraining() or close() has been called
   startDraining(): void; // mark as draining without closing; keeps serving
@@ -251,11 +251,13 @@ The address of the peer that connected, for the request being served. `undefined
 ## Observability helpers
 
 ```ts
-function requestId(options?: { header?: string; generate?: () => string; trustIncoming?: boolean }): Middleware;
+function requestId(options?: RequestIdOptions): Middleware;
 function currentRequestId(): string | undefined;
-function accessLog(options: { log: (entry: AccessLogEntry) => void }): Middleware;
+function accessLog(options: AccessLogOptions): Middleware;
 function withResponseHeaders(response: Response, headers: Readonly<Record<string, string>>): Response;
 
+interface RequestIdOptions { header?: string; generate?: () => string; trustIncoming?: boolean }
+interface AccessLogOptions { log: (entry: AccessLogEntry) => void }
 interface AccessLogEntry { method: string; path: string; status: number; durationMs: number; requestId?: string }
 ```
 

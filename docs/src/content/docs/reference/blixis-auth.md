@@ -243,7 +243,7 @@ AuthModule.forRoot({
 
 ### `generateApiKey()`, `parseApiKey(text)`, `hashApiKeySecret(secret)`
 
-`generateApiKey()` returns `{ id, key, secretHash }`: `key` is `blx_<id>_<secret>` (the id 12 random bytes in hex, the secret 32 random bytes in base64url, 256 bits from the system's CSPRNG). **Show `key` once and store only `id` and `secretHash`.** The hash is a plain SHA-256 on purpose: the secret has nothing to guess, and a slow password hash would only cost every request time. (Static analysers that flag a fast hash on anything called a secret, such as CodeQL's `js/insufficient-password-hash`, are looking for human-chosen passwords; this value is 256 random bits.) The comparison is constant time (`timingSafeEqual`), and an unknown id is compared against a dummy hash so it costs about what a wrong secret costs (by construction: not measured here).
+`generateApiKey()` returns a `GeneratedApiKey`, `{ id, key, secretHash }`; `API_KEY_HEADER` is the header name, `"x-api-key"`: `key` is `blx_<id>_<secret>` (the id 12 random bytes in hex, the secret 32 random bytes in base64url, 256 bits from the system's CSPRNG). **Show `key` once and store only `id` and `secretHash`.** The hash is a plain SHA-256 on purpose: the secret has nothing to guess, and a slow password hash would only cost every request time. (Static analysers that flag a fast hash on anything called a secret, such as CodeQL's `js/insufficient-password-hash`, are looking for human-chosen passwords; this value is 256 random bits.) The comparison is constant time (`timingSafeEqual`), and an unknown id is compared against a dummy hash so it costs about what a wrong secret costs (by construction: not measured here).
 
 ### `ApiKeyStore`
 
@@ -266,7 +266,7 @@ interface ApiKeyRecord {
 
 A reference Postgres store, with `create`, `revoke` and last-used tracking, is in the repository (`packages/auth/src/postgres-api-key-store.example.ts`, run against a real database by its test). It is not exported: copy it.
 
-### `apiKeys` options
+### `apiKeys` options (`ApiKeyOptions`)
 
 | Option | Meaning |
 | --- | --- |

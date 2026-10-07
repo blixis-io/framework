@@ -73,7 +73,7 @@ Counted responses carry `RateLimit-Limit`, `RateLimit-Remaining`, `RateLimit-Res
 
 ```ts
 class MemoryRateLimitStore implements RateLimitStore {
-  constructor(options?: { maxKeys?: number; now?: () => number }); // maxKeys default 100 000
+  constructor(options?: MemoryRateLimitStoreOptions); // { maxKeys?: number; now?: () => number }, maxKeys default 100 000
 }
 ```
 
