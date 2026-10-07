@@ -144,6 +144,9 @@ importers:
       '@blixis-io/auth':
         specifier: workspace:*
         version: link:../../packages/auth
+      '@blixis-io/cli':
+        specifier: workspace:*
+        version: link:../../packages/cli
       '@blixis-io/commands':
         specifier: workspace:*
         version: link:../../packages/commands
@@ -184,9 +187,6 @@ importers:
         specifier: ^4.6.5
         version: 4.6.5
     devDependencies:
-      '@blixis-io/cli':
-        specifier: workspace:*
-        version: link:../../packages/cli
       '@blixis-io/deploy':
         specifier: workspace:*
         version: link:../../packages/deploy
