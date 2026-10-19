@@ -34,11 +34,11 @@
     "@blixis-io/core": "workspace:*",
     "@blixis-io/di": "workspace:*",
     "@blixis-io/http": "workspace:*",
-    "zod": "^4.6.5"
+    "zod": "^4.6.7"
   },
   "peerDependencies": {
     "@blixis-io/di": "workspace:^",
     "@blixis-io/http": "workspace:^",
-    "zod": "^4.6.5"
+    "zod": "^4.6.7"
   }
 }
