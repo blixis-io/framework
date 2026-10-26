@@ -33,11 +33,11 @@
   "peerDependencies": {
     "@blixis-io/core": "workspace:^",
     "@blixis-io/di": "workspace:^",
-    "zod": "^4.6.5"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@blixis-io/core": "workspace:*",
     "@blixis-io/di": "workspace:*",
-    "zod": "^4.6.5"
+    "zod": "^4.6.7"
   }
 }
