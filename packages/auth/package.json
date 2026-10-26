@@ -32,13 +32,13 @@
   },
   "dependencies": {
     "@blixis-io/security": "workspace:^",
-    "jose": "^6.2.12"
+    "jose": "^6.2.13"
   },
   "peerDependencies": {
     "@blixis-io/core": "workspace:^",
     "@blixis-io/di": "workspace:^",
     "@blixis-io/http": "workspace:^",
-    "zod": "^4.6.5"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@blixis-io/core": "workspace:*",
@@ -47,6 +47,6 @@
     "@types/pg": "^8.23.1",
     "fast-check": "^4.10.2",
     "pg": "^8.23.1",
-    "zod": "^4.6.5"
+    "zod": "^4.6.7"
   }
 }
