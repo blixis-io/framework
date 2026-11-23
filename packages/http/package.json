@@ -38,7 +38,7 @@
   "devDependencies": {
     "@blixis-io/core": "workspace:*",
     "@blixis-io/di": "workspace:*",
-    "fast-check": "^4.10.2",
+    "fast-check": "^4.10.3",
     "zod": "^4.6.5"
   }
 }

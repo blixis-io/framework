@@ -35,7 +35,7 @@
   },
   "devDependencies": {
     "@blixis-io/cli": "workspace:*",
-    "fast-check": "^4.10.2",
+    "fast-check": "^4.10.3",
     "yaml": "^2.9.1"
   },
   "dependencies": {
